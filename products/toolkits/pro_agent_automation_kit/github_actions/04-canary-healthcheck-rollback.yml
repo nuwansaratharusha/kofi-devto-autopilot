@@ -1,0 +1,56 @@
+name: 04 - Post-Deploy Canary Healthcheck & Dead-Letter Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      healthcheck_url:
+        description: 'HTTPS health endpoint to probe'
+        required: true
+        default: 'https://example.org/healthz'
+
+permissions:
+  contents: read
+
+jobs:
+  canary-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe endpoint with bounded retry & audit SQLite WAL dead-letter queue
+        env:
+          TARGET_URL: ${{ inputs.healthcheck_url }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys, time, urllib.error, urllib.request
+
+          url = os.environ["TARGET_URL"].strip()
+          if not url.startswith("https://"):
+              raise SystemExit(f"Refusing non-HTTPS canary target: {url}")
+
+          last_err = None
+          for attempt in range(1, 4):
+              try:
+                  req = urllib.request.Request(url, headers={"User-Agent": "CanaryProbe/1.0"})
+                  with urllib.request.urlopen(req, timeout=5.0) as resp:
+                      if 200 <= resp.status < 300:
+                          print(f"Canary HTTP {resp.status} OK on attempt {attempt}: {url}")
+                          last_err = None
+                          break
+                      last_err = f"Unexpected HTTP status {resp.status}"
+              except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                  last_err = str(exc)
+              time.sleep(0.5 * attempt)
+
+          if last_err is not None:
+              print(f"CANARY FAILED for {url}: {last_err}", file=sys.stderr)
+              raise SystemExit(1)
+
+          if os.path.exists("wal_queue.py"):
+              proc = subprocess.run([sys.executable, "wal_queue.py", "--db", "state/wal_queue.db", "stats"], capture_output=True, text=True, check=True)
+              stats = json.loads(proc.stdout)
+              print("WAL Queue Stats:", json.dumps(stats))
+              if int(stats.get("dead_letter", 0)) > 0:
+                  print(f"ALERT: {stats['dead_letter']} dead-lettered jobs require inspection!", file=sys.stderr)
+                  raise SystemExit(2)
+          PY

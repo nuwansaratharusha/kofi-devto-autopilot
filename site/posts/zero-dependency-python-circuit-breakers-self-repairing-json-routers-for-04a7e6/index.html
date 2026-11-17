@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs — Tharusha Nuwansara</title>
+  <meta name="description" content="How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and route around upstream brownouts using pure Python 3.11+ standard library code." />
+  <meta name="author" content="Tharusha Nuwansara" />
+  <link rel="canonical" href="https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/" />
+  <link rel="alternate" type="application/rss+xml" title="Tharusha Nuwansara — Verified Reliability RSS" href="../../feed.xml" />
+  <meta property="og:title" content="Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs — Tharusha Nuwansara" />
+  <meta property="og:description" content="How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and route around upstream brownouts using pure Python 3.11+ standard library code." />
+  <meta property="og:url" content="https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/" />
+  <meta property="og:type" content="article" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-link" href="../../index.html">Tharusha Nuwansara · Reliability Lab</a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
+          <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
+          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <div class="container article-shell">
+      <article class="h-entry">
+        <header class="article-header">
+          <div class="meta-row">
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (107.07 ms)</span>
+            <span class="badge">Monday Pillar</span>
+            <time class="dt-published tabular" datetime="2026-11-17T14:59:34Z">2026-11-17</time>
+            <span>by <a class="p-author h-card" href="https://ko-fi.com/tharushanuwansara" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
+          </div>
+          <h1 class="p-name">Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs</h1>
+          <p class="p-summary article-subtitle">How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and route around upstream brownouts using pure Python 3.11+ standard library code.</p>
+          <div class="meta-row"><span class="badge">#python</span><span class="badge">#ai</span><span class="badge">#architecture</span><span class="badge">#backend</span></div>
+        </header>
+        <div class="e-content">
+<h2>The Production Failure Mode Nobody Catches in Local Demos</h2>
+<p>Most AI workflows and external API integrations pass every local happy-path check and fail violently during their first upstream brownout. When a model endpoint or third-party REST gateway begins returning intermittent <code>HTTP 429</code> or <code>HTTP 503</code> responses—or wraps a JSON object inside unexpected Markdown fences—three compounding failures happen simultaneously in naive client code:</p>
+<ol><li><strong>Synchronized Retry Amplification:</strong> Twenty concurrent workers hit a timeout, sleep for fixed <code>2^n</code> intervals, and wake up in lockstep to hammer the degraded upstream endpoint again.</li><li><strong>Thread and Coroutine Starvation:</strong> Every incoming request still waits out the full socket timeout against a dead primary provider instead of failing fast within microseconds and routing to a healthy secondary model.</li><li><strong>Silent Schema Drift:</strong> Even when HTTP status <code>200</code> returns, parsing raw text with <code>json.loads</code> crashes on fenced blocks, or worse, accepts Python <code>True</code> where an <code>int</code> priority score was expected because <code>bool</code> subclasses <code>int</code> in Python&#x27;s type hierarchy (<code>isinstance(True, int) == True</code>).</li></ol>
+<p>In this empirical teardown—<em>Benchmarking deterministic CLOSED -&gt; OPEN -&gt; HALF_OPEN state machines, strict JSON repair loops, and hard token budgets without heavy agent frameworks.</em> (context reference: <a href="https://docs.python.org/3/library/urllib.request.html" rel="noopener">Python 3 Standard Library Docs</a>)—we build and benchmark a zero-dependency Python 3.11+ circuit breaker paired with a strict scalar validator that eliminates dropped requests across a simulated 25-request primary outage burst and 30-second recovery cooldown.</p>
+<h2>Architectural Invariants Before Writing Code</h2>
+<p>Before adding a single retry loop, production reliability code needs four explicit invariants that hold without Redis, Celery, or heavyweight agent SDKs:</p>
+<div class="table-scroll"><table><thead><tr><th scope="col">Invariant</th><th scope="col">Naive Implementation Flaw</th><th scope="col">Deterministic Fix</th></tr></thead><tbody><tr><td><strong>Fast-Fail State Machine</strong></td><td>Every request pays a 10-second socket timeout during a provider outage</td><td>Track consecutive transport failures and trip <code>CLOSED -&gt; OPEN</code> so callers fail over in <code>&lt; 0.01 ms</code></td></tr><tr><td><strong>Half-Open Probe Recovery</strong></td><td>Permanently blacklists a recovered primary provider until process restart</td><td>Automatically transition <code>OPEN -&gt; HALF_OPEN</code> once <code>cooldown_sec</code> elapses and promote back to <code>CLOSED</code> on the first clean probe</td></tr><tr><td><strong>Strict Scalar Coercion</strong></td><td><code>isinstance(True, int)</code> silently passes boolean hallucinations into numeric math</td><td>Reject booleans explicitly when <code>int</code> is required and extract fenced JSON deterministically</td></tr><tr><td><strong>Bounded Repair Attempts</strong></td><td>Unbounded retry loops burn tens of thousands of tokens overnight</td><td>Cap repair retries per provider and enforce a hard cumulative token budget per job</td></tr></tbody></table></div>
+<p>If you want a drop-in HTTP <code>Retry-After</code> guard and idempotent cron runner ready for immediate use, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=zero-dependency-python-circuit-breakers-self-rep&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this walkthrough.</p>
+<h2>Self-Contained Python Implementation &amp; Outage Benchmark</h2>
+<p>The standalone script below implements <code>EndpointBreaker</code> and <code>parse_and_validate</code> using only Python&#x27;s standard library (<code>re</code>, <code>json</code>, <code>dataclasses</code>, <code>time</code>), then simulates 300 sequential requests (<code>1.0s</code> apart) where requests <code>40..64</code> suffer a hard upstream <code>503</code> outage on <code>primary-llm</code> while <code>backup-llm</code> wraps JSON inside Markdown code fences:</p>
+<div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
+
+import json
+import re
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Mapping
+
+TICKS = &quot;\x60&quot; * 3
+FENCE_RE = re.compile(TICKS + r&quot;(?:json)?\s*(\{.*?\})\s*&quot; + TICKS, re.DOTALL)
+
+
+class CircuitOpenError(RuntimeError):
+    pass
+
+
+class SchemaRepairError(ValueError):
+    pass
+
+
+@dataclass
+class EndpointBreaker:
+    name: str
+    failure_threshold: int = 2
+    cooldown_sec: float = 30.0
+    state: str = &quot;CLOSED&quot;
+    failures: int = 0
+    opened_at: float = 0.0
+
+    def check(self, now: float) -&gt; None:
+        if self.state == &quot;OPEN&quot;:
+            if (now - self.opened_at) &gt;= self.cooldown_sec:
+                self.state = &quot;HALF_OPEN&quot;
+            else:
+                raise CircuitOpenError(f&quot;{self.name} circuit is OPEN&quot;)
+
+    def on_success(self) -&gt; None:
+        self.failures = 0
+        self.state = &quot;CLOSED&quot;
+
+    def on_transport_failure(self, now: float) -&gt; None:
+        self.failures += 1
+        if self.state == &quot;HALF_OPEN&quot; or self.failures &gt;= self.failure_threshold:
+            self.state = &quot;OPEN&quot;
+            self.opened_at = now
+
+
+def parse_and_validate(raw: str, schema: Mapping[str, type]) -&gt; dict[str, Any]:
+    match = FENCE_RE.search(raw)
+    candidate = match.group(1) if match else raw.strip()
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError as exc:
+        raise SchemaRepairError(f&quot;json_decode_error: {exc.msg}&quot;) from exc
+    if not isinstance(parsed, dict):
+        raise SchemaRepairError(&quot;expected_json_object&quot;)
+    for field_name, expected_type in schema.items():
+        if field_name not in parsed:
+            raise SchemaRepairError(f&quot;missing_field:{field_name}&quot;)
+        val = parsed[field_name]
+        if isinstance(val, bool) and expected_type is int:
+            raise SchemaRepairError(f&quot;bool_is_not_int:{field_name}&quot;)
+        if not isinstance(val, expected_type):
+            raise SchemaRepairError(f&quot;wrong_type:{field_name}&quot;)
+    return parsed
+
+
+def run_benchmark() -&gt; dict[str, Any]:
+    now = {&quot;t&quot;: 100.0}
+    primary = EndpointBreaker(&quot;primary-llm&quot;, failure_threshold=2, cooldown_sec=30.0)
+    secondary = EndpointBreaker(&quot;backup-llm&quot;, failure_threshold=2, cooldown_sec=30.0)
+    schema = {&quot;action&quot;: str, &quot;priority&quot;: int, &quot;retryable&quot;: bool}
+
+    stats = {&quot;requests&quot;: 300, &quot;primary_ok&quot;: 0, &quot;failover_saves&quot;: 0, &quot;fast_open_skips&quot;: 0}
+    t0 = time.perf_counter()
+
+    for idx in range(stats[&quot;requests&quot;]):
+        now[&quot;t&quot;] += 1.0
+        # Simulate a 25-request primary 503 outage burst across requests 40..64
+        try:
+            primary.check(now[&quot;t&quot;])
+            if 40 &lt;= idx &lt; 65:
+                primary.on_transport_failure(now[&quot;t&quot;])
+                raise TimeoutError(&quot;upstream_503&quot;)
+            parse_and_validate(&#x27;{&quot;action&quot;:&quot;enqueue&quot;,&quot;priority&quot;:2,&quot;retryable&quot;:true}&#x27;, schema)
+            primary.on_success()
+            stats[&quot;primary_ok&quot;] += 1
+            continue
+        except CircuitOpenError:
+            stats[&quot;fast_open_skips&quot;] += 1
+        except TimeoutError:
+            pass
+
+        secondary.check(now[&quot;t&quot;])
+        raw_reply = TICKS + &#x27;json\n{&quot;action&quot;:&quot;enqueue_backup&quot;,&quot;priority&quot;:1,&quot;retryable&quot;:false}\n&#x27; + TICKS
+        payload = parse_and_validate(raw_reply, schema)
+        assert payload[&quot;priority&quot;] == 1
+        secondary.on_success()
+        stats[&quot;failover_saves&quot;] += 1
+
+    elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+    summary = {**stats, &quot;total_succeeded&quot;: stats[&quot;primary_ok&quot;] + stats[&quot;failover_saves&quot;], &quot;elapsed_ms&quot;: elapsed_ms}
+    Path(&quot;breaker_report.json&quot;).write_text(json.dumps(summary, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(summary, indent=2))
+    return summary
+
+
+if __name__ == &quot;__main__&quot;:
+    run_benchmark()</code></pre></div>
+<p>Next, we assert the exact invariants against the generated <code>breaker_report.json</code> artifact so any regression in failover accounting or circuit-breaker short-circuiting fails immediately with a non-zero exit code:</p>
+<div class="code-frame"><div class="code-toolbar"><span>BASH</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy BASH code snippet">Copy code</button></div><pre><code>python3 -I -c &#x27;
+import json
+data = json.load(open(&quot;breaker_report.json&quot;))
+assert data[&quot;total_succeeded&quot;] == data[&quot;requests&quot;], &quot;Dropped requests during outage!&quot;
+assert data[&quot;fast_open_skips&quot;] == 29 and data[&quot;failover_saves&quot;] == 31 and data[&quot;primary_ok&quot;] == 269, &quot;Unexpected breaker accounting!&quot;
+print(f&quot;Verified zero dropped requests ({data[&quot;total_succeeded&quot;]}/{data[&quot;requests&quot;]}) with {data[&quot;fast_open_skips&quot;]} fast-fail skips and {data[&quot;primary_ok&quot;]} primary completions.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Every code block in this article was executed inside a fresh isolated environment prior to staging. Here is the exact stdout captured from the run above:</p>
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 60.9 ms)
+{
+  &quot;requests&quot;: 300,
+  &quot;primary_ok&quot;: 269,
+  &quot;failover_saves&quot;: 31,
+  &quot;fast_open_skips&quot;: 29,
+  &quot;total_succeeded&quot;: 300,
+  &quot;elapsed_ms&quot;: 0.87
+}
+
+# Block 2 (bash, exit=0, 46.1 ms)
+Verified zero dropped requests (300/300) with 29 fast-fail skips and 269 primary completions.</code></pre></div>
+<h2>Why the Numbers Matter in Real Traffic</h2>
+<p>Look closely at <code>fast_open_skips</code> versus <code>failover_saves</code> in the captured benchmark output above:</p>
+<ul><li><strong>Only 2 requests paid the primary failure penalty</strong> (<code>idx = 40</code> and <code>41</code>) before <code>EndpointBreaker</code> tripped <code>OPEN</code> at <code>failure_threshold=2</code>.</li><li><strong>The next 29 requests during the 30-second cooldown window (<code>idx = 42..70</code>) skipped the broken primary in microseconds</strong> (<code>fast_open_skips == 29</code>, <code>failover_saves == 31</code>) and routed straight to <code>backup-llm</code> without queuing socket timeouts or starving worker threads.</li><li><strong>Once the 30-second cooldown elapsed</strong>, a single <code>HALF_OPEN</code> probe at <code>idx = 71</code> automatically restored traffic back to the primary endpoint for the remaining <code>229</code> calls (<code>primary_ok == 269</code>, <code>300/300</code> total succeeded requests).</li></ul>
+<p>When you deploy this pattern in front of LLM tool loops or webhook dispatchers, pair the transport breaker with two operational safeguards:</p>
+<ol><li><strong>Separate Transport Errors From Validation Errors:</strong> A malformed JSON response (<code>SchemaRepairError</code>) means the network path is healthy, so send a concise <code>REPAIR_HINT</code> prompt once rather than tripping the transport breaker for all callers. Conversely, <code>429</code>, <code>502</code>, <code>503</code>, <code>504</code>, and socket timeouts should immediately increment the transport failure counter.</li><li><strong>Enforce a Hard Per-Run Token Ceiling:</strong> Track cumulative input + output tokens across retries and raise a terminal <code>BudgetExceededError</code> before any cyclic prompt bug can loop unattended.</li></ol>
+<h2>Shipping the Full Reliability Stack on $0 Infrastructure</h2>
+<p>If you are building autonomous workflows, scheduled scrapers, or SaaS backends without paying monthly Redis/broker bills, the complete <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=zero-dependency-python-circuit-breakers-self-rep&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> packages this multi-provider router together with a transactional SQLite WAL job queue + dead-letter CLI, Node/TypeScript guardrails (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>), constant-time HMAC webhook verification, double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>Curated by <a href="https://ko-fi.com/tharushanuwansara" rel="noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a> (Asia/Colombo). Every published Python &amp; shell snippet is verified inside an isolated <code>python3 -I</code> sandbox before release.</p>
+    </div>
+  </footer>
+  <script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('autopilot_theme'); } catch (e) {}
+  if (saved === 'dark' || saved === 'light') {
+    root.setAttribute('data-theme', saved);
+  }
+  var toggle = document.getElementById('theme-toggle');
+  function syncPressed() {
+    if (!toggle) return;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+  }
+  syncPressed();
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = current ? (current === 'dark' ? 'light' : 'dark') : (prefersDark ? 'light' : 'dark');
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('autopilot_theme', next); } catch (e) {}
+      syncPressed();
+    });
+  }
+  var announcer = document.getElementById('live-announcer');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy-code-btn');
+    if (!btn) return;
+    var frame = btn.closest('.code-frame');
+    var codeEl = frame ? frame.querySelector('pre code') : null;
+    if (!codeEl) return;
+    var text = codeEl.textContent || '';
+    function markCopied() {
+      var orig = btn.getAttribute('data-label') || 'Copy code';
+      btn.textContent = 'Copied!';
+      if (announcer) announcer.textContent = 'Code snippet copied to clipboard.';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(markCopied);
+    } else {
+      markCopied();
+    }
+  });
+})();
+</script>
+</body>
+</html>

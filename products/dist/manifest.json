@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "author": "Tharusha Nuwansara",
+  "products": [
+    {
+      "slug": "free-idempotent-cron-mini-kit",
+      "title": "Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)",
+      "tier": "free_pwyw",
+      "price_usd": 0,
+      "suggested_price_usd": 3,
+      "zip_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/free-idempotent-cron-mini-kit.zip",
+      "zip_filename": "free-idempotent-cron-mini-kit.zip",
+      "size_bytes": 9859,
+      "sha256": "852daf37db2ba501ad5dfd348b93e1236717ef459953d1a64fc2bce6ae7f2a9d",
+      "file_count": 5,
+      "python_tests_passed": true,
+      "node_tests_passed": null
+    },
+    {
+      "slug": "production-agent-automation-kit",
+      "title": "Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)",
+      "tier": "flagship_paid",
+      "price_usd": 14,
+      "suggested_price_usd": 14,
+      "zip_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip",
+      "zip_filename": "production-agent-automation-kit.zip",
+      "size_bytes": 21100,
+      "sha256": "bd7b8c8d7fd4b2b3ccfc384d92506b7d4d1b6636d85bcdba87a58045ded90ebc",
+      "file_count": 15,
+      "python_tests_passed": true,
+      "node_tests_passed": true
+    }
+  ]
+}

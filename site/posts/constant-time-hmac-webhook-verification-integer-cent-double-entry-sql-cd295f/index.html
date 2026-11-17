@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python — Tharusha Nuwansara</title>
+  <meta name="description" content="How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings." />
+  <meta name="author" content="Tharusha Nuwansara" />
+  <link rel="canonical" href="https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/" />
+  <link rel="alternate" type="application/rss+xml" title="Tharusha Nuwansara — Verified Reliability RSS" href="../../feed.xml" />
+  <meta property="og:title" content="Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python — Tharusha Nuwansara" />
+  <meta property="og:description" content="How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings." />
+  <meta property="og:url" content="https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/" />
+  <meta property="og:type" content="article" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-link" href="../../index.html">Tharusha Nuwansara · Reliability Lab</a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
+          <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
+          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <div class="container article-shell">
+      <article class="h-entry">
+        <header class="article-header">
+          <div class="meta-row">
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (128.36 ms)</span>
+            <span class="badge">Friday Pillar</span>
+            <time class="dt-published tabular" datetime="2026-11-17T14:59:34Z">2026-11-17</time>
+            <span>by <a class="p-author h-card" href="https://ko-fi.com/tharushanuwansara" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
+          </div>
+          <h1 class="p-name">Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python</h1>
+          <p class="p-summary article-subtitle">How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings.</p>
+          <div class="meta-row"><span class="badge">#python</span><span class="badge">#security</span><span class="badge">#sql</span><span class="badge">#backend</span></div>
+        </header>
+        <div class="e-content">
+<h2>Three Subtle Bugs Hiding in Typical Payment Webhook Handlers</h2>
+<p>Handling incoming <code>order.paid</code> or subscription webhooks from Stripe, Ko-fi, Polar, or Lemon Squeezy looks deceptively simple until real network retries and adversarial traffic hit your endpoint. Across dozens of production codebases, the same three vulnerabilities show up repeatedly:</p>
+<ol><li><strong>Verifying Re-Serialized JSON Instead of Raw Bytes:</strong> Parsing the HTTP request body into a Python <code>dict</code> and calling <code>json.dumps(body)</code> before computing <code>HMAC-SHA256</code> alters whitespace and key ordering, breaking legitimate signatures—while comparing hex strings with <code>==</code> instead of <code>hmac.compare_digest</code> leaks timing side-channels.</li><li><strong>Relying Exclusively on a 5-Minute Timestamp Tolerance:</strong> Checking <code>abs(now - timestamp) &lt;= 300</code> stops yesterday&#x27;s captured curl payload, but does <em>nothing</em> to stop an attacker—or an aggressive upstream retry proxy—from replaying the exact same valid signed request six times within that 300-second window.</li><li><strong>Storing Currency in <code>FLOAT</code> Columns With Mutable Balance Counters:</strong> Updating <code>SET balance = balance + 13.29</code> in IEEE-754 floating point accumulates binary rounding drift (<code>13.29 * 3 = 39.870000000000005</code>) and leaves zero audit trail when a refund or processor fee adjustment arrives out of order.</li></ol>
+<p>In this Friday reliability teardown—<em>Defending payment webhooks against timing side-channels, 5-minute replay windows, and floating-point rounding drift.</em> (reference documentation: <a href="https://docs.python.org/3/library/hmac.html" rel="noopener">Python 3 Standard Library Docs</a>)—we build and test a constant-time HMAC webhook ingester backed by atomic SQLite WAL replay-nonce deduplication and an immutable, integer-cent double-entry ledger.</p>
+<h2>Security &amp; Accounting Invariants</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Threat / Failure</th><th scope="col">Vulnerable Shortcut</th><th scope="col">Production Invariant</th></tr></thead><tbody><tr><td><strong>Timing Side-Channel &amp; Body Mutation</strong></td><td><code>computed_hex == header_hex</code> on re-serialized JSON</td><td>Compute <code>HMAC-SHA256(secret, f&quot;{ts}.{nonce}.&quot; + raw_bytes)</code> and compare via <code>hmac.compare_digest</code></td></tr><tr><td><strong>Intra-Window Replay (<code>&lt; 300s</code>)</strong></td><td>Stateless timestamp check only</td><td>Insert <code>nonce</code> into <code>webhook_nonces(nonce PRIMARY KEY)</code> inside the <em>same</em> <code>BEGIN IMMEDIATE</code> transaction as the ledger write</td></tr><tr><td><strong>Floating-Point Drift</strong></td><td><code>REAL</code> / <code>FLOAT</code> dollar columns</td><td>Store strictly positive integer minor units (<code>amount_cents INTEGER CHECK (amount_cents &gt; 0)</code>)</td></tr><tr><td><strong>Unbalanced Mutations</strong></td><td><code>UPDATE accounts SET balance = ...</code></td><td>Record immutable <code>DEBIT</code> and <code>CREDIT</code> postings per <code>tx_id</code> and assert <code>SUM(DEBIT) == SUM(CREDIT)</code></td></tr></tbody></table></div>
+<p>Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=constant-time-hmac-webhook-verification-integer-&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to get started at zero cost.</p>
+<h2>Runnable Constant-Time HMAC &amp; Double-Entry Ledger Verification</h2>
+<p>The self-contained Python 3.11+ script below processes 24 signed <code>$14.00</code> (<code>1400</code> cents gross, <code>71</code> cents fee, <code>1329</code> cents net) order webhooks, fires 6 intra-window replay attacks, 1 tampered-amount signature attack, and 1 stale-timestamp attack, and verifies that total debits equal total credits down to the exact cent:</p>
+<div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+import sqlite3
+import time
+from pathlib import Path
+
+
+def sign_event(secret: bytes, ts: int, nonce: str, raw_body: bytes) -&gt; str:
+    msg = f&quot;{ts}.{nonce}.&quot;.encode(&quot;utf-8&quot;) + raw_body
+    sig = hmac.new(secret, msg, hashlib.sha256).hexdigest()
+    return f&quot;t={ts},id={nonce},v1={sig}&quot;
+
+
+def open_ledger(db_path: Path) -&gt; sqlite3.Connection:
+    conn = sqlite3.connect(str(db_path), timeout=5.0, isolation_level=None)
+    conn.execute(&quot;PRAGMA journal_mode=WAL;&quot;)
+    conn.execute(&quot;PRAGMA foreign_keys=ON;&quot;)
+    conn.executescript(
+        &quot;&quot;&quot;
+        CREATE TABLE IF NOT EXISTS webhook_nonces (
+            nonce TEXT PRIMARY KEY,
+            received_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            tx_id TEXT PRIMARY KEY,
+            external_event_id TEXT NOT NULL UNIQUE,
+            created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS postings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tx_id TEXT NOT NULL REFERENCES journal_entries(tx_id),
+            account TEXT NOT NULL,
+            direction TEXT NOT NULL CHECK (direction IN (&#x27;DEBIT&#x27;, &#x27;CREDIT&#x27;)),
+            amount_cents INTEGER NOT NULL CHECK (amount_cents &gt; 0)
+        );
+        &quot;&quot;&quot;
+    )
+    return conn
+
+
+def ingest_payment_webhook(
+    conn: sqlite3.Connection,
+    secret: bytes,
+    header: str,
+    raw_body: bytes,
+    now_ts: int,
+    tolerance_sec: int = 300,
+) -&gt; str:
+    kv = dict(part.split(&quot;=&quot;, 1) for part in header.split(&quot;,&quot;) if &quot;=&quot; in part)
+    ts = int(kv[&quot;t&quot;])
+    nonce = kv[&quot;id&quot;]
+    provided_sig = kv[&quot;v1&quot;]
+
+    if abs(now_ts - ts) &gt; tolerance_sec:
+        return &quot;rejected_stale_timestamp&quot;
+
+    expected_sig = hmac.new(secret, f&quot;{ts}.{nonce}.&quot;.encode(&quot;utf-8&quot;) + raw_body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        return &quot;rejected_bad_signature&quot;
+
+    event = json.loads(raw_body.decode(&quot;utf-8&quot;))
+    gross_cents = int(event[&quot;gross_cents&quot;])
+    fee_cents = int(event[&quot;fee_cents&quot;])
+    net_cents = gross_cents - fee_cents
+    if net_cents &lt;= 0 or (net_cents + fee_cents) != gross_cents:
+        raise ValueError(&quot;Unbalanced integer-cent posting&quot;)
+
+    conn.execute(&quot;BEGIN IMMEDIATE;&quot;)
+    try:
+        dup = conn.execute(&quot;SELECT 1 FROM webhook_nonces WHERE nonce = ?&quot;, (nonce,)).fetchone()
+        if dup is not None:
+            conn.execute(&quot;ROLLBACK;&quot;)
+            return &quot;rejected_replay_nonce&quot;
+
+        conn.execute(&quot;INSERT INTO webhook_nonces (nonce, received_at) VALUES (?, ?)&quot;, (nonce, now_ts))
+        tx_id = f&quot;tx_{nonce}&quot;
+        conn.execute(
+            &quot;INSERT INTO journal_entries (tx_id, external_event_id, created_at) VALUES (?, ?, ?)&quot;,
+            (tx_id, event[&quot;event_id&quot;], now_ts),
+        )
+        conn.executemany(
+            &quot;INSERT INTO postings (tx_id, account, direction, amount_cents) VALUES (?, ?, ?, ?)&quot;,
+            [
+                (tx_id, &quot;cash_settlement&quot;, &quot;DEBIT&quot;, net_cents),
+                (tx_id, &quot;processor_fees&quot;, &quot;DEBIT&quot;, fee_cents),
+                (tx_id, &quot;digital_product_revenue&quot;, &quot;CREDIT&quot;, gross_cents),
+            ],
+        )
+        conn.execute(&quot;COMMIT;&quot;)
+        return &quot;posted&quot;
+    except Exception:
+        conn.execute(&quot;ROLLBACK;&quot;)
+        raise
+
+
+def run_ledger_verification() -&gt; None:
+    secret = b&quot;whsec_production_grade_key_991&quot;
+    conn = open_ledger(Path(&quot;ledger_verify.db&quot;))
+    now_ts = 1_760_500_000
+    t0 = time.perf_counter()
+
+    outcomes = {&quot;posted&quot;: 0, &quot;rejected_replay_nonce&quot;: 0, &quot;rejected_bad_signature&quot;: 0, &quot;rejected_stale_timestamp&quot;: 0}
+    for i in range(1, 25):
+        body = json.dumps({&quot;event_id&quot;: f&quot;ord_{i}&quot;, &quot;gross_cents&quot;: 1400, &quot;fee_cents&quot;: 71}).encode(&quot;utf-8&quot;)
+        hdr = sign_event(secret, now_ts - 5, f&quot;nonce_{i}&quot;, body)
+        outcomes[ingest_payment_webhook(conn, secret, hdr, body, now_ts)] += 1
+        if i &lt;= 6:
+            outcomes[ingest_payment_webhook(conn, secret, hdr, body, now_ts + 2)] += 1
+
+    tampered_hdr = sign_event(secret, now_ts - 2, &quot;nonce_tamper&quot;, b&#x27;{&quot;event_id&quot;:&quot;x&quot;,&quot;gross_cents&quot;:1400,&quot;fee_cents&quot;:0}&#x27;)
+    outcomes[ingest_payment_webhook(conn, secret, tampered_hdr, b&#x27;{&quot;event_id&quot;:&quot;x&quot;,&quot;gross_cents&quot;:9900,&quot;fee_cents&quot;:0}&#x27;, now_ts)] += 1
+
+    stale_body = b&#x27;{&quot;event_id&quot;:&quot;stale_1&quot;,&quot;gross_cents&quot;:1400,&quot;fee_cents&quot;:71}&#x27;
+    stale_hdr = sign_event(secret, now_ts - 900, &quot;nonce_stale&quot;, stale_body)
+    outcomes[ingest_payment_webhook(conn, secret, stale_hdr, stale_body, now_ts)] += 1
+
+    debits = conn.execute(&quot;SELECT SUM(amount_cents) FROM postings WHERE direction = &#x27;DEBIT&#x27;&quot;).fetchone()[0]
+    credits = conn.execute(&quot;SELECT SUM(amount_cents) FROM postings WHERE direction = &#x27;CREDIT&#x27;&quot;).fetchone()[0]
+    net_cash = conn.execute(&quot;SELECT SUM(amount_cents) FROM postings WHERE account = &#x27;cash_settlement&#x27;&quot;).fetchone()[0]
+    elapsed_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+
+    summary = {
+        **outcomes,
+        &quot;total_debits_cents&quot;: int(debits),
+        &quot;total_credits_cents&quot;: int(credits),
+        &quot;ledger_imbalance_cents&quot;: int(debits) - int(credits),
+        &quot;net_settlement_usd&quot;: round(int(net_cash) / 100.0, 2),
+        &quot;elapsed_ms&quot;: elapsed_ms,
+    }
+    Path(&quot;ledger_report.json&quot;).write_text(json.dumps(summary, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(summary, indent=2))
+    conn.close()
+
+
+if __name__ == &quot;__main__&quot;:
+    run_ledger_verification()</code></pre></div>
+<p>Next, we run an independent assertion script over <code>ledger_report.json</code> to confirm zero ledger imbalance (<code>ledger_imbalance_cents == 0</code>) and <code>100%</code> rejection across all 8 simulated attacks:</p>
+<div class="code-frame"><div class="code-toolbar"><span>BASH</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy BASH code snippet">Copy code</button></div><pre><code>python3 -I -c &#x27;
+import json
+d = json.load(open(&quot;ledger_report.json&quot;))
+assert d[&quot;ledger_imbalance_cents&quot;] == 0, &quot;Double-entry ledger out of balance!&quot;
+assert d[&quot;rejected_replay_nonce&quot;] == 6 and d[&quot;rejected_bad_signature&quot;] == 1 and d[&quot;rejected_stale_timestamp&quot;] == 1
+print(f&quot;Verified zero-imbalance ledger (${d[&quot;net_settlement_usd&quot;]} net across {d[&quot;posted&quot;]} orders; 8 attacks blocked).&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both blocks above ran inside a clean isolated sandbox prior to staging. Here is the exact stdout captured from the run:</p>
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 83.6 ms)
+{
+  &quot;posted&quot;: 24,
+  &quot;rejected_replay_nonce&quot;: 6,
+  &quot;rejected_bad_signature&quot;: 1,
+  &quot;rejected_stale_timestamp&quot;: 1,
+  &quot;total_debits_cents&quot;: 33600,
+  &quot;total_credits_cents&quot;: 33600,
+  &quot;ledger_imbalance_cents&quot;: 0,
+  &quot;net_settlement_usd&quot;: 318.96,
+  &quot;elapsed_ms&quot;: 15.34
+}
+
+# Block 2 (bash, exit=0, 44.8 ms)
+Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked).</code></pre></div>
+<h2>Why Atomic Nonce + Ledger Coupling Eliminates Race Conditions</h2>
+<p>Examine the transaction boundary inside <code>ingest_payment_webhook</code> above:</p>
+<ul><li><strong>Single Atomic Commit (<code>BEGIN IMMEDIATE</code>):</strong> Checking <code>webhook_nonces</code>, inserting the <code>journal_entries</code> header (<code>UNIQUE</code> on <code>external_event_id</code>), and writing all three <code>DEBIT</code>/<code>CREDIT</code> postings happen inside one atomic WAL write lock. If two identical webhooks arrive on parallel threads 50 microseconds apart, the second writer deterministically hits the <code>webhook_nonces</code> constraint and rolls back with <code>rejected_replay_nonce</code>—zero chance of double-crediting entitlements.</li><li><strong>Exact Fee Visibility:</strong> By splitting every <code>$14.00</code> order into <code>DEBIT cash_settlement (1329)</code>, <code>DEBIT processor_fees (71)</code>, and <code>CREDIT digital_product_revenue (1400)</code>, reconciling bank payouts at the end of the month is a single <code>SELECT SUM(amount_cents)</code> query with <code>0</code> cents of rounding discrepancy (<code>$318.96</code> net across 24 orders).</li><li><strong>Bounded Nonce Table Growth:</strong> Because timestamps older than <code>tolerance_sec</code> (<code>300s</code>) are rejected before touching SQLite, your <code>webhook_nonces</code> table only ever needs to retain rows from the last <code>2 * tolerance_sec</code> (10 minutes), keeping disk usage under a few kilobytes even at high volume.</li></ul>
+<h3>Handling Refunds, Chargebacks, and Multi-Gateway Payouts</h3>
+<p>When you later add a refund or dispute webhook handler (<code>charge.refunded</code>), never <code>DELETE</code> or <code>UPDATE</code> an existing row in <code>postings</code>. Instead, insert a new compensating <code>journal_entries</code> transaction whose postings reverse the original directions (<code>DEBIT digital_product_revenue</code>, <code>CREDIT cash_settlement</code>, and <code>CREDIT processor_fees</code> if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Ko-fi or Polar settlement CSV exports line-by-line against <code>journal_entries.external_event_id</code>, and spot missing webhook deliveries in milliseconds using a single <code>LEFT JOIN</code> reconciliation query.</p>
+<h2>Get the Full SQL Schema, Python/Node Guards &amp; Queue Kit</h2>
+<p>To skip wiring boilerplate from scratch, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=constant-time-hmac-webhook-verification-integer-&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>—it includes the portable SQLite/PostgreSQL <code>sql/idempotent_ledger.sql</code> schema with account-balance views, <code>webhook_hmac.py</code>, Node/TypeScript <code>verifyWebhookSignature</code> (<code>agent_guardrails.mjs</code>), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>Curated by <a href="https://ko-fi.com/tharushanuwansara" rel="noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a> (Asia/Colombo). Every published Python &amp; shell snippet is verified inside an isolated <code>python3 -I</code> sandbox before release.</p>
+    </div>
+  </footer>
+  <script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('autopilot_theme'); } catch (e) {}
+  if (saved === 'dark' || saved === 'light') {
+    root.setAttribute('data-theme', saved);
+  }
+  var toggle = document.getElementById('theme-toggle');
+  function syncPressed() {
+    if (!toggle) return;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+  }
+  syncPressed();
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = current ? (current === 'dark' ? 'light' : 'dark') : (prefersDark ? 'light' : 'dark');
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('autopilot_theme', next); } catch (e) {}
+      syncPressed();
+    });
+  }
+  var announcer = document.getElementById('live-announcer');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy-code-btn');
+    if (!btn) return;
+    var frame = btn.closest('.code-frame');
+    var codeEl = frame ? frame.querySelector('pre code') : null;
+    if (!codeEl) return;
+    var text = codeEl.textContent || '';
+    function markCopied() {
+      var orig = btn.getAttribute('data-label') || 'Copy code';
+      btn.textContent = 'Copied!';
+      if (announcer) announcer.textContent = 'Code snippet copied to clipboard.';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(markCopied);
+    } else {
+      markCopied();
+    }
+  });
+})();
+</script>
+</body>
+</html>

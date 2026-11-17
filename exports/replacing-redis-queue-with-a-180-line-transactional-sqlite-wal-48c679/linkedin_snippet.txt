@@ -1,0 +1,14 @@
+Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI
+
+Benchmarking atomic BEGIN IMMEDIATE visibility leases, duplicate webhook suppression, and poison-pill dead-letter isolation on a single SQLite WAL file.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (226.78 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Wednesday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://ko-fi.com/tharushanuwansara/shop

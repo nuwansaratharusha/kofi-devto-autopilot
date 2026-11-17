@@ -1,0 +1,19 @@
+# Secrets & local environment overrides
+.env
+.env.local
+
+# Python bytecode & build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+
+# SQLite WAL transient shared-memory journals
+state/*.db-shm
+state/*.db-wal
+
+# Isolated verification sandboxes & OS cruft
+.sandbox_tmp/
+.DS_Store
+Thumbs.db

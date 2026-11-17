@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kofi-devto-autopilot"
+version = "1.0.0"
+description = "Zero-capital, stdlib-only verified engineering tutorial & digital product monetization autopilot for Ko-fi and DEV.to."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "Tharusha Nuwansara" }
+]
+dependencies = []
+
+[project.urls]
+Storefront = "https://ko-fi.com/tharushanuwansara"
+Shop = "https://ko-fi.com/tharushanuwansara/shop"
+
+[tool.setuptools.packages.find]
+include = ["engine*", "products*"]

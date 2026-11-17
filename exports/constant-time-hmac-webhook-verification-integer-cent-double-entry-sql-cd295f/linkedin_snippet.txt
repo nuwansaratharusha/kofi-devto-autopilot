@@ -1,0 +1,14 @@
+Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python
+
+How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (128.36 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Friday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://ko-fi.com/tharushanuwansara/shop

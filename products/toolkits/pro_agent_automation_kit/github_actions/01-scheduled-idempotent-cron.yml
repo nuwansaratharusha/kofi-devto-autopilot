@@ -1,0 +1,27 @@
+name: 01 - Scheduled Idempotent Cron Worker
+
+on:
+  schedule:
+    - cron: '15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: idempotent-cron-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run unit tests before executing job
+        run: python3 -m unittest discover -v
+      - name: Execute SQLite WAL Queue Demo / Worker Tick
+        run: python3 wal_queue.py --demo

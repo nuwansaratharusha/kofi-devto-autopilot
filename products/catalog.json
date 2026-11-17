@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "author": "Tharusha Nuwansara",
+  "storefront_handle": "tharushanuwansara",
+  "products": [
+    {
+      "slug": "free-idempotent-cron-mini-kit",
+      "title": "Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)",
+      "tier": "free_pwyw",
+      "price_usd": 0,
+      "suggested_price_usd": 3,
+      "license": "MIT",
+      "source_dir": "products/toolkits/free_cron_mini_kit",
+      "zip_filename": "free-idempotent-cron-mini-kit.zip",
+      "tagline": "Stop double-firing scheduled jobs and cascading 429/503 API outages without Redis or Celery.",
+      "summary": "A drop-in, stdlib-only Python 3.11+ mini-kit featuring an atomic SQLite WAL idempotent cron runner with stale-lock recovery plus an HTTP exponential-backoff & sliding-window circuit breaker—backed by deterministic unit tests.",
+      "highlights": [
+        "Atomic SQLite WAL lease locking (`BEGIN IMMEDIATE`) that eliminates duplicate cron runs across overlapping triggers",
+        "Zero-dependency HTTP retry & `CLOSED -> OPEN -> HALF_OPEN` circuit breaker respecting `Retry-After` headers",
+        "100% Python stdlib (`>=3.11`) with deterministic unit test suite (`python3 -m unittest -v`)",
+        "MIT Commercial & Personal License — copy straight into production scripts, cron containers, or GitHub Actions"
+      ],
+      "required_files": [
+        "idempotent_cron.py",
+        "api_guard.py",
+        "test_mini_kit.py",
+        "QUICKSTART.md",
+        "LICENSE"
+      ],
+      "python_test_module": "test_mini_kit"
+    },
+    {
+      "slug": "production-agent-automation-kit",
+      "title": "Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)",
+      "tier": "flagship_paid",
+      "price_usd": 14,
+      "suggested_price_usd": 14,
+      "license": "MIT",
+      "source_dir": "products/toolkits/pro_agent_automation_kit",
+      "zip_filename": "production-agent-automation-kit.zip",
+      "tagline": "Ship fault-tolerant AI workflows, transactional SQLite WAL queues, HMAC webhooks, and double-entry ledgers on $0 infrastructure.",
+      "summary": "Complete MIT-licensed engineering starter kit combining a transactional SQLite WAL job queue + dead-letter CLI, Python & Node/TypeScript LLM structured-output circuit breakers, constant-time HMAC webhook replay guards, 4 production GitHub Actions workflows, and double-entry idempotent SQL schemas.",
+      "highlights": [
+        "Transactional SQLite WAL Job Queue + Dead-Letter CLI (`wal_queue.py`) achieving thousands of atomic leases/sec without Redis",
+        "Python (`llm_circuit_breaker.py`) + Node/TypeScript (`agent_guardrails.mjs` & `.d.ts`) structured JSON schema validators, token-budget caps, and multi-provider failover routers",
+        "Constant-time SHA-256 HMAC Webhook Verifier (`webhook_hmac.py`) with replay-window enforcement & SQLite nonce deduplication",
+        "Double-entry idempotent ledger schema (`sql/idempotent_ledger.sql`) + 4 copy-paste GitHub Actions YAML automation blueprints",
+        "Full automated unit test suites in both Python (`unittest`) and Node (`node --test`) + MIT Commercial License"
+      ],
+      "required_files": [
+        "wal_queue.py",
+        "llm_circuit_breaker.py",
+        "webhook_hmac.py",
+        "test_pro_kit.py",
+        "agent_guardrails.mjs",
+        "agent_guardrails.d.ts",
+        "test_guardrails.mjs",
+        "sql/idempotent_ledger.sql",
+        "github_actions/01-scheduled-idempotent-cron.yml",
+        "github_actions/02-sqlite-artifact-state-sync.yml",
+        "github_actions/03-verified-syndication-pipeline.yml",
+        "github_actions/04-canary-healthcheck-rollback.yml",
+        "CHEATSHEET_ARCHITECTURE.md",
+        "README.md",
+        "LICENSE"
+      ],
+      "python_test_module": "test_pro_kit",
+      "node_test_file": "test_guardrails.mjs"
+    }
+  ]
+}
