@@ -1,4 +1,4 @@
-"""Core dataclasses for signals, sandbox verification checks, articles, and SKUs."""
+"""Core dataclasses for signals, sandbox verification checks, articles, orders, metrics, and SKUs."""
 
 from __future__ import annotations
 
@@ -30,6 +30,9 @@ PILLAR_META: dict[str, dict[str, str]] = {
         "series": "Zero-Cost Production Reliability",
     },
 }
+
+SERIES_30D_NAME = "30 Days of Zero-Cost Production Python & AI Reliability"
+VALID_CHANNELS = ("blogger", "pinterest", "devto", "canonical_site")
 
 
 def compute_topic_fingerprint(pillar: str, normalized_key: str) -> str:
@@ -123,6 +126,46 @@ class ArticleRecord:
     devto_url: Optional[str] = None
     published_mode: str = "draft"
     created_at: str = ""
+    updated_at: str = ""
+    series_day: Optional[int] = None
+    blogger_post_id: Optional[str] = None
+    blogger_url: Optional[str] = None
+    pinterest_pin_id: Optional[str] = None
+    pinterest_url: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class StoreOrderRecord:
+    storefront: str  # "lemonsqueezy" | "gumroad"
+    order_id: str
+    sku: str = ""
+    product_name: str = ""
+    gross_cents: int = 0
+    fee_cents: int = 0
+    net_cents: int = 0
+    currency: str = "USD"
+    refunded: bool = False
+    utm_source: str = ""
+    utm_medium: str = ""
+    utm_campaign: str = ""
+    attributed_slug: str = ""
+    created_at: str = ""
+    synced_at: str = ""
+    raw_data: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ChannelMetricRecord:
+    slug: str
+    channel: str  # "blogger" | "pinterest" | "devto" | "canonical_site"
+    views: int = 0
+    clicks: int = 0
     updated_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:

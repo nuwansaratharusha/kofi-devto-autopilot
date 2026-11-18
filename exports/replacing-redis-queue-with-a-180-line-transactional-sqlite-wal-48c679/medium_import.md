@@ -31,7 +31,7 @@ In this teardown—*Benchmarking atomic BEGIN IMMEDIATE visibility-timeout lease
 | **Worker OOM / SIGKILL Mid-Job** | `DELETE FROM queue RETURNING *` permanently destroys in-flight work on crash | Set `status = 'leased'` with `lease_expires_at = now + lease_sec` so surviving workers reclaim expired leases automatically |
 | **Poison-Pill Infinite Loops** | Expired leases re-enter the queue indefinitely | Promote leased rows where `attempts >= max_attempts` straight to `dead_letter` before claiming the next ready item |
 
-For single-command cron jobs where you only need atomic window deduplication (`hourly` / `daily`) and HTTP backoff without a full queue table, download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&sku=free-idempotent-cron-mini-kit) and drop `idempotent_cron.py` directly into your scheduler.
+For single-command cron jobs where you only need atomic window deduplication (`hourly` / `daily`) and HTTP backoff without a full queue table, download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=medium&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=free-idempotent-cron-mini-kit) and drop `idempotent_cron.py` directly into your scheduler.
 
 ## Runnable SQLite WAL Queue & Crash-Recovery Benchmark
 
@@ -194,18 +194,18 @@ The benchmark and conservation check above were executed inside an isolated sand
 
 <!-- EMPIRICAL_OUTPUT_START -->
 ```text
-# Block 1 (python, exit=0, 181.8 ms)
+# Block 1 (python, exit=0, 324.2 ms)
 {
   "enqueued_unique": 320,
   "duplicates_suppressed": 80,
   "completed_cleanly": 319,
   "dead_letter_quarantined": 1,
-  "elapsed_ms": 118.47,
-  "ops_per_sec": 5393.8
+  "elapsed_ms": 258.28,
+  "ops_per_sec": 2474.1
 }
 
-# Block 2 (bash, exit=0, 45.0 ms)
-Verified SQLite WAL accounting: 319 completed + 1 DLQ = 320 unique jobs (5393.8 ops/sec).
+# Block 2 (bash, exit=0, 39.0 ms)
+Verified SQLite WAL accounting: 319 completed + 1 DLQ = 320 unique jobs (2474.1 ops/sec).
 ```
 <!-- EMPIRICAL_OUTPUT_END -->
 
@@ -223,7 +223,7 @@ Engineering honesty matters: SQLite WAL requires a single host filesystem (attac
 
 ## Grab the Complete CLI, Dead-Letter Replayer & CI Workflows
 
-If you want the full CLI wrapper (`enqueue`, `stats`, `requeue-dlq`), exponential NACK backoff, Python + Node/TypeScript LLM circuit breakers, HMAC webhook replay guards, and 4 GitHub Actions YAML workflows ready to ship, pick up the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&sku=production-agent-automation-kit).
+If you want the full CLI wrapper (`enqueue`, `stats`, `requeue-dlq`), exponential NACK backoff, Python + Node/TypeScript LLM circuit breakers, HMAC webhook replay guards, and 4 GitHub Actions YAML workflows ready to ship, pick up the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=medium&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=production-agent-automation-kit).
 
 ---
 

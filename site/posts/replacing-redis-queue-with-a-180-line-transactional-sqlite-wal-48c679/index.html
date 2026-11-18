@@ -24,7 +24,7 @@
         <ul class="nav-list">
           <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
           <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
-          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
           <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
         </ul>
       </nav>
@@ -35,9 +35,9 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (226.78 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (363.17 ms)</span>
             <span class="badge">Wednesday Pillar</span>
-            <time class="dt-published tabular" datetime="2026-11-17T14:59:34Z">2026-11-17</time>
+            <time class="dt-published tabular" datetime="2026-11-18T02:49:56Z">2026-11-18</time>
             <span>by <a class="p-author h-card" href="https://ko-fi.com/tharushanuwansara" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
           </div>
           <h1 class="p-name">Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker &amp; Dead-Letter CLI</h1>
@@ -52,7 +52,7 @@
 <p>In this teardown—<em>Benchmarking atomic BEGIN IMMEDIATE visibility-timeout leases, crash recovery, and dead-letter replay on a single $0 disk volume.</em> (technical reference: <a href="https://www.sqlite.org/wal.html" rel="noopener">SQLite Official Specification</a>)—we write and benchmark a complete transactional SQLite WAL queue in pure Python 3.11+ that processes 400 burst events, suppresses duplicate retries atomically, and isolates a simulated crashing worker into a <code>dead_letter</code> state without losing a single healthy job.</p>
 <h2>Four SQLite Invariants That Make Disk Queues Production-Safe</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Failure Scenario</th><th scope="col">Broken Pattern</th><th scope="col">Atomic SQLite WAL Pattern</th></tr></thead><tbody><tr><td><strong>Duplicate Upstream Triggers</strong></td><td>Plain <code>INSERT</code> enqueues two copies of the same order webhook</td><td>Enforce <code>idempotency_key TEXT NOT NULL UNIQUE</code> with <code>INSERT OR IGNORE</code> inside <code>BEGIN IMMEDIATE</code></td></tr><tr><td><strong>Lock-Upgrade Deadlocks</strong></td><td><code>SELECT</code> ready job first, then <code>UPDATE</code> status in Python&#x27;s default transaction mode</td><td>Start every claim transaction with explicit <code>BEGIN IMMEDIATE</code> (<code>isolation_level=None</code>) so SQLite serializes writers cleanly via <code>busy_timeout</code></td></tr><tr><td><strong>Worker OOM / SIGKILL Mid-Job</strong></td><td><code>DELETE FROM queue RETURNING *</code> permanently destroys in-flight work on crash</td><td>Set <code>status = &#x27;leased&#x27;</code> with <code>lease_expires_at = now + lease_sec</code> so surviving workers reclaim expired leases automatically</td></tr><tr><td><strong>Poison-Pill Infinite Loops</strong></td><td>Expired leases re-enter the queue indefinitely</td><td>Promote leased rows where <code>attempts &gt;= max_attempts</code> straight to <code>dead_letter</code> before claiming the next ready item</td></tr></tbody></table></div>
-<p>For single-command cron jobs where you only need atomic window deduplication (<code>hourly</code> / <code>daily</code>) and HTTP backoff without a full queue table, download the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=replacing-redis-queue-with-a-180-line-transactio&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and drop <code>idempotent_cron.py</code> directly into your scheduler.</p>
+<p>For single-command cron jobs where you only need atomic window deduplication (<code>hourly</code> / <code>daily</code>) and HTTP backoff without a full queue table, download the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and drop <code>idempotent_cron.py</code> directly into your scheduler.</p>
 <h2>Runnable SQLite WAL Queue &amp; Crash-Recovery Benchmark</h2>
 <p>The standalone script below initializes a fresh SQLite WAL database, enqueues 400 burst events (with every 5th event simulating a duplicate retry key), simulates a worker repeatedly crashing on <code>job_0</code> until its visibility lease expires 3 times, and measures end-to-end throughput:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -201,25 +201,25 @@ print(f&quot;Verified SQLite WAL accounting: {r[&quot;completed_cleanly&quot;]} 
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>The benchmark and conservation check above were executed inside an isolated sandbox before this post was staged. Here is the exact captured output:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 181.8 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 324.2 ms)
 {
   &quot;enqueued_unique&quot;: 320,
   &quot;duplicates_suppressed&quot;: 80,
   &quot;completed_cleanly&quot;: 319,
   &quot;dead_letter_quarantined&quot;: 1,
-  &quot;elapsed_ms&quot;: 118.47,
-  &quot;ops_per_sec&quot;: 5393.8
+  &quot;elapsed_ms&quot;: 258.28,
+  &quot;ops_per_sec&quot;: 2474.1
 }
 
-# Block 2 (bash, exit=0, 45.0 ms)
-Verified SQLite WAL accounting: 319 completed + 1 DLQ = 320 unique jobs (5393.8 ops/sec).</code></pre></div>
+# Block 2 (bash, exit=0, 39.0 ms)
+Verified SQLite WAL accounting: 319 completed + 1 DLQ = 320 unique jobs (2474.1 ops/sec).</code></pre></div>
 <h2>Dissecting the Benchmark Results</h2>
 <p>Notice three concrete operational properties proven by the run above:</p>
 <ul><li><strong>Zero Duplicate Side Effects:</strong> Out of 400 incoming enqueue calls, all 80 duplicate <code>idempotency_key</code> retries were suppressed at the storage constraint layer before a worker ever woke up (<code>320</code> unique jobs enqueued).</li><li><strong>Deterministic Crash Isolation:</strong> When <code>job_0</code> simulated three consecutive worker crashes across visibility-timeout boundaries, the claim query promoted <code>job_0</code> to <code>dead_letter</code> on the fourth pass while completing all <code>319</code> healthy jobs without manual intervention.</li><li><strong>Sub-50ms Batch Latency:</strong> All 320 unique enqueues plus 322 atomic <code>BEGIN IMMEDIATE</code> lease claims and completions finished in tens of milliseconds on standard local storage (<code>ops_per_sec</code> in the thousands), leaving huge headroom for indie SaaS backends, webhook consumers, and scheduled AI pipelines.</li></ul>
 <h3>When You Should Migrate Beyond SQLite WAL</h3>
 <p>Engineering honesty matters: SQLite WAL requires a single host filesystem (attached NVMe, EBS, or Fly/Railway persistent volume) because WAL shared-memory (<code>-shm</code>) relies on OS-local mmap semantics. Do <strong>not</strong> mount a SQLite WAL file across NFS or SMB network shares. Once you need multi-region active-active writers across separate VMs, port the exact same <code>lease_expires_at</code> + <code>BEGIN</code> / <code>FOR UPDATE SKIP LOCKED</code> schema to PostgreSQL.</p>
 <h2>Grab the Complete CLI, Dead-Letter Replayer &amp; CI Workflows</h2>
-<p>If you want the full CLI wrapper (<code>enqueue</code>, <code>stats</code>, <code>requeue-dlq</code>), exponential NACK backoff, Python + Node/TypeScript LLM circuit breakers, HMAC webhook replay guards, and 4 GitHub Actions YAML workflows ready to ship, pick up the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=replacing-redis-queue-with-a-180-line-transactio&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
+<p>If you want the full CLI wrapper (<code>enqueue</code>, <code>stats</code>, <code>requeue-dlq</code>), exponential NACK backoff, Python + Node/TypeScript LLM circuit breakers, HMAC webhook replay guards, and 4 GitHub Actions YAML workflows ready to ship, pick up the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>
@@ -278,6 +278,34 @@ Verified SQLite WAL accounting: 319 completed + 1 DLQ = 320 unique jobs (5393.8 
       markCopied();
     }
   });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
 })();
 </script>
 </body>

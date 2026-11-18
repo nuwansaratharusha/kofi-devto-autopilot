@@ -2,7 +2,7 @@
 
 **How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings.**
 
-Hey builders — happy Friday! Today's issue of **Zero-Cost Production Reliability** breaks down **Idempotent Webhooks & Double-Entry Ledger Teardowns** with a self-contained Python 3.11+ benchmark that we executed inside an isolated sandbox (`128.36 ms` total verification runtime across `2` blocks).
+Hey builders — happy Friday! Today's issue of **Zero-Cost Production Reliability** breaks down **Idempotent Webhooks & Double-Entry Ledger Teardowns** with a self-contained Python 3.11+ benchmark that we executed inside an isolated sandbox (`171.16 ms` total verification runtime across `2` blocks).
 
 ---
 
@@ -25,7 +25,7 @@ In this Friday reliability teardown—*Defending payment webhooks against timing
 | **Floating-Point Drift** | `REAL` / `FLOAT` dollar columns | Store strictly positive integer minor units (`amount_cents INTEGER CHECK (amount_cents > 0)`) |
 | **Unbalanced Mutations** | `UPDATE accounts SET balance = ...` | Record immutable `DEBIT` and `CREDIT` postings per `tx_id` and assert `SUM(DEBIT) == SUM(CREDIT)` |
 
-Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&sku=free-idempotent-cron-mini-kit) to get started at zero cost.
+Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit) to get started at zero cost.
 
 ## Runnable Constant-Time HMAC & Double-Entry Ledger Verification
 
@@ -191,7 +191,7 @@ Both blocks above ran inside a clean isolated sandbox prior to staging. Here is 
 
 <!-- EMPIRICAL_OUTPUT_START -->
 ```text
-# Block 1 (python, exit=0, 83.6 ms)
+# Block 1 (python, exit=0, 133.3 ms)
 {
   "posted": 24,
   "rejected_replay_nonce": 6,
@@ -201,10 +201,10 @@ Both blocks above ran inside a clean isolated sandbox prior to staging. Here is 
   "total_credits_cents": 33600,
   "ledger_imbalance_cents": 0,
   "net_settlement_usd": 318.96,
-  "elapsed_ms": 15.34
+  "elapsed_ms": 61.0
 }
 
-# Block 2 (bash, exit=0, 44.8 ms)
+# Block 2 (bash, exit=0, 37.9 ms)
 Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked).
 ```
 <!-- EMPIRICAL_OUTPUT_END -->
@@ -223,7 +223,7 @@ When you later add a refund or dispute webhook handler (`charge.refunded`), neve
 
 ## Get the Full SQL Schema, Python/Node Guards & Queue Kit
 
-To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&sku=production-agent-automation-kit)—it includes the portable SQLite/PostgreSQL `sql/idempotent_ledger.sql` schema with account-balance views, `webhook_hmac.py`, Node/TypeScript `verifyWebhookSignature` (`agent_guardrails.mjs`), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.
+To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit)—it includes the portable SQLite/PostgreSQL `sql/idempotent_ledger.sql` schema with account-balance views, `webhook_hmac.py`, Node/TypeScript `verifyWebhookSignature` (`agent_guardrails.mjs`), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.
 
 ---
 
@@ -232,5 +232,5 @@ To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Co
 ---
 
 ### Grab the Tested `.zip` Toolkits
-- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&sku=free-idempotent-cron-mini-kit)
-- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&sku=production-agent-automation-kit)
+- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit)
+- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit)

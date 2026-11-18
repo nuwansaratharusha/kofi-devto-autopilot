@@ -24,7 +24,7 @@
         <ul class="nav-list">
           <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
           <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
-          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
           <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
         </ul>
       </nav>
@@ -35,9 +35,9 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (107.07 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (99.12 ms)</span>
             <span class="badge">Monday Pillar</span>
-            <time class="dt-published tabular" datetime="2026-11-17T14:59:34Z">2026-11-17</time>
+            <time class="dt-published tabular" datetime="2026-11-18T02:49:56Z">2026-11-18</time>
             <span>by <a class="p-author h-card" href="https://ko-fi.com/tharushanuwansara" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
           </div>
           <h1 class="p-name">Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs</h1>
@@ -52,7 +52,7 @@
 <h2>Architectural Invariants Before Writing Code</h2>
 <p>Before adding a single retry loop, production reliability code needs four explicit invariants that hold without Redis, Celery, or heavyweight agent SDKs:</p>
 <div class="table-scroll"><table><thead><tr><th scope="col">Invariant</th><th scope="col">Naive Implementation Flaw</th><th scope="col">Deterministic Fix</th></tr></thead><tbody><tr><td><strong>Fast-Fail State Machine</strong></td><td>Every request pays a 10-second socket timeout during a provider outage</td><td>Track consecutive transport failures and trip <code>CLOSED -&gt; OPEN</code> so callers fail over in <code>&lt; 0.01 ms</code></td></tr><tr><td><strong>Half-Open Probe Recovery</strong></td><td>Permanently blacklists a recovered primary provider until process restart</td><td>Automatically transition <code>OPEN -&gt; HALF_OPEN</code> once <code>cooldown_sec</code> elapses and promote back to <code>CLOSED</code> on the first clean probe</td></tr><tr><td><strong>Strict Scalar Coercion</strong></td><td><code>isinstance(True, int)</code> silently passes boolean hallucinations into numeric math</td><td>Reject booleans explicitly when <code>int</code> is required and extract fenced JSON deterministically</td></tr><tr><td><strong>Bounded Repair Attempts</strong></td><td>Unbounded retry loops burn tens of thousands of tokens overnight</td><td>Cap repair retries per provider and enforce a hard cumulative token budget per job</td></tr></tbody></table></div>
-<p>If you want a drop-in HTTP <code>Retry-After</code> guard and idempotent cron runner ready for immediate use, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=zero-dependency-python-circuit-breakers-self-rep&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this walkthrough.</p>
+<p>If you want a drop-in HTTP <code>Retry-After</code> guard and idempotent cron runner ready for immediate use, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this walkthrough.</p>
 <h2>Self-Contained Python Implementation &amp; Outage Benchmark</h2>
 <p>The standalone script below implements <code>EndpointBreaker</code> and <code>parse_and_validate</code> using only Python&#x27;s standard library (<code>re</code>, <code>json</code>, <code>dataclasses</code>, <code>time</code>), then simulates 300 sequential requests (<code>1.0s</code> apart) where requests <code>40..64</code> suffer a hard upstream <code>503</code> outage on <code>primary-llm</code> while <code>backup-llm</code> wraps JSON inside Markdown code fences:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -175,17 +175,17 @@ print(f&quot;Verified zero dropped requests ({data[&quot;total_succeeded&quot;]}
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Every code block in this article was executed inside a fresh isolated environment prior to staging. Here is the exact stdout captured from the run above:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 60.9 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 56.8 ms)
 {
   &quot;requests&quot;: 300,
   &quot;primary_ok&quot;: 269,
   &quot;failover_saves&quot;: 31,
   &quot;fast_open_skips&quot;: 29,
   &quot;total_succeeded&quot;: 300,
-  &quot;elapsed_ms&quot;: 0.87
+  &quot;elapsed_ms&quot;: 0.62
 }
 
-# Block 2 (bash, exit=0, 46.1 ms)
+# Block 2 (bash, exit=0, 42.4 ms)
 Verified zero dropped requests (300/300) with 29 fast-fail skips and 269 primary completions.</code></pre></div>
 <h2>Why the Numbers Matter in Real Traffic</h2>
 <p>Look closely at <code>fast_open_skips</code> versus <code>failover_saves</code> in the captured benchmark output above:</p>
@@ -193,7 +193,7 @@ Verified zero dropped requests (300/300) with 29 fast-fail skips and 269 primary
 <p>When you deploy this pattern in front of LLM tool loops or webhook dispatchers, pair the transport breaker with two operational safeguards:</p>
 <ol><li><strong>Separate Transport Errors From Validation Errors:</strong> A malformed JSON response (<code>SchemaRepairError</code>) means the network path is healthy, so send a concise <code>REPAIR_HINT</code> prompt once rather than tripping the transport breaker for all callers. Conversely, <code>429</code>, <code>502</code>, <code>503</code>, <code>504</code>, and socket timeouts should immediately increment the transport failure counter.</li><li><strong>Enforce a Hard Per-Run Token Ceiling:</strong> Track cumulative input + output tokens across retries and raise a terminal <code>BudgetExceededError</code> before any cyclic prompt bug can loop unattended.</li></ol>
 <h2>Shipping the Full Reliability Stack on $0 Infrastructure</h2>
-<p>If you are building autonomous workflows, scheduled scrapers, or SaaS backends without paying monthly Redis/broker bills, the complete <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=zero-dependency-python-circuit-breakers-self-rep&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> packages this multi-provider router together with a transactional SQLite WAL job queue + dead-letter CLI, Node/TypeScript guardrails (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>), constant-time HMAC webhook verification, double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
+<p>If you are building autonomous workflows, scheduled scrapers, or SaaS backends without paying monthly Redis/broker bills, the complete <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> packages this multi-provider router together with a transactional SQLite WAL job queue + dead-letter CLI, Node/TypeScript guardrails (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>), constant-time HMAC webhook verification, double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>
@@ -252,6 +252,34 @@ Verified zero dropped requests (300/300) with 29 fast-fail skips and 269 primary
       markCopied();
     }
   });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
 })();
 </script>
 </body>

@@ -46,14 +46,40 @@ class AppConfig:
     canonical_base_url: str
     author_name: str
     timezone: str
+    lemonsqueezy_store_url: str = ""
+    lemonsqueezy_api_key: str = ""
+    lemonsqueezy_store_id: str = ""
+    gumroad_store_url: str = ""
+    gumroad_access_token: str = ""
+    blogger_blog_id: str = ""
+    blogger_client_id: str = ""
+    blogger_client_secret: str = ""
+    blogger_refresh_token: str = ""
+    blogger_publish_mode: str = "draft"  # "draft" | "live"
+    pinterest_access_token: str = ""
+    pinterest_board_id: str = ""
+    experiment_start_date: str = "2026-11-18"
+    experiment_end_date: str = "2026-12-18"
 
     @property
     def free_checkout_url(self) -> str:
-        return self.primary_store_url or self.mirror_store_url or self.kofi_profile_url
+        return (
+            self.gumroad_store_url
+            or self.lemonsqueezy_store_url
+            or self.primary_store_url
+            or self.mirror_store_url
+            or self.kofi_profile_url
+        )
 
     @property
     def paid_checkout_url(self) -> str:
-        return self.mirror_store_url or self.primary_store_url or self.kofi_profile_url
+        return (
+            self.lemonsqueezy_store_url
+            or self.gumroad_store_url
+            or self.mirror_store_url
+            or self.primary_store_url
+            or self.kofi_profile_url
+        )
 
     @classmethod
     def load(
@@ -74,6 +100,9 @@ class AppConfig:
         raw_mode = env_map.get("PUBLISH_MODE", "draft").strip().lower()
         publish_mode = "live" if raw_mode == "live" else "draft"
 
+        raw_blogger_mode = env_map.get("BLOGGER_PUBLISH_MODE", "draft").strip().lower()
+        blogger_publish_mode = "live" if raw_blogger_mode == "live" else "draft"
+
         kofi_profile = (
             env_map.get("KOFI_PROFILE_URL", "https://ko-fi.com/tharushanuwansara").strip().rstrip("/")
             or "https://ko-fi.com/tharushanuwansara"
@@ -83,6 +112,8 @@ class AppConfig:
             or f"{kofi_profile}/shop"
         )
         mirror_store = env_map.get("MIRROR_STORE_URL", "").strip().rstrip("/")
+        lemonsqueezy_store = env_map.get("LEMONSQUEEZY_STORE_URL", "").strip().rstrip("/")
+        gumroad_store = env_map.get("GUMROAD_STORE_URL", "").strip().rstrip("/")
         canonical_base = (
             env_map.get(
                 "CANONICAL_BASE_URL",
@@ -106,4 +137,18 @@ class AppConfig:
             canonical_base_url=canonical_base,
             author_name=env_map.get("AUTHOR_NAME", "Tharusha Nuwansara").strip() or "Tharusha Nuwansara",
             timezone=env_map.get("TIMEZONE", "Asia/Colombo").strip() or "Asia/Colombo",
+            lemonsqueezy_store_url=lemonsqueezy_store,
+            lemonsqueezy_api_key=env_map.get("LEMONSQUEEZY_API_KEY", "").strip(),
+            lemonsqueezy_store_id=env_map.get("LEMONSQUEEZY_STORE_ID", "").strip(),
+            gumroad_store_url=gumroad_store,
+            gumroad_access_token=env_map.get("GUMROAD_ACCESS_TOKEN", "").strip(),
+            blogger_blog_id=env_map.get("BLOGGER_BLOG_ID", "").strip(),
+            blogger_client_id=env_map.get("BLOGGER_CLIENT_ID", "").strip(),
+            blogger_client_secret=env_map.get("BLOGGER_CLIENT_SECRET", "").strip(),
+            blogger_refresh_token=env_map.get("BLOGGER_REFRESH_TOKEN", "").strip(),
+            blogger_publish_mode=blogger_publish_mode,
+            pinterest_access_token=env_map.get("PINTEREST_ACCESS_TOKEN", "").strip(),
+            pinterest_board_id=env_map.get("PINTEREST_BOARD_ID", "").strip(),
+            experiment_start_date=env_map.get("EXPERIMENT_START_DATE", "2026-11-18").strip() or "2026-11-18",
+            experiment_end_date=env_map.get("EXPERIMENT_END_DATE", "2026-12-18").strip() or "2026-12-18",
         )

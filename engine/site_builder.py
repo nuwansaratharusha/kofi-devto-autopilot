@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 import xml.etree.ElementTree as ET
 
 from engine.config import AppConfig
-from engine.models import PILLAR_META, ArticleRecord
+from engine.models import PILLAR_META, SERIES_30D_NAME, ArticleRecord
+from engine.pin_renderer import PIN_HEIGHT, PIN_WIDTH, generate_pin_assets
+from engine.pinterest_client import build_pinterest_pin_copy
+from engine.storefronts import append_storefront_utm
 
 SITE_STYLESHEET = """/* Zero-Dependency Accessible Engineering Publication Stylesheet */
 :root {
@@ -28,6 +32,8 @@ SITE_STYLESHEET = """/* Zero-Dependency Accessible Engineering Publication Style
   --accent-soft: #ccfbf1;
   --badge-ok-bg: #dcfce7;
   --badge-ok-fg: #14532d;
+  --badge-warn-bg: #fef3c7;
+  --badge-warn-fg: #78350f;
   --code-bg: #0f172a;
   --code-fg: #f8fafc;
   --focus-ring: #0284c7;
@@ -48,6 +54,8 @@ SITE_STYLESHEET = """/* Zero-Dependency Accessible Engineering Publication Style
     --accent-soft: #134e4a;
     --badge-ok-bg: #052e16;
     --badge-ok-fg: #86efac;
+    --badge-warn-bg: #451a03;
+    --badge-warn-fg: #fde68a;
     --code-bg: #020617;
     --code-fg: #e2e8f0;
     --focus-ring: #38bdf8;
@@ -67,6 +75,8 @@ SITE_STYLESHEET = """/* Zero-Dependency Accessible Engineering Publication Style
   --accent-soft: #134e4a;
   --badge-ok-bg: #052e16;
   --badge-ok-fg: #86efac;
+  --badge-warn-bg: #451a03;
+  --badge-warn-fg: #fde68a;
   --code-bg: #020617;
   --code-fg: #e2e8f0;
   --focus-ring: #38bdf8;
@@ -342,6 +352,47 @@ main, section, article, header, footer, div, p, li, h1, h2, h3, h4 {
   border-color: transparent;
 }
 
+.badge-warn {
+  background: var(--badge-warn-bg);
+  color: var(--badge-warn-fg);
+  border-color: transparent;
+}
+
+.meter-track {
+  width: 100%;
+  height: 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.pin-thumb-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 100%;
+}
+
+.pin-thumb {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
 /* Article h-entry layout */
 .article-shell {
   max-width: 820px;
@@ -558,6 +609,34 @@ THEME_AND_COPY_JS = """<script>
       markCopied();
     }
   });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
 })();
 </script>"""
 
@@ -719,6 +798,40 @@ def render_markdown_to_html(markdown_text: str) -> str:
     return "\n".join(out)
 
 
+def _canonical_store_url(
+    url: str,
+    config: AppConfig,
+    *,
+    medium: str = "hub",
+    slug: str = "",
+    sku: str = "",
+) -> str:
+    return append_storefront_utm(
+        url,
+        source="canonical_site",
+        medium=medium,
+        campaign="30d_exp_2026_11",
+        slug=slug,
+        sku=sku,
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
+
+
+def _rewrite_html_utm_for_canonical_site(
+    rendered_html: str,
+    slug: str,
+    config: AppConfig,
+) -> str:
+    def _replace_href(match: re.Match[str]) -> str:
+        raw_url = html.unescape(match.group(1))
+        if "utm_source=devto" not in raw_url:
+            return match.group(0)
+        rewritten = _canonical_store_url(raw_url, config, medium="article", slug=slug)
+        return f'href="{html.escape(rewritten, quote=True)}"'
+
+    return re.sub(r'href="([^"]+)"', _replace_href, rendered_html)
+
+
 def _page_shell(
     *,
     title: str,
@@ -735,7 +848,10 @@ def _page_shell(
     safe_canon = html.escape(canonical_url, quote=True)
     safe_author = html.escape(config.author_name)
     safe_kofi = html.escape(config.kofi_profile_url, quote=True)
-    safe_store = html.escape(config.paid_checkout_url, quote=True)
+    safe_store = html.escape(
+        _canonical_store_url(config.paid_checkout_url, config, medium="nav"),
+        quote=True,
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -787,7 +903,11 @@ def _render_article_page(article: ArticleRecord, config: AppConfig) -> str:
     meta = PILLAR_META.get(article.pillar, PILLAR_META["pillar_a"])
     pub_iso = article.created_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     pub_date_short = pub_iso[:10]
-    rendered_body = render_markdown_to_html(article.markdown_body)
+    rendered_body = _rewrite_html_utm_for_canonical_site(
+        render_markdown_to_html(article.markdown_body),
+        article.slug,
+        config,
+    )
     dur_ms = article.verification.get("total_duration_ms", 0)
     blocks_n = article.verification.get("code_blocks_tested", 0)
 
@@ -826,42 +946,75 @@ def _render_article_page(article: ArticleRecord, config: AppConfig) -> str:
     )
 
 
+def _verdict_badge_class(verdict: str) -> str:
+    if verdict.startswith("WORKING"):
+        return "badge badge-verified"
+    if verdict.startswith("BOTTLENECK"):
+        return "badge badge-warn"
+    return "badge"
+
+
 def _render_index_page(
     articles: list[ArticleRecord],
     products: list[dict[str, Any]],
     config: AppConfig,
+    *,
+    experiment_report: Optional[dict[str, Any]] = None,
 ) -> str:
     cards_html: list[str] = []
-    for art in reversed(articles):
+    for idx, art in enumerate(reversed(articles), start=1):
         meta = PILLAR_META.get(art.pillar, PILLAR_META["pillar_a"])
         dur_ms = art.verification.get("total_duration_ms", 0)
+        day_num = art.series_day or (len(articles) - idx + 1)
+        pin_href = f"./pins/{html.escape(art.slug, quote=True)}.png"
+        blogger_btn = (
+            f'<a class="btn" href="{html.escape(art.blogger_url, quote=True)}" rel="noopener">Read on Blogger</a>'
+            if art.blogger_url
+            else ""
+        )
         cards_html.append(
             f"""        <article class="card">
           <div>
             <div class="meta-row">
-              <span class="badge badge-verified">CODE VERIFIED ({dur_ms} ms)</span>
+              <span class="badge badge-verified">DAY {day_num}/30 · VERIFIED ({dur_ms} ms)</span>
               <span class="badge">{html.escape(meta["weekday"])}</span>
               <span class="tabular">{art.word_count} words</span>
             </div>
             <h3><a href="./posts/{html.escape(art.slug, quote=True)}/index.html" style="color:var(--text);text-decoration:none;">{html.escape(art.title)}</a></h3>
             <p>{html.escape(art.subtitle)}</p>
           </div>
+          <div>
+            <a class="pin-thumb-link" href="{pin_href}" aria-label="Open 1000x1500 Pinterest infographic for {html.escape(art.title, quote=True)}">
+              <img class="pin-thumb" src="{pin_href}" width="200" height="300" loading="lazy" alt="1000x1500 benchmark infographic for {html.escape(art.title, quote=True)}" />
+            </a>
+          </div>
           <div class="cta-row">
-            <a class="btn" href="./posts/{html.escape(art.slug, quote=True)}/index.html">Read Verified Benchmark</a>
+            <a class="btn btn-primary" href="./posts/{html.escape(art.slug, quote=True)}/index.html">Read Verified Benchmark</a>
+            <a class="btn" href="{pin_href}">View 2:3 Pin PNG</a>
+            {blogger_btn}
           </div>
         </article>"""
         )
 
     prod_cards: list[str] = []
     for prod in products:
-        price_label = "$0+ Pay-What-You-Want" if int(prod.get("price_usd", 0)) == 0 else f"${prod['price_usd']} USD · MIT License"
-        target_store = config.free_checkout_url if int(prod.get("price_usd", 0)) == 0 else config.paid_checkout_url
+        is_free = int(prod.get("price_usd", 0)) == 0
+        price_label = "$0+ Pay-What-You-Want" if is_free else f"${prod['price_usd']} USD · MIT License"
+        raw_store = config.free_checkout_url if is_free else config.paid_checkout_url
+        target_store = _canonical_store_url(
+            raw_store,
+            config,
+            medium="hub_sku",
+            sku=str(prod.get("slug", "")),
+        )
+        store_tag = "Gumroad / Instant Lead Magnet" if is_free else "Lemon Squeezy / Merchant of Record"
         prod_cards.append(
             f"""        <div class="card">
           <div>
             <div class="meta-row">
               <span class="badge badge-verified">UNIT TESTED .ZIP</span>
               <span class="badge tabular">{html.escape(price_label)}</span>
+              <span class="badge">{html.escape(store_tag)}</span>
             </div>
             <h3>{html.escape(str(prod.get("title", "")))}</h3>
             <p>Artifact <code>{html.escape(str(prod.get("zip_filename", "")))}</code> ({int(prod.get("size_bytes", 0)):,} bytes · SHA-256 <code>{html.escape(str(prod.get("sha256", ""))[:12])}</code>).</p>
@@ -872,22 +1025,135 @@ def _render_index_page(
         </div>"""
         )
 
+    exp = experiment_report or {}
+    ls_meter = (exp.get("storefronts") or {}).get("lemonsqueezy") or {
+        "net_usd": 0.0,
+        "threshold_usd": 50.0,
+        "unlock_progress_pct": 0.0,
+    }
+    gr_meter = (exp.get("storefronts") or {}).get("gumroad") or {
+        "net_usd": 0.0,
+        "threshold_usd": 100.0,
+        "unlock_progress_pct": 0.0,
+    }
+    ch_rows_html: list[str] = []
+    for ch_key, ch_data in (exp.get("channels") or {}).items():
+        v_txt = str(ch_data.get("verdict", "NOT WORKING — PAUSE & REALLOCATE"))
+        v_cls = _verdict_badge_class(v_txt)
+        ch_rows_html.append(
+            f"<tr>"
+            f"<td><code>{html.escape(ch_key)}</code></td>"
+            f'<td class="tabular">{int(ch_data.get("posts_prepared", 0))}</td>'
+            f'<td class="tabular">{int(ch_data.get("views", 0))}</td>'
+            f'<td class="tabular">{int(ch_data.get("clicks", 0))}</td>'
+            f'<td class="tabular">${float(ch_data.get("net_usd", 0.0)):.2f}</td>'
+            f'<td><span class="{v_cls}">{html.escape(v_txt)}</span></td>'
+            f"</tr>"
+        )
+    scoreboard_table = (
+        f"""        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Channel</th>
+                <th scope="col">Assets</th>
+                <th scope="col">Views</th>
+                <th scope="col">Clicks</th>
+                <th scope="col">Net USD</th>
+                <th scope="col">Month-2 Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {"".join(ch_rows_html)}
+            </tbody>
+          </table>
+        </div>"""
+        if ch_rows_html
+        else ""
+    )
+
     articles_section = (
         "\n".join(cards_html)
         if cards_html
-        else '<p class="tabular">No verified tutorials built yet. Run <code>python3 autopilot.py run-pipeline --limit 3</code>.</p>'
+        else '<p class="tabular">No verified tutorials built yet. Run <code>python3 autopilot.py run-daily</code>.</p>'
+    )
+
+    hero_paid_url = _canonical_store_url(
+        config.paid_checkout_url,
+        config,
+        medium="hero",
+        sku="production-agent-automation-kit",
+    )
+    hero_free_url = _canonical_store_url(
+        config.free_checkout_url,
+        config,
+        medium="hero",
+        sku="free-idempotent-cron-mini-kit",
+    )
+    meter_paid_url = _canonical_store_url(
+        config.paid_checkout_url,
+        config,
+        medium="scoreboard",
+        sku="production-agent-automation-kit",
+    )
+    meter_free_url = _canonical_store_url(
+        config.free_checkout_url,
+        config,
+        medium="scoreboard",
+        sku="free-idempotent-cron-mini-kit",
     )
 
     main_html = f"""    <section class="hero">
       <div class="container">
-        <span class="badge badge-verified">100% STDLIB · SANDBOX-EXECUTED BENCHMARKS</span>
-        <h1>Zero-Cost Backend, SQLite WAL &amp; Fault-Tolerant AI Engineering</h1>
-        <p>Empirical Mon/Wed/Fri systems teardowns by {html.escape(config.author_name)}. Every code block runs inside an isolated <code>python3 -I</code> environment before staging—paired with MIT-licensed starter kits.</p>
+        <span class="badge badge-verified">30-DAY SERIES · 100% STDLIB SANDBOX VERIFIED</span>
+        <h1>{html.escape(SERIES_30D_NAME)}</h1>
+        <p>Daily Blogger &amp; Pinterest 2:3 visual engineering series plus Mon/Wed/Fri DEV.to teardowns by {html.escape(config.author_name)} ({html.escape(config.experiment_start_date)} to {html.escape(config.experiment_end_date)}). Every snippet runs inside an isolated <code>python3 -I</code> sandbox before release.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="{html.escape(config.paid_checkout_url, quote=True)}" rel="noopener">Explore Ko-fi Developer Kits</a>
-          <a class="btn" href="{html.escape(config.kofi_profile_url, quote=True)}" rel="noopener">Support on Ko-fi</a>
-          <a class="btn" href="./feed.xml">Subscribe via RSS 2.0</a>
+          <a class="btn btn-primary" href="{html.escape(hero_paid_url, quote=True)}" rel="noopener">Get $14 Starter Kit</a>
+          <a class="btn" href="{html.escape(hero_free_url, quote=True)}" rel="noopener">Download Free $0+ Mini-Kit</a>
+          <a class="btn" href="./feed.xml">Article RSS 2.0</a>
+          <a class="btn" href="./pinterest_feed.xml">Pinterest Auto-Publish RSS</a>
         </div>
+      </div>
+    </section>
+    <section class="section-block" aria-labelledby="scoreboard-heading">
+      <div class="container">
+        <h2 id="scoreboard-heading" class="section-title">30-Day Experiment Scoreboard (Nov 18 → Dec 18, 2026)</h2>
+        <div class="grid-cards">
+          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">MERCHANT OF RECORD #1</span>
+                <span class="badge tabular">${float(ls_meter["net_usd"]):.2f} / ${float(ls_meter["threshold_usd"]):.0f} USD</span>
+              </div>
+              <h3>Lemon Squeezy Payout Meter ($50 Bank Wire)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Lemon Squeezy $50 payout progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(ls_meter['unlock_progress_pct'])))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ls_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">{float(ls_meter["unlock_progress_pct"]):.1f}% toward $50 USD Sri Lanka bank wire unlock (4 × $14 sales).</p>
+            </div>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="{html.escape(meter_paid_url, quote=True)}" rel="noopener">Open Paid Checkout</a>
+            </div>
+          </div>
+          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">MERCHANT OF RECORD #2</span>
+                <span class="badge tabular">${float(gr_meter["net_usd"]):.2f} / ${float(gr_meter["threshold_usd"]):.0f} USD</span>
+              </div>
+              <h3>Gumroad Payout Meter ($100 Local Bank Deposit)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Gumroad $100 payout progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(gr_meter['unlock_progress_pct'])))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(gr_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">{float(gr_meter["unlock_progress_pct"]):.1f}% toward $100 USD Sri Lanka bank deposit unlock (instant $0+ lead magnet).</p>
+            </div>
+            <div class="cta-row">
+              <a class="btn" href="{html.escape(meter_free_url, quote=True)}" rel="noopener">Open Free $0+ Kit</a>
+            </div>
+          </div>
+        </div>
+        {scoreboard_table}
       </div>
     </section>
     <section class="section-block" aria-labelledby="kits-heading">
@@ -900,7 +1166,7 @@ def _render_index_page(
     </section>
     <section class="section-block" aria-labelledby="tutorials-heading">
       <div class="container">
-        <h2 id="tutorials-heading" class="section-title">Verified Engineering Teardowns (<span class="tabular">{len(articles)}</span>)</h2>
+        <h2 id="tutorials-heading" class="section-title">Verified Engineering Teardowns &amp; 2:3 Pins (<span class="tabular">{len(articles)}</span> / 30)</h2>
         <div class="grid-cards">
 {articles_section}
         </div>
@@ -960,6 +1226,76 @@ def _build_rss_xml(articles: list[ArticleRecord], config: AppConfig) -> str:
     return xml_bytes.decode("utf-8") + "\n"
 
 
+def _build_pinterest_rss_xml(articles: list[ArticleRecord], config: AppConfig) -> str:
+    """Build valid Pinterest RSS 2.0 Auto-Publish feed with Media RSS 1000x1500 PNG enclosures."""
+    ET.register_namespace("atom", "http://www.w3.org/2005/Atom")
+    ET.register_namespace("media", "http://search.yahoo.com/mrss/")
+
+    rss = ET.Element("rss", {"version": "2.0"})
+    channel = ET.SubElement(rss, "channel")
+    ET.SubElement(channel, "title").text = f"{config.author_name} — {SERIES_30D_NAME} (Pinterest Pins)"
+    ET.SubElement(channel, "link").text = f"{config.canonical_base_url}/"
+    ET.SubElement(channel, "description").text = (
+        "Daily 1000x1500 (2:3) Python, SQLite WAL, and AI reliability benchmark infographics."
+    )
+    ET.SubElement(channel, "language").text = "en-us"
+    ET.SubElement(
+        channel,
+        "{http://www.w3.org/2005/Atom}link",
+        {
+            "href": f"{config.canonical_base_url}/pinterest_feed.xml",
+            "rel": "self",
+            "type": "application/rss+xml",
+        },
+    )
+
+    for art in reversed(articles):
+        pin_file = config.site_dir / "pins" / f"{art.slug}.png"
+        if not pin_file.is_file():
+            generate_pin_assets(art, config)
+        png_size = pin_file.stat().st_size if pin_file.is_file() else 0
+        png_url = f"{config.canonical_base_url}/pins/{art.slug}.png"
+        copy_fields = build_pinterest_pin_copy(art, config)
+
+        item = ET.SubElement(channel, "item")
+        ET.SubElement(item, "title").text = copy_fields["title"][:100]
+        ET.SubElement(item, "link").text = copy_fields["link"]
+        guid = ET.SubElement(item, "guid", {"isPermaLink": "false"})
+        guid.text = f"pinterest-pin-{art.slug}"
+        ET.SubElement(item, "pubDate").text = _iso_to_rfc2822(art.created_at)
+        ET.SubElement(item, "description").text = copy_fields["description"][:800]
+        ET.SubElement(
+            item,
+            "enclosure",
+            {
+                "url": png_url,
+                "length": str(png_size),
+                "type": "image/png",
+            },
+        )
+        ET.SubElement(
+            item,
+            "{http://search.yahoo.com/mrss/}content",
+            {
+                "url": png_url,
+                "type": "image/png",
+                "medium": "image",
+                "width": str(PIN_WIDTH),
+                "height": str(PIN_HEIGHT),
+            },
+        )
+
+    xml_bytes = ET.tostring(rss, encoding="utf-8", xml_declaration=True)
+    xml_text = xml_bytes.decode("utf-8")
+    if 'xmlns:media="http://search.yahoo.com/mrss/"' not in xml_text:
+        xml_text = xml_text.replace(
+            '<rss version="2.0"',
+            '<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"',
+            1,
+        )
+    return xml_text + "\n"
+
+
 def _build_sitemap_xml(articles: list[ArticleRecord], config: AppConfig) -> str:
     urlset = ET.Element("urlset", {"xmlns": "http://www.sitemaps.org/schemas/sitemap/0.9"})
     root_url = ET.SubElement(urlset, "url")
@@ -979,16 +1315,34 @@ def build_static_site(
     articles: list[ArticleRecord],
     products: list[dict[str, Any]],
     config: AppConfig,
+    *,
+    experiment_report: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Generate `site/index.html`, `site/posts/<slug>/index.html`, `feed.xml` & `sitemap.xml`."""
+    """Generate `site/index.html`, `site/posts/<slug>/index.html`, `site/pins/<slug>.png`, `feed.xml`, `pinterest_feed.xml` & `sitemap.xml`."""
     site_dir = config.site_dir
     site_dir.mkdir(parents=True, exist_ok=True)
+    pins_dir = site_dir / "pins"
+    pins_dir.mkdir(parents=True, exist_ok=True)
 
     css_path = site_dir / "style.css"
     css_path.write_text(SITE_STYLESHEET, encoding="utf-8")
 
+    if experiment_report is None:
+        exp_json = config.exports_dir / "experiment_30d_report.json"
+        if exp_json.is_file():
+            try:
+                experiment_report = json.loads(exp_json.read_text(encoding="utf-8"))
+            except ValueError:
+                experiment_report = None
+
     post_paths: list[str] = []
+    pin_paths: list[str] = []
     for art in articles:
+        pin_file = pins_dir / f"{art.slug}.png"
+        if not pin_file.is_file():
+            generate_pin_assets(art, config)
+        pin_paths.append(str(pin_file))
+
         post_dir = site_dir / "posts" / art.slug
         post_dir.mkdir(parents=True, exist_ok=True)
         post_index = post_dir / "index.html"
@@ -996,10 +1350,16 @@ def build_static_site(
         post_paths.append(str(post_index))
 
     index_path = site_dir / "index.html"
-    index_path.write_text(_render_index_page(articles, products, config), encoding="utf-8")
+    index_path.write_text(
+        _render_index_page(articles, products, config, experiment_report=experiment_report),
+        encoding="utf-8",
+    )
 
     feed_path = site_dir / "feed.xml"
     feed_path.write_text(_build_rss_xml(articles, config), encoding="utf-8")
+
+    pin_feed_path = site_dir / "pinterest_feed.xml"
+    pin_feed_path.write_text(_build_pinterest_rss_xml(articles, config), encoding="utf-8")
 
     sitemap_path = site_dir / "sitemap.xml"
     sitemap_path.write_text(_build_sitemap_xml(articles, config), encoding="utf-8")
@@ -1008,6 +1368,8 @@ def build_static_site(
         "site_dir": str(site_dir),
         "index_html": str(index_path),
         "feed_xml": str(feed_path),
+        "pinterest_feed_xml": str(pin_feed_path),
         "sitemap_xml": str(sitemap_path),
         "post_pages": post_paths,
+        "pin_images": pin_paths,
     }

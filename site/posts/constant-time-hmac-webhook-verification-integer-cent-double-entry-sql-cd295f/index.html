@@ -24,7 +24,7 @@
         <ul class="nav-list">
           <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
           <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
-          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><a class="nav-link btn-primary" href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
           <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
         </ul>
       </nav>
@@ -35,9 +35,9 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (128.36 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (171.16 ms)</span>
             <span class="badge">Friday Pillar</span>
-            <time class="dt-published tabular" datetime="2026-11-17T14:59:34Z">2026-11-17</time>
+            <time class="dt-published tabular" datetime="2026-11-18T02:49:57Z">2026-11-18</time>
             <span>by <a class="p-author h-card" href="https://ko-fi.com/tharushanuwansara" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
           </div>
           <h1 class="p-name">Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python</h1>
@@ -51,7 +51,7 @@
 <p>In this Friday reliability teardown—<em>Defending payment webhooks against timing side-channels, 5-minute replay windows, and floating-point rounding drift.</em> (reference documentation: <a href="https://docs.python.org/3/library/hmac.html" rel="noopener">Python 3 Standard Library Docs</a>)—we build and test a constant-time HMAC webhook ingester backed by atomic SQLite WAL replay-nonce deduplication and an immutable, integer-cent double-entry ledger.</p>
 <h2>Security &amp; Accounting Invariants</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Threat / Failure</th><th scope="col">Vulnerable Shortcut</th><th scope="col">Production Invariant</th></tr></thead><tbody><tr><td><strong>Timing Side-Channel &amp; Body Mutation</strong></td><td><code>computed_hex == header_hex</code> on re-serialized JSON</td><td>Compute <code>HMAC-SHA256(secret, f&quot;{ts}.{nonce}.&quot; + raw_bytes)</code> and compare via <code>hmac.compare_digest</code></td></tr><tr><td><strong>Intra-Window Replay (<code>&lt; 300s</code>)</strong></td><td>Stateless timestamp check only</td><td>Insert <code>nonce</code> into <code>webhook_nonces(nonce PRIMARY KEY)</code> inside the <em>same</em> <code>BEGIN IMMEDIATE</code> transaction as the ledger write</td></tr><tr><td><strong>Floating-Point Drift</strong></td><td><code>REAL</code> / <code>FLOAT</code> dollar columns</td><td>Store strictly positive integer minor units (<code>amount_cents INTEGER CHECK (amount_cents &gt; 0)</code>)</td></tr><tr><td><strong>Unbalanced Mutations</strong></td><td><code>UPDATE accounts SET balance = ...</code></td><td>Record immutable <code>DEBIT</code> and <code>CREDIT</code> postings per <code>tx_id</code> and assert <code>SUM(DEBIT) == SUM(CREDIT)</code></td></tr></tbody></table></div>
-<p>Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=constant-time-hmac-webhook-verification-integer-&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to get started at zero cost.</p>
+<p>Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to get started at zero cost.</p>
 <h2>Runnable Constant-Time HMAC &amp; Double-Entry Ledger Verification</h2>
 <p>The self-contained Python 3.11+ script below processes 24 signed <code>$14.00</code> (<code>1400</code> cents gross, <code>71</code> cents fee, <code>1329</code> cents net) order webhooks, fires 6 intra-window replay attacks, 1 tampered-amount signature attack, and 1 stale-timestamp attack, and verifies that total debits equal total credits down to the exact cent:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -203,7 +203,7 @@ print(f&quot;Verified zero-imbalance ledger (${d[&quot;net_settlement_usd&quot;]
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both blocks above ran inside a clean isolated sandbox prior to staging. Here is the exact stdout captured from the run:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 83.6 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 133.3 ms)
 {
   &quot;posted&quot;: 24,
   &quot;rejected_replay_nonce&quot;: 6,
@@ -213,10 +213,10 @@ print(f&quot;Verified zero-imbalance ledger (${d[&quot;net_settlement_usd&quot;]
   &quot;total_credits_cents&quot;: 33600,
   &quot;ledger_imbalance_cents&quot;: 0,
   &quot;net_settlement_usd&quot;: 318.96,
-  &quot;elapsed_ms&quot;: 15.34
+  &quot;elapsed_ms&quot;: 61.0
 }
 
-# Block 2 (bash, exit=0, 44.8 ms)
+# Block 2 (bash, exit=0, 37.9 ms)
 Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked).</code></pre></div>
 <h2>Why Atomic Nonce + Ledger Coupling Eliminates Race Conditions</h2>
 <p>Examine the transaction boundary inside <code>ingest_payment_webhook</code> above:</p>
@@ -224,7 +224,7 @@ Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked)
 <h3>Handling Refunds, Chargebacks, and Multi-Gateway Payouts</h3>
 <p>When you later add a refund or dispute webhook handler (<code>charge.refunded</code>), never <code>DELETE</code> or <code>UPDATE</code> an existing row in <code>postings</code>. Instead, insert a new compensating <code>journal_entries</code> transaction whose postings reverse the original directions (<code>DEBIT digital_product_revenue</code>, <code>CREDIT cash_settlement</code>, and <code>CREDIT processor_fees</code> if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Ko-fi or Polar settlement CSV exports line-by-line against <code>journal_entries.external_event_id</code>, and spot missing webhook deliveries in milliseconds using a single <code>LEFT JOIN</code> reconciliation query.</p>
 <h2>Get the Full SQL Schema, Python/Node Guards &amp; Queue Kit</h2>
-<p>To skip wiring boilerplate from scratch, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&amp;utm_medium=tutorial&amp;utm_campaign=constant-time-hmac-webhook-verification-integer-&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>—it includes the portable SQLite/PostgreSQL <code>sql/idempotent_ledger.sql</code> schema with account-balance views, <code>webhook_hmac.py</code>, Node/TypeScript <code>verifyWebhookSignature</code> (<code>agent_guardrails.mjs</code>), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.</p>
+<p>To skip wiring boilerplate from scratch, grab the <a href="https://ko-fi.com/tharushanuwansara/shop?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>—it includes the portable SQLite/PostgreSQL <code>sql/idempotent_ledger.sql</code> schema with account-balance views, <code>webhook_hmac.py</code>, Node/TypeScript <code>verifyWebhookSignature</code> (<code>agent_guardrails.mjs</code>), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>
@@ -283,6 +283,34 @@ Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked)
       markCopied();
     }
   });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
 })();
 </script>
 </body>

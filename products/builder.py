@@ -264,12 +264,132 @@ Unzip and run:
 """
 
 
+def _render_dual_storefront_setup(
+    catalog: dict[str, Any],
+    artifacts: list[BuiltProductArtifact],
+    *,
+    lemonsqueezy_store_url: str = "",
+    gumroad_store_url: str = "",
+) -> str:
+    free_art = next((a for a in artifacts if a.tier == "free_pwyw"), artifacts[0])
+    paid_art = next((a for a in artifacts if a.tier == "flagship_paid"), artifacts[-1])
+    free_spec = next(p for p in catalog["products"] if p["slug"] == free_art.slug)
+    paid_spec = next(p for p in catalog["products"] if p["slug"] == paid_art.slug)
+
+    free_bullets = "\n".join(f"- {b}" for b in free_spec["highlights"])
+    paid_bullets = "\n".join(f"- {b}" for b in paid_spec["highlights"])
+
+    ls_display = lemonsqueezy_store_url or "https://<your-handle>.lemonsqueezy.com"
+    gr_display = gumroad_store_url or "https://<your-handle>.gumroad.com"
+
+    return f"""# Dual Storefront Setup Guide: Lemon Squeezy + Gumroad (Sri Lanka No-PayPal/No-Stripe Flow)
+
+**Why Both Storefronts Run in Parallel (`Asia/Colombo` Creator Strategy):**
+- **Gumroad (`{gr_display}`)** — Instant 60-second go-live without waiting on store review; hosts the **$0+ Pay-What-You-Want Mini-Kit** (`free_checkout_url`) and mirrors the **$14 Flagship Kit**. Holds USD balance safely until **$100 USD** minimum Sri Lanka local bank deposit.
+- **Lemon Squeezy (`{ls_display}`)** — Merchant of Record handling global VAT/GST with **$50 USD** minimum Sri Lanka local bank wire payout (`4 × $14 = $56 gross`); hosts the **$14 Flagship Starter Kit** (`paid_checkout_url`) and mirrors the **$0+ Mini-Kit**.
+
+---
+
+## 1. Gumroad Listing Copy & Upload Steps (`https://app.gumroad.com/products`)
+
+> **Tip:** Once `GUMROAD_ACCESS_TOKEN` is set in `.env`, running `python3 autopilot.py sync-stores --create-gumroad-drafts` automatically creates both draft products via `POST /v2/products` (`published=false`) so you only have to attach the `.zip` files and click Publish!
+
+### Gumroad Product #1 — Free Lead Magnet (`$0+` Pay-What-You-Want)
+- **Product Type:** Digital Product
+- **Name:** `{free_art.title}`
+- **Custom Permalink:** `free-idempotent-cron-mini-kit`
+- **Price:** `$0` (Toggle **"Allow customers to pay what they want"** -> Minimum `$0`, Suggested `$3`)
+- **Content File to Upload:** `products/dist/{free_art.zip_filename}` (`{free_art.size_bytes:,}` bytes • SHA-256 `{free_art.sha256[:16]}`)
+- **Tags:** `python, sqlite, cron, reliability, backend`
+- **Summary:** `{free_spec["tagline"]}`
+- **Description (Copy & Paste):**
+~~~~markdown
+{free_spec["summary"]}
+
+### Included Zero-Dependency Modules (`{free_art.zip_filename}`)
+{free_bullets}
+
+### Verify Locally in 5 Seconds
+```bash
+python3 -m unittest discover -v
+python3 idempotent_cron.py --demo
+```
+~~~~
+
+### Gumroad Product #2 — Flagship Production Kit (`$14 USD`)
+- **Product Type:** Digital Product
+- **Name:** `{paid_art.title}`
+- **Custom Permalink:** `production-agent-automation-kit`
+- **Price:** `$14 USD` (Allow PWYW minimum `$14`, suggested `$19`)
+- **Content File to Upload:** `products/dist/{paid_art.zip_filename}` (`{paid_art.size_bytes:,}` bytes • SHA-256 `{paid_art.sha256[:16]}`)
+- **Tags:** `python, typescript, sqlite, ai-agents, webhooks`
+- **Summary:** `{paid_spec["tagline"]}`
+- **Description (Copy & Paste):**
+~~~~markdown
+{paid_spec["summary"]}
+
+### Included Production Modules & CI Blueprints (`{paid_art.zip_filename}`)
+{paid_bullets}
+
+### Run Full Python + Node Test Suites Immediately
+```bash
+python3 -m unittest test_pro_kit -v
+node --test test_guardrails.mjs
+python3 wal_queue.py --demo
+```
+~~~~
+
+---
+
+## 2. Lemon Squeezy Listing Copy & Upload Steps (`https://app.lemonsqueezy.com/products`)
+
+### Lemon Squeezy Product #1 — Flagship Revenue Driver (`$14 USD` • 4 Sales Unlocks `$50` Wire)
+- **Name:** `{paid_art.title}`
+- **Pricing Model:** Standard One-Time Payment — **`$14.00 USD`** (Tax Category: *Digital Goods / Software*)
+- **Digital File Upload:** `products/dist/{paid_art.zip_filename}` (`{paid_art.size_bytes:,}` bytes • SHA-256 `{paid_art.sha256[:16]}`)
+- **Description (Copy & Paste):**
+```markdown
+{paid_spec["tagline"]}
+
+{paid_spec["summary"]}
+
+### What You Receive (`{paid_art.zip_filename}` — MIT Commercial License)
+{paid_bullets}
+```
+
+### Lemon Squeezy Product #2 — Free Lead Magnet Mirror (`$0+` PWYW)
+- **Name:** `{free_art.title}`
+- **Pricing Model:** Pay What You Want — Minimum **`$0.00`**, Suggested **`$3.00`**
+- **Digital File Upload:** `products/dist/{free_art.zip_filename}` (`{free_art.size_bytes:,}` bytes • SHA-256 `{free_art.sha256[:16]}`)
+- **Description:** Same summary & highlights as Gumroad Product #1 above.
+
+---
+
+## 3. Connect `.env` Keys for Automated Sales & UTM Sync
+
+```ini
+GUMROAD_STORE_URL={gr_display}
+GUMROAD_ACCESS_TOKEN=<gumroad_settings_advanced_application_access_token>
+
+LEMONSQUEEZY_STORE_URL={ls_display}
+LEMONSQUEEZY_API_KEY=<lemonsqueezy_settings_api_key>
+LEMONSQUEEZY_STORE_ID=<numeric_store_id>
+```
+
+Then run:
+- `python3 autopilot.py sync-stores --json` — syncs Gumroad `/v2/sales` & Lemon Squeezy `/v1/orders` with `utm_source` / `utm_campaign` attribution into `state/pipeline.db`.
+- `python3 autopilot.py report-30d` — inspects your `$50` Lemon Squeezy & `$100` Gumroad Sri Lanka payout unlock progress bars!
+"""
+
+
 def build_all_products(
     project_root: Path,
     *,
     kofi_profile_url: str = "https://ko-fi.com/tharushanuwansara",
     primary_store_url: str = "https://ko-fi.com/tharushanuwansara/shop",
     mirror_store_url: str = "",
+    lemonsqueezy_store_url: str = "",
+    gumroad_store_url: str = "",
 ) -> dict[str, Any]:
     """Validate, unit-test, and deterministically package all digital products."""
     catalog = load_catalog(project_root)
@@ -325,8 +445,18 @@ def build_all_products(
     )
     storefront_copy_path.write_text(storefront_md, encoding="utf-8")
 
+    dual_setup_path = project_root / "exports" / "storefront" / "lemonsqueezy_and_gumroad_setup.md"
+    dual_setup_md = _render_dual_storefront_setup(
+        catalog,
+        built_artifacts,
+        lemonsqueezy_store_url=lemonsqueezy_store_url,
+        gumroad_store_url=gumroad_store_url,
+    )
+    dual_setup_path.write_text(dual_setup_md, encoding="utf-8")
+
     return {
         "manifest_path": str(manifest_path),
         "storefront_copy_path": str(storefront_copy_path),
+        "dual_storefront_setup_path": str(dual_setup_path),
         "products": [asdict(a) for a in built_artifacts],
     }

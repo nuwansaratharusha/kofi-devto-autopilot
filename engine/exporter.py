@@ -3,30 +3,69 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
-from typing import Any
-from urllib.parse import urlencode
+from typing import Any, Optional
 
+from engine.blogger_client import BloggerClient
 from engine.config import AppConfig
 from engine.devto_client import build_devto_payload
 from engine.models import PILLAR_META, ArticleRecord
+from engine.pinterest_client import PinterestClient
+from engine.storefronts import append_storefront_utm
 
 
-def _utm(base_url: str, *, source: str, slug: str, sku: str) -> str:
-    sep = "&" if "?" in base_url else "?"
-    q = urlencode(
-        {
-            "utm_source": source,
-            "utm_medium": "syndication",
-            "utm_campaign": slug[:48],
-            "sku": sku,
-        }
+def _utm(
+    base_url: str,
+    *,
+    source: str,
+    slug: str,
+    sku: str,
+    configured_ls_url: str = "",
+) -> str:
+    return append_storefront_utm(
+        base_url,
+        source=source,
+        medium="syndication",
+        campaign=slug[:48],
+        slug=slug,
+        sku=sku,
+        configured_ls_url=configured_ls_url,
     )
-    return f"{base_url}{sep}{q}"
 
 
-def export_article_bundle(article: ArticleRecord, config: AppConfig) -> dict[str, str]:
-    """Write ready-to-paste cross-post files into `exports/<slug>/`."""
+def _rewrite_markdown_store_utm(
+    markdown_text: str,
+    *,
+    source: str,
+    slug: str,
+    configured_ls_url: str = "",
+) -> str:
+    def _replace_md_link(match: re.Match[str]) -> str:
+        label = match.group(1)
+        url = match.group(2)
+        if "utm_source=devto" not in url:
+            return match.group(0)
+        rewritten = append_storefront_utm(
+            url,
+            source=source,
+            medium="syndication",
+            campaign=slug[:48],
+            slug=slug,
+            configured_ls_url=configured_ls_url,
+        )
+        return f"[{label}]({rewritten})"
+
+    return re.sub(r"\[([^\]]+)\]\((https://[^)]+)\)", _replace_md_link, markdown_text)
+
+
+def export_article_bundle(
+    article: ArticleRecord,
+    config: AppConfig,
+    *,
+    series_articles: Optional[list[ArticleRecord]] = None,
+) -> dict[str, str]:
+    """Write ready-to-paste cross-post files into `exports/<slug>/` + `site/pins/<slug>.png`."""
     bundle_dir = config.exports_dir / article.slug
     bundle_dir.mkdir(parents=True, exist_ok=True)
     meta = PILLAR_META.get(article.pillar, PILLAR_META["pillar_a"])
@@ -37,6 +76,12 @@ def export_article_bundle(article: ArticleRecord, config: AppConfig) -> dict[str
     devto_path.write_text(json.dumps(devto_payload, indent=2) + "\n", encoding="utf-8")
 
     # 2. Medium Import Guide + Clean Markdown (`https://medium.com/p/import`)
+    medium_body = _rewrite_markdown_store_utm(
+        article.markdown_body,
+        source="medium",
+        slug=article.slug,
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
     medium_md = f"""<!--
 MEDIUM SYNDICATION INSTRUCTIONS (60-Second Canonical Import):
 1. Deploy `site/` to GitHub Pages (or ensure `{article.canonical_url}` is live).
@@ -49,7 +94,7 @@ MEDIUM SYNDICATION INSTRUCTIONS (60-Second Canonical Import):
 
 *{article.subtitle}*
 
-{article.markdown_body}
+{medium_body}
 
 ---
 
@@ -59,8 +104,26 @@ MEDIUM SYNDICATION INSTRUCTIONS (60-Second Canonical Import):
     medium_path.write_text(medium_md, encoding="utf-8")
 
     # 3. Substack Newsletter Edition
-    sub_free = _utm(config.free_checkout_url, source="substack", slug=article.slug, sku="free-idempotent-cron-mini-kit")
-    sub_paid = _utm(config.paid_checkout_url, source="substack", slug=article.slug, sku="production-agent-automation-kit")
+    sub_body = _rewrite_markdown_store_utm(
+        article.markdown_body,
+        source="substack",
+        slug=article.slug,
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
+    sub_free = _utm(
+        config.free_checkout_url,
+        source="substack",
+        slug=article.slug,
+        sku="free-idempotent-cron-mini-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
+    sub_paid = _utm(
+        config.paid_checkout_url,
+        source="substack",
+        slug=article.slug,
+        sku="production-agent-automation-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
     substack_md = f"""# {article.title}
 
 **{article.subtitle}**
@@ -69,7 +132,7 @@ Hey builders — happy {meta["weekday"]}! Today's issue of **{meta["series"]}** 
 
 ---
 
-{article.markdown_body}
+{sub_body}
 
 ---
 
@@ -81,8 +144,20 @@ Hey builders — happy {meta["weekday"]}! Today's issue of **{meta["series"]}** 
     substack_path.write_text(substack_md, encoding="utf-8")
 
     # 4. Ko-fi Creator Feed Post (`https://ko-fi.com/tharushanuwansara`)
-    kofi_free = _utm(config.free_checkout_url, source="kofi_post", slug=article.slug, sku="free-idempotent-cron-mini-kit")
-    kofi_paid = _utm(config.paid_checkout_url, source="kofi_post", slug=article.slug, sku="production-agent-automation-kit")
+    kofi_free = _utm(
+        config.free_checkout_url,
+        source="kofi_post",
+        slug=article.slug,
+        sku="free-idempotent-cron-mini-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
+    kofi_paid = _utm(
+        config.paid_checkout_url,
+        source="kofi_post",
+        slug=article.slug,
+        sku="production-agent-automation-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
+    )
     kofi_md = f"""# New Verified Teardown: {article.title}
 
 {article.subtitle}
@@ -118,6 +193,22 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
     linkedin_path = bundle_dir / "linkedin_snippet.txt"
     linkedin_path.write_text(linkedin_txt, encoding="utf-8")
 
+    # 6. Google Blogger v3 Series HTML & Payload
+    _, blogger_html_path, blogger_json_path = BloggerClient(config).export_artifacts(
+        article,
+        series_articles=series_articles,
+    )
+
+    # 7. Pinterest 1000x1500 PNG + SVG + Dry-Run v5 Metadata (without issuing live HTTP POST here)
+    dry_pin_cfg = AppConfig(
+        **{
+            **config.__dict__,
+            "pinterest_access_token": "",
+            "pinterest_board_id": config.pinterest_board_id,
+        }
+    )
+    pin_info = PinterestClient(dry_pin_cfg).render_and_publish(article)
+
     return {
         "bundle_dir": str(bundle_dir),
         "devto_payload": str(devto_path),
@@ -125,6 +216,11 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
         "substack_post": str(substack_path),
         "kofi_post": str(kofi_path),
         "linkedin_snippet": str(linkedin_path),
+        "blogger_post_html": str(blogger_html_path),
+        "blogger_payload": str(blogger_json_path),
+        "pinterest_pin_png": str(pin_info["png_path"]),
+        "pinterest_pin_svg": str(pin_info["svg_path"]),
+        "pinterest_pin_json": str(pin_info["metadata_path"]),
     }
 
 
@@ -137,6 +233,8 @@ def load_bundle_texts(exports_dir: Path, slug: str) -> dict[str, Any]:
         ("medium_import", "medium_import.md"),
         ("substack_post", "substack_post.md"),
         ("linkedin_snippet", "linkedin_snippet.txt"),
+        ("blogger_html", "blogger_post.html"),
+        ("pinterest_json", "pinterest_pin.json"),
     ):
         p = d / filename
         result[key] = p.read_text(encoding="utf-8") if p.is_file() else ""

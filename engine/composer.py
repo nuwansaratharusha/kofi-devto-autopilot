@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import urlencode
+from typing import Optional
 
 from engine.config import AppConfig
+from engine.curriculum_30d import BLUEPRINT_SPECS, compose_extra_blueprint_prose
 from engine.models import PILLAR_META, ArticleRecord, TopicSignal
+from engine.storefronts import append_storefront_utm
 
 
 def slugify(title: str, fingerprint: str = "") -> str:
@@ -17,17 +19,22 @@ def slugify(title: str, fingerprint: str = "") -> str:
     return f"{base}-{suffix}" if suffix else base
 
 
-def _build_utm_store_url(base_url: str, *, slug: str, sku: str) -> str:
-    sep = "&" if "?" in base_url else "?"
-    query = urlencode(
-        {
-            "utm_source": "devto",
-            "utm_medium": "tutorial",
-            "utm_campaign": slug[:48],
-            "sku": sku,
-        }
+def _build_utm_store_url(
+    base_url: str,
+    *,
+    slug: str,
+    sku: str,
+    configured_ls_url: str = "",
+) -> str:
+    return append_storefront_utm(
+        base_url,
+        source="devto",
+        medium="tutorial",
+        campaign=slug[:48],
+        slug=slug,
+        sku=sku,
+        configured_ls_url=configured_ls_url,
     )
-    return f"{base_url}{sep}{query}"
 
 
 def _source_label(signal: TopicSignal) -> str:
@@ -1197,9 +1204,18 @@ def _compose_pillar_prose(
     paid_url: str,
     author_name: str,
 ) -> tuple[str, str]:
-    """Return `(subtitle, markdown_body)` tailored to each of the 9 blueprint keys."""
+    """Return `(subtitle, markdown_body)` tailored to each of the 30 blueprint keys."""
     meta = PILLAR_META.get(signal.pillar, PILLAR_META["pillar_a"])
     bp = signal.blueprint_key
+
+    if bp in BLUEPRINT_SPECS:
+        return compose_extra_blueprint_prose(
+            signal,
+            source_label=_source_label(signal),
+            free_url=free_url,
+            paid_url=paid_url,
+            author_name=author_name,
+        )
 
     # ------------------------------------------------------------------
     # PILLAR A2: Retry-After + Full Jitter Backoff Simulation
@@ -1893,7 +1909,12 @@ To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Co
     return subtitle, body.strip()
 
 
-def compose_article(signal: TopicSignal, config: AppConfig) -> ArticleRecord:
+def compose_article(
+    signal: TopicSignal,
+    config: AppConfig,
+    *,
+    series_day: Optional[int] = None,
+) -> ArticleRecord:
     """Compose a complete, verifiable engineering tutorial for `signal`."""
     slug = slugify(signal.title, signal.fingerprint)
     meta = PILLAR_META.get(signal.pillar, PILLAR_META["pillar_a"])
@@ -1902,11 +1923,13 @@ def compose_article(signal: TopicSignal, config: AppConfig) -> ArticleRecord:
         config.free_checkout_url,
         slug=slug,
         sku="free-idempotent-cron-mini-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
     )
     paid_url = _build_utm_store_url(
         config.paid_checkout_url,
         slug=slug,
         sku="production-agent-automation-kit",
+        configured_ls_url=config.lemonsqueezy_store_url,
     )
 
     subtitle, markdown_body = _compose_pillar_prose(
@@ -1929,4 +1952,5 @@ def compose_article(signal: TopicSignal, config: AppConfig) -> ArticleRecord:
         markdown_body=markdown_body,
         status="composed",
         published_mode=config.publish_mode,
+        series_day=series_day,
     )

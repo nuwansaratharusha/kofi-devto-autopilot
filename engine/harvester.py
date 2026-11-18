@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
 
+from engine.curriculum_30d import EXTRA_21_PILLAR_SEEDS
 from engine.db import utc_now_iso
 from engine.models import TopicSignal
 
@@ -111,6 +112,7 @@ DETERMINISTIC_PILLAR_SEEDS: list[TopicSignal] = [
         tags=["sql", "python", "fintech", "architecture"],
         summary="Detecting missing webhooks and unbalanced journal entries with pure SQLite views and deterministic invariants.",
     ),
+    *EXTRA_21_PILLAR_SEEDS,
 ]
 
 

@@ -56,8 +56,23 @@ STOREFRONT_HOSTS = frozenset(
         "lemonsqueezy.com",
         "www.lemonsqueezy.com",
         "gumroad.com",
+        "www.gumroad.com",
     }
 )
+
+STOREFRONT_DOMAIN_SUFFIXES = (
+    ".lemonsqueezy.com",
+    ".gumroad.com",
+)
+
+
+def _is_recognized_storefront_host(hostname: str, extra_hosts: set[str]) -> bool:
+    low = hostname.strip().lower()
+    if not low:
+        return False
+    if low in extra_hosts:
+        return True
+    return any(low.endswith(sfx) for sfx in STOREFRONT_DOMAIN_SUFFIXES)
 
 
 def count_article_words(markdown_text: str) -> int:
@@ -129,7 +144,13 @@ def _lint_links_and_slop(
 
     extra_store_hosts: set[str] = set(STOREFRONT_HOSTS)
     if config is not None:
-        for url_candidate in (config.primary_store_url, config.mirror_store_url, config.kofi_profile_url):
+        for url_candidate in (
+            config.primary_store_url,
+            config.mirror_store_url,
+            config.kofi_profile_url,
+            config.lemonsqueezy_store_url,
+            config.gumroad_store_url,
+        ):
             if url_candidate:
                 parsed_host = urlparse(url_candidate).netloc.lower()
                 if parsed_host:
@@ -156,7 +177,7 @@ def _lint_links_and_slop(
         if not parsed.netloc:
             errors.append(f"Link '{target}' missing hostname")
             continue
-        if parsed.netloc.lower() in extra_store_hosts:
+        if _is_recognized_storefront_host(parsed.netloc, extra_store_hosts):
             storefront_links += 1
 
     if storefront_links > MAX_STOREFRONT_LINKS:

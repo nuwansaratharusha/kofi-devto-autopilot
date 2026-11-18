@@ -1,4 +1,4 @@
-"""SQLite WAL state ledger for signals, verified articles, and publish runs."""
+"""SQLite WAL state ledger for signals, verified articles, store orders, metrics & publish runs."""
 
 from __future__ import annotations
 
@@ -7,13 +7,28 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Iterable, Optional
+from typing import Any, Iterable, Iterator, Optional
 
-from engine.models import ArticleRecord, TopicSignal
+from engine.models import (
+    VALID_CHANNELS,
+    ArticleRecord,
+    ChannelMetricRecord,
+    StoreOrderRecord,
+    TopicSignal,
+)
 
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+ARTICLE_MIGRATION_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("series_day", "INTEGER"),
+    ("blogger_post_id", "TEXT"),
+    ("blogger_url", "TEXT"),
+    ("pinterest_pin_id", "TEXT"),
+    ("pinterest_url", "TEXT"),
+)
 
 
 class PipelineDatabase:
@@ -80,12 +95,66 @@ class PipelineDatabase:
                     devto_url TEXT,
                     published_mode TEXT NOT NULL DEFAULT 'draft',
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    series_day INTEGER,
+                    blogger_post_id TEXT,
+                    blogger_url TEXT,
+                    pinterest_pin_id TEXT,
+                    pinterest_url TEXT
+                );
+                """
+            )
+            existing_cols = {
+                str(row["name"])
+                for row in conn.execute("PRAGMA table_info(articles);").fetchall()
+            }
+            for col_name, col_type in ARTICLE_MIGRATION_COLUMNS:
+                if col_name not in existing_cols:
+                    conn.execute(f"ALTER TABLE articles ADD COLUMN {col_name} {col_type};")
+
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status, created_at DESC);"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_articles_series_day ON articles(series_day);"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS store_orders (
+                    storefront TEXT NOT NULL,
+                    order_id TEXT NOT NULL,
+                    sku TEXT NOT NULL DEFAULT '',
+                    product_name TEXT NOT NULL DEFAULT '',
+                    gross_cents INTEGER NOT NULL DEFAULT 0,
+                    fee_cents INTEGER NOT NULL DEFAULT 0,
+                    net_cents INTEGER NOT NULL DEFAULT 0,
+                    currency TEXT NOT NULL DEFAULT 'USD',
+                    refunded INTEGER NOT NULL DEFAULT 0,
+                    utm_source TEXT NOT NULL DEFAULT '',
+                    utm_medium TEXT NOT NULL DEFAULT '',
+                    utm_campaign TEXT NOT NULL DEFAULT '',
+                    attributed_slug TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    synced_at TEXT NOT NULL,
+                    raw_json TEXT NOT NULL DEFAULT '{}',
+                    PRIMARY KEY (storefront, order_id)
                 );
                 """
             )
             conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_articles_status ON articles(status, created_at DESC);"
+                "CREATE INDEX IF NOT EXISTS idx_orders_utm ON store_orders(utm_source, refunded);"
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS channel_metrics (
+                    slug TEXT NOT NULL,
+                    channel TEXT NOT NULL,
+                    views INTEGER NOT NULL DEFAULT 0,
+                    clicks INTEGER NOT NULL DEFAULT 0,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (slug, channel)
+                );
+                """
             )
             conn.execute(
                 """
@@ -196,7 +265,12 @@ class PipelineDatabase:
                          WHERE pillar = ?
                            AND used_at IS NULL
                            {not_in_clause}
-                         ORDER BY score DESC, id ASC
+                         ORDER BY
+                           CASE WHEN blueprint_key IN (
+                               SELECT blueprint_key FROM signals WHERE used_at IS NOT NULL
+                           ) THEN 1 ELSE 0 END ASC,
+                           score DESC,
+                           id ASC
                          LIMIT 1
                     """
                     params: list[Any] = [p, *chosen_fps]
@@ -220,6 +294,7 @@ class PipelineDatabase:
 
     @staticmethod
     def _row_to_article(row: sqlite3.Row) -> ArticleRecord:
+        keys = row.keys()
         return ArticleRecord(
             slug=str(row["slug"]),
             signal_fingerprint=str(row["signal_fingerprint"]),
@@ -238,6 +313,11 @@ class PipelineDatabase:
             published_mode=str(row["published_mode"]),
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
+            series_day=int(row["series_day"]) if "series_day" in keys and row["series_day"] is not None else None,
+            blogger_post_id=str(row["blogger_post_id"]) if "blogger_post_id" in keys and row["blogger_post_id"] is not None else None,
+            blogger_url=str(row["blogger_url"]) if "blogger_url" in keys and row["blogger_url"] is not None else None,
+            pinterest_pin_id=str(row["pinterest_pin_id"]) if "pinterest_pin_id" in keys and row["pinterest_pin_id"] is not None else None,
+            pinterest_url=str(row["pinterest_url"]) if "pinterest_url" in keys and row["pinterest_url"] is not None else None,
         )
 
     def save_article(self, article: ArticleRecord) -> ArticleRecord:
@@ -248,7 +328,13 @@ class PipelineDatabase:
             conn.execute("BEGIN IMMEDIATE;")
             try:
                 existing = conn.execute(
-                    "SELECT created_at, devto_article_id, devto_url FROM articles WHERE slug = ?",
+                    """
+                    SELECT created_at, devto_article_id, devto_url,
+                           series_day, blogger_post_id, blogger_url,
+                           pinterest_pin_id, pinterest_url
+                      FROM articles
+                     WHERE slug = ?
+                    """,
                     (article.slug,),
                 ).fetchone()
                 if existing is not None:
@@ -257,6 +343,16 @@ class PipelineDatabase:
                         article.devto_article_id = int(existing["devto_article_id"])
                     if article.devto_url is None and existing["devto_url"] is not None:
                         article.devto_url = str(existing["devto_url"])
+                    if article.series_day is None and existing["series_day"] is not None:
+                        article.series_day = int(existing["series_day"])
+                    if article.blogger_post_id is None and existing["blogger_post_id"] is not None:
+                        article.blogger_post_id = str(existing["blogger_post_id"])
+                    if article.blogger_url is None and existing["blogger_url"] is not None:
+                        article.blogger_url = str(existing["blogger_url"])
+                    if article.pinterest_pin_id is None and existing["pinterest_pin_id"] is not None:
+                        article.pinterest_pin_id = str(existing["pinterest_pin_id"])
+                    if article.pinterest_url is None and existing["pinterest_url"] is not None:
+                        article.pinterest_url = str(existing["pinterest_url"])
 
                 conn.execute(
                     """
@@ -264,8 +360,9 @@ class PipelineDatabase:
                         slug, signal_fingerprint, pillar, scheduled_slot, title, subtitle,
                         tags_json, canonical_url, markdown_body, word_count, status,
                         verification_json, devto_article_id, devto_url, published_mode,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        created_at, updated_at, series_day,
+                        blogger_post_id, blogger_url, pinterest_pin_id, pinterest_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(slug) DO UPDATE SET
                         title = excluded.title,
                         subtitle = excluded.subtitle,
@@ -278,7 +375,12 @@ class PipelineDatabase:
                         devto_article_id = excluded.devto_article_id,
                         devto_url = excluded.devto_url,
                         published_mode = excluded.published_mode,
-                        updated_at = excluded.updated_at
+                        updated_at = excluded.updated_at,
+                        series_day = excluded.series_day,
+                        blogger_post_id = excluded.blogger_post_id,
+                        blogger_url = excluded.blogger_url,
+                        pinterest_pin_id = excluded.pinterest_pin_id,
+                        pinterest_url = excluded.pinterest_url
                     """,
                     (
                         article.slug,
@@ -298,6 +400,11 @@ class PipelineDatabase:
                         article.published_mode,
                         created,
                         updated,
+                        article.series_day,
+                        article.blogger_post_id,
+                        article.blogger_url,
+                        article.pinterest_pin_id,
+                        article.pinterest_url,
                     ),
                 )
                 row = conn.execute("SELECT * FROM articles WHERE slug = ?", (article.slug,)).fetchone()
@@ -313,6 +420,19 @@ class PipelineDatabase:
             row = conn.execute("SELECT * FROM articles WHERE slug = ?", (slug,)).fetchone()
             return self._row_to_article(row) if row is not None else None
 
+    def get_article_by_series_day(self, series_day: int) -> Optional[ArticleRecord]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM articles WHERE series_day = ? ORDER BY id ASC LIMIT 1",
+                (int(series_day),),
+            ).fetchone()
+            return self._row_to_article(row) if row is not None else None
+
+    def next_series_day(self) -> int:
+        with self._connect() as conn:
+            val = conn.execute("SELECT COALESCE(MAX(series_day), COUNT(*)) FROM articles").fetchone()[0]
+            return int(val or 0) + 1
+
     def list_articles(self, *, verified_only: bool = False) -> list[ArticleRecord]:
         valid_statuses = ("code_verified", "staged_draft", "published_live")
         with self._connect() as conn:
@@ -321,13 +441,191 @@ class PipelineDatabase:
                     """
                     SELECT * FROM articles
                      WHERE status IN (?, ?, ?)
-                     ORDER BY id ASC
+                     ORDER BY COALESCE(series_day, id) ASC, id ASC
                     """,
                     valid_statuses,
                 ).fetchall()
             else:
-                rows = conn.execute("SELECT * FROM articles ORDER BY id ASC").fetchall()
+                rows = conn.execute(
+                    "SELECT * FROM articles ORDER BY COALESCE(series_day, id) ASC, id ASC"
+                ).fetchall()
             return [self._row_to_article(r) for r in rows]
+
+    @staticmethod
+    def _row_to_store_order(row: sqlite3.Row) -> StoreOrderRecord:
+        return StoreOrderRecord(
+            storefront=str(row["storefront"]),
+            order_id=str(row["order_id"]),
+            sku=str(row["sku"]),
+            product_name=str(row["product_name"]),
+            gross_cents=int(row["gross_cents"]),
+            fee_cents=int(row["fee_cents"]),
+            net_cents=int(row["net_cents"]),
+            currency=str(row["currency"]),
+            refunded=bool(int(row["refunded"])),
+            utm_source=str(row["utm_source"]),
+            utm_medium=str(row["utm_medium"]),
+            utm_campaign=str(row["utm_campaign"]),
+            attributed_slug=str(row["attributed_slug"]),
+            created_at=str(row["created_at"]),
+            synced_at=str(row["synced_at"]),
+            raw_data=dict(json.loads(row["raw_json"] or "{}")),
+        )
+
+    def upsert_store_orders(self, orders: Iterable[StoreOrderRecord]) -> int:
+        now = utc_now_iso()
+        upserted = 0
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                known_slugs = {
+                    str(r["slug"])
+                    for r in conn.execute("SELECT slug FROM articles").fetchall()
+                }
+                for ord_rec in orders:
+                    attr_slug = ord_rec.attributed_slug.strip()
+                    if not attr_slug and ord_rec.utm_campaign:
+                        cand = ord_rec.utm_campaign.strip()
+                        if cand in known_slugs:
+                            attr_slug = cand
+                        else:
+                            for ks in known_slugs:
+                                if ks.startswith(cand) and len(cand) >= 12:
+                                    attr_slug = ks
+                                    break
+                    net_val = 0 if ord_rec.refunded else int(ord_rec.net_cents)
+                    conn.execute(
+                        """
+                        INSERT INTO store_orders (
+                            storefront, order_id, sku, product_name,
+                            gross_cents, fee_cents, net_cents, currency, refunded,
+                            utm_source, utm_medium, utm_campaign, attributed_slug,
+                            created_at, synced_at, raw_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(storefront, order_id) DO UPDATE SET
+                            sku = excluded.sku,
+                            product_name = excluded.product_name,
+                            gross_cents = excluded.gross_cents,
+                            fee_cents = excluded.fee_cents,
+                            net_cents = excluded.net_cents,
+                            currency = excluded.currency,
+                            refunded = excluded.refunded,
+                            utm_source = CASE WHEN excluded.utm_source != '' THEN excluded.utm_source ELSE store_orders.utm_source END,
+                            utm_medium = CASE WHEN excluded.utm_medium != '' THEN excluded.utm_medium ELSE store_orders.utm_medium END,
+                            utm_campaign = CASE WHEN excluded.utm_campaign != '' THEN excluded.utm_campaign ELSE store_orders.utm_campaign END,
+                            attributed_slug = CASE WHEN excluded.attributed_slug != '' THEN excluded.attributed_slug ELSE store_orders.attributed_slug END,
+                            synced_at = excluded.synced_at,
+                            raw_json = excluded.raw_json
+                        """,
+                        (
+                            ord_rec.storefront.strip().lower(),
+                            str(ord_rec.order_id).strip(),
+                            ord_rec.sku.strip(),
+                            ord_rec.product_name.strip(),
+                            int(ord_rec.gross_cents),
+                            int(ord_rec.fee_cents),
+                            net_val,
+                            (ord_rec.currency or "USD").strip().upper(),
+                            1 if ord_rec.refunded else 0,
+                            ord_rec.utm_source.strip().lower(),
+                            ord_rec.utm_medium.strip().lower(),
+                            ord_rec.utm_campaign.strip(),
+                            attr_slug,
+                            ord_rec.created_at or now,
+                            ord_rec.synced_at or now,
+                            json.dumps(ord_rec.raw_data),
+                        ),
+                    )
+                    upserted += 1
+                conn.execute("COMMIT;")
+            except Exception:
+                conn.execute("ROLLBACK;")
+                raise
+        return upserted
+
+    def list_store_orders(self, *, include_refunded: bool = True) -> list[StoreOrderRecord]:
+        with self._connect() as conn:
+            if include_refunded:
+                rows = conn.execute(
+                    "SELECT * FROM store_orders ORDER BY created_at ASC, storefront ASC, order_id ASC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM store_orders WHERE refunded = 0 ORDER BY created_at ASC, storefront ASC, order_id ASC"
+                ).fetchall()
+            return [self._row_to_store_order(r) for r in rows]
+
+    def upsert_channel_metrics(
+        self,
+        *,
+        slug: str,
+        channel: str,
+        views: Optional[int] = None,
+        clicks: Optional[int] = None,
+    ) -> ChannelMetricRecord:
+        norm_channel = channel.strip().lower()
+        if norm_channel not in VALID_CHANNELS:
+            raise ValueError(f"Invalid channel '{channel}'. Expected one of {VALID_CHANNELS}")
+        if views is not None and views < 0:
+            raise ValueError("views must be >= 0")
+        if clicks is not None and clicks < 0:
+            raise ValueError("clicks must be >= 0")
+
+        now = utc_now_iso()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                existing = conn.execute(
+                    "SELECT views, clicks FROM channel_metrics WHERE slug = ? AND channel = ?",
+                    (slug, norm_channel),
+                ).fetchone()
+                eff_views = int(views) if views is not None else (int(existing["views"]) if existing else 0)
+                eff_clicks = int(clicks) if clicks is not None else (int(existing["clicks"]) if existing else 0)
+
+                conn.execute(
+                    """
+                    INSERT INTO channel_metrics (slug, channel, views, clicks, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(slug, channel) DO UPDATE SET
+                        views = excluded.views,
+                        clicks = excluded.clicks,
+                        updated_at = excluded.updated_at
+                    """,
+                    (slug, norm_channel, eff_views, eff_clicks, now),
+                )
+                conn.execute("COMMIT;")
+            except Exception:
+                conn.execute("ROLLBACK;")
+                raise
+        return ChannelMetricRecord(
+            slug=slug,
+            channel=norm_channel,
+            views=eff_views,
+            clicks=eff_clicks,
+            updated_at=now,
+        )
+
+    def list_channel_metrics(self, *, slug: Optional[str] = None) -> list[ChannelMetricRecord]:
+        with self._connect() as conn:
+            if slug:
+                rows = conn.execute(
+                    "SELECT * FROM channel_metrics WHERE slug = ? ORDER BY channel ASC",
+                    (slug,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM channel_metrics ORDER BY slug ASC, channel ASC"
+                ).fetchall()
+            return [
+                ChannelMetricRecord(
+                    slug=str(r["slug"]),
+                    channel=str(r["channel"]),
+                    views=int(r["views"]),
+                    clicks=int(r["clicks"]),
+                    updated_at=str(r["updated_at"]),
+                )
+                for r in rows
+            ]
 
     def record_publish_run(
         self,
@@ -372,6 +670,18 @@ class PipelineDatabase:
             art_staged = conn.execute(
                 "SELECT COUNT(*) FROM articles WHERE devto_article_id IS NOT NULL"
             ).fetchone()[0]
+            art_blogger = conn.execute(
+                "SELECT COUNT(*) FROM articles WHERE blogger_post_id IS NOT NULL"
+            ).fetchone()[0]
+            art_pinterest = conn.execute(
+                "SELECT COUNT(*) FROM articles WHERE pinterest_pin_id IS NOT NULL"
+            ).fetchone()[0]
+            paid_orders = conn.execute(
+                "SELECT COUNT(*) FROM store_orders WHERE refunded = 0 AND gross_cents > 0"
+            ).fetchone()[0]
+            net_cents = conn.execute(
+                "SELECT COALESCE(SUM(net_cents), 0) FROM store_orders WHERE refunded = 0"
+            ).fetchone()[0]
             runs_total = conn.execute("SELECT COUNT(*) FROM publish_runs").fetchone()[0]
         return {
             "signals_total": int(sig_total),
@@ -379,5 +689,9 @@ class PipelineDatabase:
             "articles_total": int(art_total),
             "articles_verified": int(art_verified),
             "articles_staged_remote": int(art_staged),
+            "articles_blogger_remote": int(art_blogger),
+            "articles_pinterest_remote": int(art_pinterest),
+            "store_orders_paid": int(paid_orders),
+            "net_revenue_cents": int(net_cents),
             "publish_runs_total": int(runs_total),
         }
