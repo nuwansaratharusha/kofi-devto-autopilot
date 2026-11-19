@@ -49,6 +49,8 @@ EMPIRICAL_BLOCK_RE = re.compile(
 
 STOREFRONT_HOSTS = frozenset(
     {
+        "patreon.com",
+        "www.patreon.com",
         "ko-fi.com",
         "www.ko-fi.com",
         "polar.sh",

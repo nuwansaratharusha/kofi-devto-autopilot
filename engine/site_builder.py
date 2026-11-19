@@ -879,7 +879,7 @@ def _page_shell(
         <ul class="nav-list">
           <li><a class="nav-link" href="{html.escape(home_href, quote=True)}">Tutorials</a></li>
           <li><a class="nav-link" href="{html.escape(feed_href, quote=True)}">RSS Feed</a></li>
-          <li><a class="nav-link btn-primary" href="{safe_store}" rel="noopener">Toolkits &amp; Ko-fi Shop</a></li>
+          <li><a class="nav-link btn-primary" href="{safe_store}" rel="noopener">Starter Kits &amp; Storefronts</a></li>
           <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
         </ul>
       </nav>
@@ -1026,6 +1026,11 @@ def _render_index_page(
         )
 
     exp = experiment_report or {}
+    pt_meter = (exp.get("storefronts") or {}).get("patreon") or {
+        "net_usd": 0.0,
+        "threshold_usd": 25.0,
+        "unlock_progress_pct": 0.0,
+    }
     ls_meter = (exp.get("storefronts") or {}).get("lemonsqueezy") or {
         "net_usd": 0.0,
         "threshold_usd": 50.0,
@@ -1107,7 +1112,7 @@ def _render_index_page(
       <div class="container">
         <span class="badge badge-verified">30-DAY SERIES · 100% STDLIB SANDBOX VERIFIED</span>
         <h1>{html.escape(SERIES_30D_NAME)}</h1>
-        <p>Daily Blogger &amp; Pinterest 2:3 visual engineering series plus Mon/Wed/Fri DEV.to teardowns by {html.escape(config.author_name)} ({html.escape(config.experiment_start_date)} to {html.escape(config.experiment_end_date)}). Every snippet runs inside an isolated <code>python3 -I</code> sandbox before release.</p>
+        <p>Daily Blogger, Patreon &amp; Pinterest 2:3 visual engineering series plus Mon/Wed/Fri DEV.to teardowns by {html.escape(config.author_name)} ({html.escape(config.experiment_start_date)} to {html.escape(config.experiment_end_date)}). Every snippet runs inside an isolated <code>python3 -I</code> sandbox before release.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="{html.escape(hero_paid_url, quote=True)}" rel="noopener">Get $14 Starter Kit</a>
           <a class="btn" href="{html.escape(hero_free_url, quote=True)}" rel="noopener">Download Free $0+ Mini-Kit</a>
@@ -1123,7 +1128,23 @@ def _render_index_page(
           <div class="card">
             <div>
               <div class="meta-row">
-                <span class="badge badge-verified">MERCHANT OF RECORD #1</span>
+                <span class="badge badge-verified">STOREFRONT #1 · PATREON</span>
+                <span class="badge tabular">${float(pt_meter["net_usd"]):.2f} / ${float(pt_meter["threshold_usd"]):.0f} USD</span>
+              </div>
+              <h3>Patreon Payout Meter ($25 Payoneer)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Patreon $25 payout progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(pt_meter['unlock_progress_pct'])))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(pt_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">{float(pt_meter["unlock_progress_pct"]):.1f}% toward $25 USD Payoneer payout unlock ($5/mo Builder Tier &amp; $14 Shop).</p>
+            </div>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="{html.escape(config.patreon_url or meter_paid_url, quote=True)}" rel="noopener">Open Patreon Tiers &amp; Shop</a>
+            </div>
+          </div>
+          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">MERCHANT OF RECORD #2</span>
                 <span class="badge tabular">${float(ls_meter["net_usd"]):.2f} / ${float(ls_meter["threshold_usd"]):.0f} USD</span>
               </div>
               <h3>Lemon Squeezy Payout Meter ($50 Bank Wire)</h3>

@@ -2,7 +2,7 @@ Zero-Dependency Python Circuit Breakers & Self-Repairing JSON Routers for Unreli
 
 How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and route around upstream brownouts using pure Python 3.11+ standard library code.
 
-3 takeaways from running the isolated Python 3.11+ benchmark (99.12 ms verification runtime):
+3 takeaways from running the isolated Python 3.11+ benchmark (92.92 ms verification runtime):
 1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
 2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
 3. Every snippet in our Monday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
@@ -11,4 +11,4 @@ Read the full benchmark + runnable code here:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/
 
 Free $0+ Mini-Kit & MIT Starter Kit in my shop:
-https://ko-fi.com/tharushanuwansara/shop
+https://nuwansaratharusha.github.io/kofi-devto-autopilot

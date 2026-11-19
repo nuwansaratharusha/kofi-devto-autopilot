@@ -50,8 +50,8 @@ jobs:
       BLOGGER_PUBLISH_MODE: ${{ inputs.blogger_publish_mode || vars.BLOGGER_PUBLISH_MODE || 'draft' }}
       PINTEREST_ACCESS_TOKEN: ${{ secrets.PINTEREST_ACCESS_TOKEN }}
       PINTEREST_BOARD_ID: ${{ vars.PINTEREST_BOARD_ID || secrets.PINTEREST_BOARD_ID || '' }}
-      KOFI_PROFILE_URL: ${{ vars.KOFI_PROFILE_URL || 'https://ko-fi.com/tharushanuwansara' }}
-      PRIMARY_STORE_URL: ${{ vars.PRIMARY_STORE_URL || 'https://ko-fi.com/tharushanuwansara/shop' }}
+      KOFI_PROFILE_URL: ${{ vars.KOFI_PROFILE_URL || '' }}
+      PRIMARY_STORE_URL: ${{ vars.PRIMARY_STORE_URL || '' }}
       MIRROR_STORE_URL: ${{ vars.MIRROR_STORE_URL || '' }}
       CANONICAL_BASE_URL: ${{ vars.CANONICAL_BASE_URL || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
       EXPERIMENT_START_DATE: ${{ vars.EXPERIMENT_START_DATE || '2026-11-18' }}

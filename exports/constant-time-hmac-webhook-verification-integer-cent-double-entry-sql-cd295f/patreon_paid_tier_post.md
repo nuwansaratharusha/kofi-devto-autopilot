@@ -4,13 +4,13 @@ Thank you for backing **30 Days of Zero-Cost Production Python & AI Reliability*
 
 **Attachment Checklist Before Clicking Publish in Patreon:**
 - Access Setting: **Paid members only** (or sell as a **$14 one-time Patreon Shop post**)
-- File Attachment: `/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip`
+- File Attachment: `/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip`
 
 ---
 
 ## Three Subtle Bugs Hiding in Typical Payment Webhook Handlers
 
-Handling incoming `order.paid` or subscription webhooks from Stripe, Ko-fi, Polar, or Lemon Squeezy looks deceptively simple until real network retries and adversarial traffic hit your endpoint. Across dozens of production codebases, the same three vulnerabilities show up repeatedly:
+Handling incoming `order.paid` or subscription webhooks from Stripe, Patreon, Gumroad, or Lemon Squeezy looks deceptively simple until real network retries and adversarial traffic hit your endpoint. Across dozens of production codebases, the same three vulnerabilities show up repeatedly:
 
 1. **Verifying Re-Serialized JSON Instead of Raw Bytes:** Parsing the HTTP request body into a Python `dict` and calling `json.dumps(body)` before computing `HMAC-SHA256` alters whitespace and key ordering, breaking legitimate signatures—while comparing hex strings with `==` instead of `hmac.compare_digest` leaks timing side-channels.
 2. **Relying Exclusively on a 5-Minute Timestamp Tolerance:** Checking `abs(now - timestamp) <= 300` stops yesterday's captured curl payload, but does *nothing* to stop an attacker—or an aggressive upstream retry proxy—from replaying the exact same valid signed request six times within that 300-second window.
@@ -27,7 +27,7 @@ In this Friday reliability teardown—*Defending payment webhooks against timing
 | **Floating-Point Drift** | `REAL` / `FLOAT` dollar columns | Store strictly positive integer minor units (`amount_cents INTEGER CHECK (amount_cents > 0)`) |
 | **Unbalanced Mutations** | `UPDATE accounts SET balance = ...` | Record immutable `DEBIT` and `CREDIT` postings per `tx_id` and assert `SUM(DEBIT) == SUM(CREDIT)` |
 
-Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit) to get started at zero cost.
+Need a lightweight idempotent cron runner and HTTP retry guard to pair with your reconciliation jobs? Download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit) to get started at zero cost.
 
 ## Runnable Constant-Time HMAC & Double-Entry Ledger Verification
 
@@ -193,7 +193,7 @@ Both blocks above ran inside a clean isolated sandbox prior to staging. Here is 
 
 <!-- EMPIRICAL_OUTPUT_START -->
 ```text
-# Block 1 (python, exit=0, 133.3 ms)
+# Block 1 (python, exit=0, 55.3 ms)
 {
   "posted": 24,
   "rejected_replay_nonce": 6,
@@ -203,10 +203,10 @@ Both blocks above ran inside a clean isolated sandbox prior to staging. Here is 
   "total_credits_cents": 33600,
   "ledger_imbalance_cents": 0,
   "net_settlement_usd": 318.96,
-  "elapsed_ms": 61.0
+  "elapsed_ms": 3.96
 }
 
-# Block 2 (bash, exit=0, 37.9 ms)
+# Block 2 (bash, exit=0, 35.7 ms)
 Verified zero-imbalance ledger ($318.96 net across 24 orders; 8 attacks blocked).
 ```
 <!-- EMPIRICAL_OUTPUT_END -->
@@ -221,11 +221,11 @@ Examine the transaction boundary inside `ingest_payment_webhook` above:
 
 ### Handling Refunds, Chargebacks, and Multi-Gateway Payouts
 
-When you later add a refund or dispute webhook handler (`charge.refunded`), never `DELETE` or `UPDATE` an existing row in `postings`. Instead, insert a new compensating `journal_entries` transaction whose postings reverse the original directions (`DEBIT digital_product_revenue`, `CREDIT cash_settlement`, and `CREDIT processor_fees` if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Ko-fi or Polar settlement CSV exports line-by-line against `journal_entries.external_event_id`, and spot missing webhook deliveries in milliseconds using a single `LEFT JOIN` reconciliation query.
+When you later add a refund or dispute webhook handler (`charge.refunded`), never `DELETE` or `UPDATE` an existing row in `postings`. Instead, insert a new compensating `journal_entries` transaction whose postings reverse the original directions (`DEBIT digital_product_revenue`, `CREDIT cash_settlement`, and `CREDIT processor_fees` if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Patreon, Gumroad, or Lemon Squeezy settlement CSV exports line-by-line against `journal_entries.external_event_id`, and spot missing webhook deliveries in milliseconds using a single `LEFT JOIN` reconciliation query.
 
 ## Get the Full SQL Schema, Python/Node Guards & Queue Kit
 
-To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit)—it includes the portable SQLite/PostgreSQL `sql/idempotent_ledger.sql` schema with account-balance views, `webhook_hmac.py`, Node/TypeScript `verifyWebhookSignature` (`agent_guardrails.mjs`), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.
+To skip wiring boilerplate from scratch, grab the [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=devto&utm_medium=tutorial&utm_campaign=constant-time-hmac-webhook-verification-integer-&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit)—it includes the portable SQLite/PostgreSQL `sql/idempotent_ledger.sql` schema with account-balance views, `webhook_hmac.py`, Node/TypeScript `verifyWebhookSignature` (`agent_guardrails.mjs`), the transactional SQLite WAL queue + dead-letter CLI, and 4 GitHub Actions blueprints.
 
 ---
 

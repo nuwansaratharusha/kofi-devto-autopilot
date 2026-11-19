@@ -3,14 +3,14 @@
   "pinterest_pin_id": null,
   "pinterest_url": null,
   "title": "[Day 3/30] Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python",
-  "description": "Day 3/30 of 30 Days of Zero-Cost Production Python & AI Reliability: How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 171.16 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #security #sql #backend",
-  "alt_text": "1000x1500 technical infographic for Day 3 of 30 (Idempotent Webhooks & Double-Entry Ledger Teardowns): Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python \u2014 verified in Python 3.11+ stdlib sandbox (854 words).",
+  "description": "Day 3/30 of 30 Days of Zero-Cost Production Python & AI Reliability: How to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 91.08 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #security #sql #backend",
+  "alt_text": "1000x1500 technical infographic for Day 3 of 30 (Idempotent Webhooks & Double-Entry Ledger Teardowns): Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python \u2014 verified in Python 3.11+ stdlib sandbox (856 words).",
   "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f",
   "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f.png",
-  "png_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/site/pins/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f.png",
-  "svg_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/pinterest_pin.svg",
-  "png_size_bytes": 11439,
-  "png_sha256": "6266b96879df7077c45051fff3908aba8d9734d2f7fe5c052ea094da211b1b3a",
+  "png_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/site/pins/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f.png",
+  "svg_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/pinterest_pin.svg",
+  "png_size_bytes": 11427,
+  "png_sha256": "864a54b2ed0f1e39582e64de4621c66c164ad2fb72029c814d6e1d77420a0cde",
   "dimensions": {
     "width": 1000,
     "height": 1500
@@ -18,6 +18,6 @@
   "media_source": {
     "source_type": "image_base64",
     "content_type": "image/png",
-    "base64_length": 15252
+    "base64_length": 15236
   }
 }

@@ -90,7 +90,7 @@ def cmd_build_products(config: AppConfig, *, as_json: bool = False) -> dict[str,
                 f"  - {p['zip_filename']} ({p['size_bytes']:,} bytes | SHA-256: {p['sha256'][:16]}...)"
             )
         print(f"Dual Storefront setup ready at: {result['dual_storefront_setup_path']}")
-        print(f"Ko-fi copy ready at           : {result['storefront_copy_path']}")
+        print(f"Storefront copy ready at      : {result['storefront_copy_path']}")
     return result
 
 
@@ -672,7 +672,7 @@ def render_dashboard_html(config: AppConfig) -> str:
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_public" data-label="Copy Patreon Public MD">Copy Patreon Public MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_paid" data-label="Copy Patreon Paid/Shop MD">Copy Patreon Paid/Shop MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:blogger" data-label="Copy Blogger Series HTML">Copy Blogger Series HTML</button>
-            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:kofi" data-label="Copy Ko-fi Post">Copy Ko-fi Post</button>
+            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:pinterest" data-label="Copy Pinterest Pin JSON">Copy Pinterest Pin JSON</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:medium" data-label="Copy Medium MD">Copy Medium MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:substack" data-label="Copy Substack MD">Copy Substack MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:linkedin" data-label="Copy LinkedIn">Copy LinkedIn</button>

@@ -2,7 +2,7 @@
 
 **How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and route around upstream brownouts using pure Python 3.11+ standard library code.**
 
-Hey builders — happy Monday! Today's issue of **Zero-Cost Production Reliability** breaks down **Fault-Tolerant AI & API Guardrails** with a self-contained Python 3.11+ benchmark that we executed inside an isolated sandbox (`99.12 ms` total verification runtime across `2` blocks).
+Hey builders — happy Monday! Today's issue of **Zero-Cost Production Reliability** breaks down **Fault-Tolerant AI & API Guardrails** with a self-contained Python 3.11+ benchmark that we executed inside an isolated sandbox (`92.92 ms` total verification runtime across `2` blocks).
 
 ---
 
@@ -27,7 +27,7 @@ Before adding a single retry loop, production reliability code needs four explic
 | **Strict Scalar Coercion** | `isinstance(True, int)` silently passes boolean hallucinations into numeric math | Reject booleans explicitly when `int` is required and extract fenced JSON deterministically |
 | **Bounded Repair Attempts** | Unbounded retry loops burn tens of thousands of tokens overnight | Cap repair retries per provider and enforce a hard cumulative token budget per job |
 
-If you want a drop-in HTTP `Retry-After` guard and idempotent cron runner ready for immediate use, grab the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=free-idempotent-cron-mini-kit) and run its unit tests locally alongside this walkthrough.
+If you want a drop-in HTTP `Retry-After` guard and idempotent cron runner ready for immediate use, grab the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=free-idempotent-cron-mini-kit) and run its unit tests locally alongside this walkthrough.
 
 ## Self-Contained Python Implementation & Outage Benchmark
 
@@ -164,17 +164,17 @@ Every code block in this article was executed inside a fresh isolated environmen
 
 <!-- EMPIRICAL_OUTPUT_START -->
 ```text
-# Block 1 (python, exit=0, 56.8 ms)
+# Block 1 (python, exit=0, 50.6 ms)
 {
   "requests": 300,
   "primary_ok": 269,
   "failover_saves": 31,
   "fast_open_skips": 29,
   "total_succeeded": 300,
-  "elapsed_ms": 0.62
+  "elapsed_ms": 0.57
 }
 
-# Block 2 (bash, exit=0, 42.4 ms)
+# Block 2 (bash, exit=0, 42.3 ms)
 Verified zero dropped requests (300/300) with 29 fast-fail skips and 269 primary completions.
 ```
 <!-- EMPIRICAL_OUTPUT_END -->
@@ -194,7 +194,7 @@ When you deploy this pattern in front of LLM tool loops or webhook dispatchers, 
 
 ## Shipping the Full Reliability Stack on $0 Infrastructure
 
-If you are building autonomous workflows, scheduled scrapers, or SaaS backends without paying monthly Redis/broker bills, the complete [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=production-agent-automation-kit) packages this multi-provider router together with a transactional SQLite WAL job queue + dead-letter CLI, Node/TypeScript guardrails (`agent_guardrails.mjs` + `.d.ts`), constant-time HMAC webhook verification, double-entry SQL ledgers, and 4 production GitHub Actions workflows.
+If you are building autonomous workflows, scheduled scrapers, or SaaS backends without paying monthly Redis/broker bills, the complete [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=production-agent-automation-kit) packages this multi-provider router together with a transactional SQLite WAL job queue + dead-letter CLI, Node/TypeScript guardrails (`agent_guardrails.mjs` + `.d.ts`), constant-time HMAC webhook verification, double-entry SQL ledgers, and 4 production GitHub Actions workflows.
 
 ---
 
@@ -203,5 +203,5 @@ If you are building autonomous workflows, scheduled scrapers, or SaaS backends w
 ---
 
 ### Grab the Tested `.zip` Toolkits
-- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=free-idempotent-cron-mini-kit)
-- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=production-agent-automation-kit)
+- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=free-idempotent-cron-mini-kit)
+- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=production-agent-automation-kit)

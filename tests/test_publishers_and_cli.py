@@ -142,7 +142,9 @@ class TestPublishersAndCli(unittest.TestCase):
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r_dash:
                     dash_html = r_dash.read().decode("utf-8")
                 self.assertIn('aria-live="polite"', dash_html)
-                self.assertIn("Copy Ko-fi Post", dash_html)
+                self.assertIn("Copy Patreon Public MD", dash_html)
+                self.assertIn("Copy Pinterest Pin JSON", dash_html)
+                self.assertNotIn("Copy Ko-fi Post", dash_html)
 
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=5) as r_api:
                     api_json = json.loads(r_api.read().decode("utf-8"))

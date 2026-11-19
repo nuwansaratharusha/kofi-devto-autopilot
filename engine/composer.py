@@ -1770,7 +1770,7 @@ Skip subtle crypto and concurrency pitfalls: the [Production AI Agent & Zero-Cos
 
 Even when your webhook endpoint verifies HMAC signatures and deduplicates nonces flawlessly, external networks still drop packets, DNS records misroute during deploys, and payment gateways eventually give up delivering an `order.paid` event after their retry schedule expires. If your application only grants access or updates revenue numbers on live webhook arrival—and mutates rows in place with `UPDATE orders SET refunded = 1`—two painful accounting failures surface at month-end:
 
-1. **Silent Dropped-Webhook Revenue Gaps:** A customer completes checkout on Stripe, Polar, Ko-fi, or Lemon Squeezy during a 20-minute DNS outage; their card is charged, the payout lands in your settlement CSV, and your database has zero record of the order.
+1. **Silent Dropped-Webhook Revenue Gaps:** A customer completes checkout on Stripe, Patreon, Gumroad, or Lemon Squeezy during a 20-minute DNS outage; their card is charged, the payout lands in your settlement CSV, and your database has zero record of the order.
 2. **Destructive Refund Overwrites:** Mutating or deleting original sale amounts when a refund arrives destroys point-in-time auditability, making it impossible to reconcile gross sales, processor fee reversals, and net cash across month boundaries.
 3. **Unbalanced Partial Adjustments:** Ad-hoc `balance -= amount` math silently drifts whenever a payment processor retains its processing fee on a refund (`fee_returned == 0`) versus returning the fee (`fee_returned == 71`).
 
@@ -1821,7 +1821,7 @@ Inspecting `recon_report.json` shows how clean financial reconciliation becomes 
 
 ### Multi-Currency Settlement & Fee-Retention Edge Cases
 
-If you sell digital toolkits across USD storefronts (`Ko-fi`, `Polar.sh`, `Lemon Squeezy`) while settling payouts into a local currency bank account (such as `LKR` or `EUR`), keep each currency isolated in its own `currency CHAR(3)` account group (`cash_clearing_usd`, `product_revenue_usd`) and record foreign-exchange payout conversions via an explicit FX clearing entry at bank settlement time rather than mixing currencies inside a single sum. Likewise, when a processor retains its original `71`-cent fee on a customer refund (`fee_returned == 0`), debit `product_revenue` for `1400` cents and credit `cash_clearing` for `1400` cents so your `gateway_fees` expense account accurately reflects the non-refundable processor cost.
+If you sell digital toolkits across USD storefronts (`Patreon`, `Gumroad`, `Lemon Squeezy`) while settling payouts into a local currency bank account (such as `LKR` or `EUR`), keep each currency isolated in its own `currency CHAR(3)` account group (`cash_clearing_usd`, `product_revenue_usd`) and record foreign-exchange payout conversions via an explicit FX clearing entry at bank settlement time rather than mixing currencies inside a single sum. Likewise, when a processor retains its original `71`-cent fee on a customer refund (`fee_returned == 0`), debit `product_revenue` for `1400` cents and credit `cash_clearing` for `1400` cents so your `gateway_fees` expense account accurately reflects the non-refundable processor cost.
 
 ## Ship the Portable SQLite/PostgreSQL Ledger & Automation Kit
 
@@ -1843,7 +1843,7 @@ Ready to drop production-tested financial ledgers, HMAC webhook guards, SQLite W
     )
     body = f"""## Three Subtle Bugs Hiding in Typical Payment Webhook Handlers
 
-Handling incoming `order.paid` or subscription webhooks from Stripe, Ko-fi, Polar, or Lemon Squeezy looks deceptively simple until real network retries and adversarial traffic hit your endpoint. Across dozens of production codebases, the same three vulnerabilities show up repeatedly:
+Handling incoming `order.paid` or subscription webhooks from Stripe, Patreon, Gumroad, or Lemon Squeezy looks deceptively simple until real network retries and adversarial traffic hit your endpoint. Across dozens of production codebases, the same three vulnerabilities show up repeatedly:
 
 1. **Verifying Re-Serialized JSON Instead of Raw Bytes:** Parsing the HTTP request body into a Python `dict` and calling `json.dumps(body)` before computing `HMAC-SHA256` alters whitespace and key ordering, breaking legitimate signatures—while comparing hex strings with `==` instead of `hmac.compare_digest` leaks timing side-channels.
 2. **Relying Exclusively on a 5-Minute Timestamp Tolerance:** Checking `abs(now - timestamp) <= 300` stops yesterday's captured curl payload, but does *nothing* to stop an attacker—or an aggressive upstream retry proxy—from replaying the exact same valid signed request six times within that 300-second window.
@@ -1896,7 +1896,7 @@ Examine the transaction boundary inside `ingest_payment_webhook` above:
 
 ### Handling Refunds, Chargebacks, and Multi-Gateway Payouts
 
-When you later add a refund or dispute webhook handler (`charge.refunded`), never `DELETE` or `UPDATE` an existing row in `postings`. Instead, insert a new compensating `journal_entries` transaction whose postings reverse the original directions (`DEBIT digital_product_revenue`, `CREDIT cash_settlement`, and `CREDIT processor_fees` if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Ko-fi or Polar settlement CSV exports line-by-line against `journal_entries.external_event_id`, and spot missing webhook deliveries in milliseconds using a single `LEFT JOIN` reconciliation query.
+When you later add a refund or dispute webhook handler (`charge.refunded`), never `DELETE` or `UPDATE` an existing row in `postings`. Instead, insert a new compensating `journal_entries` transaction whose postings reverse the original directions (`DEBIT digital_product_revenue`, `CREDIT cash_settlement`, and `CREDIT processor_fees` if the payment processor returns its fee). That immutable append-only discipline lets you reconstruct exact point-in-time account balances for any historical UTC timestamp, compare Patreon, Gumroad, or Lemon Squeezy settlement CSV exports line-by-line against `journal_entries.external_event_id`, and spot missing webhook deliveries in milliseconds using a single `LEFT JOIN` reconciliation query.
 
 ## Get the Full SQL Schema, Python/Node Guards & Queue Kit
 

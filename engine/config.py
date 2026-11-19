@@ -108,25 +108,30 @@ class AppConfig:
         raw_blogger_mode = env_map.get("BLOGGER_PUBLISH_MODE", "draft").strip().lower()
         blogger_publish_mode = "live" if raw_blogger_mode == "live" else "draft"
 
+        canonical_base = (
+            env_map.get(
+                "CANONICAL_BASE_URL",
+                "https://nuwansaratharusha.github.io/kofi-devto-autopilot",
+            )
+            .strip()
+            .rstrip("/")
+            or "https://nuwansaratharusha.github.io/kofi-devto-autopilot"
+        )
         kofi_profile = (
-            env_map.get("KOFI_PROFILE_URL", "https://ko-fi.com/tharushanuwansara").strip().rstrip("/")
-            or "https://ko-fi.com/tharushanuwansara"
+            env_map.get("KOFI_PROFILE_URL", "").strip().rstrip("/")
+            or env_map.get("PATREON_URL", "").strip().rstrip("/")
+            or canonical_base
         )
         primary_store = (
-            env_map.get("PRIMARY_STORE_URL", f"{kofi_profile}/shop").strip().rstrip("/")
-            or f"{kofi_profile}/shop"
+            env_map.get("PRIMARY_STORE_URL", "").strip().rstrip("/")
+            or env_map.get("LEMONSQUEEZY_STORE_URL", "").strip().rstrip("/")
+            or env_map.get("PATREON_URL", "").strip().rstrip("/")
+            or env_map.get("GUMROAD_STORE_URL", "").strip().rstrip("/")
+            or canonical_base
         )
         mirror_store = env_map.get("MIRROR_STORE_URL", "").strip().rstrip("/")
         lemonsqueezy_store = env_map.get("LEMONSQUEEZY_STORE_URL", "").strip().rstrip("/")
         gumroad_store = env_map.get("GUMROAD_STORE_URL", "").strip().rstrip("/")
-        canonical_base = (
-            env_map.get(
-                "CANONICAL_BASE_URL",
-                "https://tharushanuwansara.github.io/kofi-devto-autopilot",
-            )
-            .strip()
-            .rstrip("/")
-        )
 
         return cls(
             project_root=root,

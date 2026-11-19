@@ -22,7 +22,7 @@
   <text x="90" y="502" fill="#cbd5e1" font-family="monospace" font-size="22">01  def sign_event(secret: bytes, ts: int, nonce..</text><text x="90" y="540" fill="#cbd5e1" font-family="monospace" font-size="22">02    msg = f&quot;{ts}.{nonce}.&quot;.encode(&quot;utf-8&quot;) + r..</text><text x="90" y="578" fill="#cbd5e1" font-family="monospace" font-size="22">03    sig = hmac.new(secret, msg, hashlib.sha256..</text><text x="90" y="616" fill="#cbd5e1" font-family="monospace" font-size="22">04    return f&quot;t={ts},id={nonce},v1={sig}&quot;</text><text x="90" y="654" fill="#cbd5e1" font-family="monospace" font-size="22">05  def open_ledger(db_path: Path) -&gt; sqlite3.Co..</text><text x="90" y="692" fill="#cbd5e1" font-family="monospace" font-size="22">06    conn = sqlite3.connect(str(db_path), timeo..</text><text x="90" y="730" fill="#cbd5e1" font-family="monospace" font-size="22">07    conn.execute(&quot;PRAGMA journal_mode=WAL;&quot;)</text><text x="90" y="768" fill="#cbd5e1" font-family="monospace" font-size="22">08    conn.execute(&quot;PRAGMA foreign_keys=ON;&quot;)</text><text x="90" y="806" fill="#cbd5e1" font-family="monospace" font-size="22">09    conn.executescript(</text><text x="90" y="844" fill="#cbd5e1" font-family="monospace" font-size="22">10      &quot;&quot;&quot;</text>
 
   <rect x="64" y="990" width="276" height="180" rx="12" fill="#111827" stroke="#334155" stroke-width="2" />
-  <text x="88" y="1075" fill="#2dd4bf" font-family="sans-serif" font-size="46" font-weight="800">854</text>
+  <text x="88" y="1075" fill="#2dd4bf" font-family="sans-serif" font-size="46" font-weight="800">856</text>
   <text x="88" y="1125" fill="#cbd5e1" font-family="sans-serif" font-size="20" font-weight="700">VERIFIED WORDS</text>
 
   <rect x="362" y="990" width="276" height="180" rx="12" fill="#111827" stroke="#334155" stroke-width="2" />
@@ -30,7 +30,7 @@
   <text x="386" y="1125" fill="#cbd5e1" font-family="sans-serif" font-size="20" font-weight="700">PYTHON3 -I BLOCKS</text>
 
   <rect x="660" y="990" width="276" height="180" rx="12" fill="#111827" stroke="#334155" stroke-width="2" />
-  <text x="684" y="1075" fill="#38bdf8" font-family="sans-serif" font-size="46" font-weight="800">171 MS</text>
+  <text x="684" y="1075" fill="#38bdf8" font-family="sans-serif" font-size="46" font-weight="800">91 MS</text>
   <text x="684" y="1125" fill="#cbd5e1" font-family="sans-serif" font-size="20" font-weight="700">SANDBOX RUNTIME</text>
 
   <rect x="64" y="1216" width="872" height="208" rx="14" fill="#0f766e" stroke="#2dd4bf" stroke-width="2" />
