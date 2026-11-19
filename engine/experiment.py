@@ -19,6 +19,7 @@ VERDICT_NOT_WORKING = "NOT WORKING — PAUSE & REALLOCATE"
 
 LEMONSQUEEZY_MIN_PAYOUT_CENTS = 5_000   # $50.00 USD Sri Lanka bank wire threshold
 GUMROAD_MIN_PAYOUT_CENTS = 10_000       # $100.00 USD Sri Lanka bank deposit threshold
+PATREON_MIN_PAYOUT_CENTS = 2_500        # $25.00 USD Patreon -> Payoneer payout threshold
 
 
 def colombo_today_iso() -> str:
@@ -41,6 +42,8 @@ def normalize_utm_channel(raw_source: str) -> str:
     low = raw_source.strip().lower()
     if low in {"blogger", "blogspot", "google_blogger"}:
         return "blogger"
+    if low in {"patreon", "patreon_post", "patreon_shop", "patreon_tier"}:
+        return "patreon"
     if low in {"pinterest", "pin", "pinterest_rss"}:
         return "pinterest"
     if low in {"devto", "dev.to", "forem"}:
@@ -151,6 +154,13 @@ def build_experiment_report(
         threshold_cents=GUMROAD_MIN_PAYOUT_CENTS,
         store_url=config.gumroad_store_url or config.free_checkout_url,
     )
+    pt_meter = _storefront_meter(
+        all_orders,
+        storefront_key="patreon",
+        label="Patreon ($25 Payoneer Payout)",
+        threshold_cents=PATREON_MIN_PAYOUT_CENTS,
+        store_url=config.patreon_url or "https://www.patreon.com",
+    )
 
     active_orders = [o for o in all_orders if not o.refunded]
     refunded_orders = [o for o in all_orders if o.refunded]
@@ -169,6 +179,14 @@ def build_experiment_report(
         if ch == "blogger":
             posts_count = len(articles)
             live_remote = sum(1 for a in articles if a.blogger_post_id)
+        elif ch == "patreon":
+            posts_count = sum(
+                1
+                for a in articles
+                if a.patreon_post_id
+                or (config.exports_dir / a.slug / "patreon_public_post.md").is_file()
+            )
+            live_remote = sum(1 for a in articles if a.patreon_post_id)
         elif ch == "pinterest":
             posts_count = sum(
                 1 for a in articles if (config.site_dir / "pins" / f"{a.slug}.png").is_file() or a.pinterest_pin_id
@@ -296,6 +314,7 @@ def build_experiment_report(
         "storefronts": {
             "lemonsqueezy": ls_meter,
             "gumroad": gr_meter,
+            "patreon": pt_meter,
         },
         "channels": channel_kpis,
         "pillars": pillar_kpis,
@@ -307,6 +326,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
     t = report["totals"]
     ls = report["storefronts"]["lemonsqueezy"]
     gr = report["storefronts"]["gumroad"]
+    pt = report["storefronts"]["patreon"]
 
     ch_rows = "\n".join(
         f"| `{ch}` | {d['posts_prepared']} | {d['views']} | {d['clicks']} | {d['ctr_pct']}% | "
@@ -338,6 +358,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 
 | Storefront | Net Settled | Payout Unlock Minimum | Progress | Remaining | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Patreon** | `${pt['net_usd']:.2f}` | `${pt['threshold_usd']:.2f}` (Payoneer) | `{pt['unlock_progress_pct']}%` | `${pt['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if pt["unlocked"] else "ACCUMULATING"}` |
 | **Lemon Squeezy** | `${ls['net_usd']:.2f}` | `${ls['threshold_usd']:.2f}` (Bank Wire) | `{ls['unlock_progress_pct']}%` | `${ls['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if ls["unlocked"] else "ACCUMULATING"}` |
 | **Gumroad** | `${gr['net_usd']:.2f}` | `${gr['threshold_usd']:.2f}` (Local Bank) | `{gr['unlock_progress_pct']}%` | `${gr['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if gr["unlocked"] else "ACCUMULATING"}` |
 

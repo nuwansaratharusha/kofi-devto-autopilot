@@ -495,12 +495,16 @@ def sync_storefronts(
     catalog_products: Optional[list[dict[str, Any]]] = None,
     gumroad_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
     lemonsqueezy_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
+    patreon_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
 ) -> dict[str, Any]:
-    """Sync products & sales across Gumroad v2 and Lemon Squeezy v1 into SQLite `store_orders`."""
+    """Sync products, members & sales across Gumroad v2, Lemon Squeezy v1 & Patreon v2 into SQLite."""
+    from engine.patreon_client import PatreonClient
+
     report: dict[str, Any] = {
         "synced_at": utc_now_iso(),
         "gumroad": {"status": "dry_run", "products_count": 0, "orders_synced": 0, "drafts_created": []},
         "lemonsqueezy": {"status": "dry_run", "products_count": 0, "orders_synced": 0},
+        "patreon": {"status": "dry_run", "campaign_id": "", "orders_synced": 0},
     }
 
     if config.gumroad_access_token:
@@ -548,5 +552,17 @@ def sync_storefronts(
         }
     else:
         report["lemonsqueezy"]["reason"] = "LEMONSQUEEZY_API_KEY not configured; skipped live HTTP calls."
+
+    if config.patreon_creator_access_token:
+        pt = PatreonClient(config, sender=patreon_sender, sleeper=lambda _s: None)
+        pt_orders = pt.list_members_as_orders()
+        upserted_pt = db.upsert_store_orders(pt_orders)
+        report["patreon"] = {
+            "status": "synced",
+            "campaign_id": pt.campaign_id,
+            "orders_synced": upserted_pt,
+        }
+    else:
+        report["patreon"]["reason"] = "PATREON_CREATOR_ACCESS_TOKEN not configured; skipped live HTTP calls."
 
     return report

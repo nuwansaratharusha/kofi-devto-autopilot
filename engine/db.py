@@ -28,6 +28,8 @@ ARTICLE_MIGRATION_COLUMNS: tuple[tuple[str, str], ...] = (
     ("blogger_url", "TEXT"),
     ("pinterest_pin_id", "TEXT"),
     ("pinterest_url", "TEXT"),
+    ("patreon_post_id", "TEXT"),
+    ("patreon_url", "TEXT"),
 )
 
 
@@ -318,6 +320,8 @@ class PipelineDatabase:
             blogger_url=str(row["blogger_url"]) if "blogger_url" in keys and row["blogger_url"] is not None else None,
             pinterest_pin_id=str(row["pinterest_pin_id"]) if "pinterest_pin_id" in keys and row["pinterest_pin_id"] is not None else None,
             pinterest_url=str(row["pinterest_url"]) if "pinterest_url" in keys and row["pinterest_url"] is not None else None,
+            patreon_post_id=str(row["patreon_post_id"]) if "patreon_post_id" in keys and row["patreon_post_id"] is not None else None,
+            patreon_url=str(row["patreon_url"]) if "patreon_url" in keys and row["patreon_url"] is not None else None,
         )
 
     def save_article(self, article: ArticleRecord) -> ArticleRecord:
@@ -331,7 +335,8 @@ class PipelineDatabase:
                     """
                     SELECT created_at, devto_article_id, devto_url,
                            series_day, blogger_post_id, blogger_url,
-                           pinterest_pin_id, pinterest_url
+                           pinterest_pin_id, pinterest_url,
+                           patreon_post_id, patreon_url
                       FROM articles
                      WHERE slug = ?
                     """,
@@ -353,6 +358,10 @@ class PipelineDatabase:
                         article.pinterest_pin_id = str(existing["pinterest_pin_id"])
                     if article.pinterest_url is None and existing["pinterest_url"] is not None:
                         article.pinterest_url = str(existing["pinterest_url"])
+                    if article.patreon_post_id is None and existing["patreon_post_id"] is not None:
+                        article.patreon_post_id = str(existing["patreon_post_id"])
+                    if article.patreon_url is None and existing["patreon_url"] is not None:
+                        article.patreon_url = str(existing["patreon_url"])
 
                 conn.execute(
                     """
@@ -361,8 +370,9 @@ class PipelineDatabase:
                         tags_json, canonical_url, markdown_body, word_count, status,
                         verification_json, devto_article_id, devto_url, published_mode,
                         created_at, updated_at, series_day,
-                        blogger_post_id, blogger_url, pinterest_pin_id, pinterest_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        blogger_post_id, blogger_url, pinterest_pin_id, pinterest_url,
+                        patreon_post_id, patreon_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(slug) DO UPDATE SET
                         title = excluded.title,
                         subtitle = excluded.subtitle,
@@ -380,7 +390,9 @@ class PipelineDatabase:
                         blogger_post_id = excluded.blogger_post_id,
                         blogger_url = excluded.blogger_url,
                         pinterest_pin_id = excluded.pinterest_pin_id,
-                        pinterest_url = excluded.pinterest_url
+                        pinterest_url = excluded.pinterest_url,
+                        patreon_post_id = excluded.patreon_post_id,
+                        patreon_url = excluded.patreon_url
                     """,
                     (
                         article.slug,
@@ -405,6 +417,8 @@ class PipelineDatabase:
                         article.blogger_url,
                         article.pinterest_pin_id,
                         article.pinterest_url,
+                        article.patreon_post_id,
+                        article.patreon_url,
                     ),
                 )
                 row = conn.execute("SELECT * FROM articles WHERE slug = ?", (article.slug,)).fetchone()
@@ -676,6 +690,9 @@ class PipelineDatabase:
             art_pinterest = conn.execute(
                 "SELECT COUNT(*) FROM articles WHERE pinterest_pin_id IS NOT NULL"
             ).fetchone()[0]
+            art_patreon = conn.execute(
+                "SELECT COUNT(*) FROM articles WHERE patreon_post_id IS NOT NULL"
+            ).fetchone()[0]
             paid_orders = conn.execute(
                 "SELECT COUNT(*) FROM store_orders WHERE refunded = 0 AND gross_cents > 0"
             ).fetchone()[0]
@@ -691,6 +708,7 @@ class PipelineDatabase:
             "articles_staged_remote": int(art_staged),
             "articles_blogger_remote": int(art_blogger),
             "articles_pinterest_remote": int(art_pinterest),
+            "articles_patreon_remote": int(art_patreon),
             "store_orders_paid": int(paid_orders),
             "net_revenue_cents": int(net_cents),
             "publish_runs_total": int(runs_total),

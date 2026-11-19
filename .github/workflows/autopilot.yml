@@ -2,7 +2,7 @@ name: Omnichannel 30-Day Content & Storefront Autopilot
 
 on:
   schedule:
-    # Every day at 13:00 UTC (= 18:30 Asia/Colombo): Blogger + Pinterest daily, DEV.to Mon/Wed/Fri
+    # Every day at 13:00 UTC (= 18:30 Asia/Colombo): Blogger + Patreon daily, DEV.to Mon/Wed/Fri
     - cron: '0 13 * * *'
   workflow_dispatch:
     inputs:
@@ -35,6 +35,9 @@ jobs:
     env:
       DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
       PUBLISH_MODE: ${{ inputs.publish_mode || vars.PUBLISH_MODE || 'draft' }}
+      PATREON_URL: ${{ vars.PATREON_URL || '' }}
+      PATREON_CREATOR_ACCESS_TOKEN: ${{ secrets.PATREON_CREATOR_ACCESS_TOKEN }}
+      PATREON_CAMPAIGN_ID: ${{ vars.PATREON_CAMPAIGN_ID || secrets.PATREON_CAMPAIGN_ID || '' }}
       LEMONSQUEEZY_API_KEY: ${{ secrets.LEMONSQUEEZY_API_KEY }}
       LEMONSQUEEZY_STORE_ID: ${{ vars.LEMONSQUEEZY_STORE_ID || '' }}
       LEMONSQUEEZY_STORE_URL: ${{ vars.LEMONSQUEEZY_STORE_URL || '' }}

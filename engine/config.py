@@ -58,6 +58,9 @@ class AppConfig:
     blogger_publish_mode: str = "draft"  # "draft" | "live"
     pinterest_access_token: str = ""
     pinterest_board_id: str = ""
+    patreon_url: str = ""
+    patreon_creator_access_token: str = ""
+    patreon_campaign_id: str = ""
     experiment_start_date: str = "2026-11-18"
     experiment_end_date: str = "2026-12-18"
 
@@ -65,6 +68,7 @@ class AppConfig:
     def free_checkout_url(self) -> str:
         return (
             self.gumroad_store_url
+            or self.patreon_url
             or self.lemonsqueezy_store_url
             or self.primary_store_url
             or self.mirror_store_url
@@ -75,6 +79,7 @@ class AppConfig:
     def paid_checkout_url(self) -> str:
         return (
             self.lemonsqueezy_store_url
+            or self.patreon_url
             or self.gumroad_store_url
             or self.mirror_store_url
             or self.primary_store_url
@@ -149,6 +154,9 @@ class AppConfig:
             blogger_publish_mode=blogger_publish_mode,
             pinterest_access_token=env_map.get("PINTEREST_ACCESS_TOKEN", "").strip(),
             pinterest_board_id=env_map.get("PINTEREST_BOARD_ID", "").strip(),
+            patreon_url=env_map.get("PATREON_URL", "").strip().rstrip("/"),
+            patreon_creator_access_token=env_map.get("PATREON_CREATOR_ACCESS_TOKEN", "").strip(),
+            patreon_campaign_id=env_map.get("PATREON_CAMPAIGN_ID", "").strip(),
             experiment_start_date=env_map.get("EXPERIMENT_START_DATE", "2026-11-18").strip() or "2026-11-18",
             experiment_end_date=env_map.get("EXPERIMENT_END_DATE", "2026-12-18").strip() or "2026-12-18",
         )

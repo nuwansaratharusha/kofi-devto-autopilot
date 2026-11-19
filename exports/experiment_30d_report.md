@@ -1,6 +1,6 @@
 # 30-Day Omnichannel Experiment Report (`2026-11-18` → `2026-12-18`)
 
-- **As-Of Date (`Asia/Colombo`):** `2026-11-18` (Day `1` / `30` · `30` days remaining)
+- **As-Of Date (`Asia/Colombo`):** `2026-11-20` (Day `3` / `30` · `28` days remaining)
 - **Verified Series Articles Built:** `3 / 30`
 - **Total Net Revenue (Refunds Excluded):** `$0.00 USD` (`0` paid orders, `0` free leads, `0` refunded excluded)
 
@@ -10,6 +10,7 @@
 
 | Storefront | Net Settled | Payout Unlock Minimum | Progress | Remaining | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Patreon** | `$0.00` | `$25.00` (Payoneer) | `0.0%` | `$25.00` | `ACCUMULATING` |
 | **Lemon Squeezy** | `$0.00` | `$50.00` (Bank Wire) | `0.0%` | `$50.00` | `ACCUMULATING` |
 | **Gumroad** | `$0.00` | `$100.00` (Local Bank) | `0.0%` | `$100.00` | `ACCUMULATING` |
 
@@ -20,9 +21,10 @@
 | Channel | Assets Ready | Views | Clicks | CTR | Free Kits | Paid ($14) | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `blogger` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `pinterest` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `patreon` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `devto` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `canonical_site` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `pinterest` | 3 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 
 ---
 

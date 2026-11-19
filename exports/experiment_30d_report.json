@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-11-18T02:54:57Z",
+  "generated_at": "2026-11-19T23:02:43Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
     "end_date": "2026-12-18",
-    "as_of_date": "2026-11-18",
+    "as_of_date": "2026-11-20",
     "timezone": "Asia/Colombo",
-    "days_elapsed": 1,
-    "days_remaining": 30,
+    "days_elapsed": 3,
+    "days_remaining": 28,
     "target_daily_articles": 30,
     "verified_articles_built": 3
   },
@@ -56,6 +56,23 @@
       "unlock_progress_pct": 0.0,
       "remaining_to_unlock_usd": 100.0,
       "unlocked": false
+    },
+    "patreon": {
+      "storefront": "patreon",
+      "label": "Patreon ($25 Payoneer Payout)",
+      "store_url": "https://www.patreon.com",
+      "paid_orders": 0,
+      "free_downloads": 0,
+      "refunded_orders": 0,
+      "gross_cents": 0,
+      "fee_cents": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "threshold_cents": 2500,
+      "threshold_usd": 25.0,
+      "unlock_progress_pct": 0.0,
+      "remaining_to_unlock_usd": 25.0,
+      "unlocked": false
     }
   },
   "channels": {
@@ -74,8 +91,8 @@
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
       "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
-    "pinterest": {
-      "channel": "pinterest",
+    "patreon": {
+      "channel": "patreon",
       "posts_prepared": 3,
       "posts_remote_id_logged": 0,
       "views": 0,
@@ -108,6 +125,21 @@
       "channel": "canonical_site",
       "posts_prepared": 3,
       "posts_remote_id_logged": 3,
+      "views": 0,
+      "clicks": 0,
+      "ctr_pct": 0.0,
+      "free_downloads": 0,
+      "paid_orders": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "conversion_rate_pct": 0.0,
+      "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+    },
+    "pinterest": {
+      "channel": "pinterest",
+      "posts_prepared": 3,
+      "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,

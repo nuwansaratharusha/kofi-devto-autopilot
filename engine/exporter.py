@@ -11,6 +11,7 @@ from engine.blogger_client import BloggerClient
 from engine.config import AppConfig
 from engine.devto_client import build_devto_payload
 from engine.models import PILLAR_META, ArticleRecord
+from engine.patreon_client import export_patreon_bundle, write_patreon_setup_guide
 from engine.pinterest_client import PinterestClient
 from engine.storefronts import append_storefront_utm
 
@@ -199,7 +200,11 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
         series_articles=series_articles,
     )
 
-    # 7. Pinterest 1000x1500 PNG + SVG + Dry-Run v5 Metadata (without issuing live HTTP POST here)
+    # 7. Patreon Daily Public & Paid Tier/Shop Markdown Pack + Storefront Guide
+    patreon_paths = export_patreon_bundle(article, config, series_articles=series_articles)
+    write_patreon_setup_guide(config)
+
+    # 8. Optional visual card / legacy 2:3 graphic metadata (dry-run local export)
     dry_pin_cfg = AppConfig(
         **{
             **config.__dict__,
@@ -218,6 +223,7 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
         "linkedin_snippet": str(linkedin_path),
         "blogger_post_html": str(blogger_html_path),
         "blogger_payload": str(blogger_json_path),
+        **patreon_paths,
         "pinterest_pin_png": str(pin_info["png_path"]),
         "pinterest_pin_svg": str(pin_info["svg_path"]),
         "pinterest_pin_json": str(pin_info["metadata_path"]),
@@ -229,6 +235,9 @@ def load_bundle_texts(exports_dir: Path, slug: str) -> dict[str, Any]:
     d = exports_dir / slug
     result: dict[str, Any] = {}
     for key, filename in (
+        ("patreon_public", "patreon_public_post.md"),
+        ("patreon_paid", "patreon_paid_tier_post.md"),
+        ("patreon_pack", "patreon_post_pack.json"),
         ("kofi_post", "kofi_post.md"),
         ("medium_import", "medium_import.md"),
         ("substack_post", "substack_post.md"),

@@ -31,6 +31,7 @@ from engine.experiment import (
 from engine.exporter import export_article_bundle, load_bundle_texts
 from engine.harvester import harvest_signals
 from engine.models import PILLAR_META, SERIES_30D_NAME, VALID_CHANNELS
+from engine.patreon_client import PatreonClient, write_patreon_setup_guide
 from engine.pinterest_client import PinterestClient
 from engine.site_builder import SITE_STYLESHEET, build_static_site
 from engine.storefronts import sync_storefronts
@@ -236,6 +237,7 @@ def cmd_run_daily(
             composed_fresh = True
 
     blogger_res: dict[str, Any] = {"status": "no_article_available"}
+    patreon_res: dict[str, Any] = {"status": "no_article_available"}
     pinterest_res: dict[str, Any] = {"status": "no_article_available"}
     devto_res: dict[str, Any] = {"status": "no_article_available"}
 
@@ -243,6 +245,14 @@ def cmd_run_daily(
         all_verified_pre = db.list_articles(verified_only=True)
         blogger_client = BloggerClient(config)
         blogger_res = blogger_client.stage_or_publish(saved, series_articles=all_verified_pre)
+        saved = db.save_article(saved)
+
+        patreon_client = PatreonClient(config)
+        patreon_res = patreon_client.package_and_reconcile(
+            saved,
+            db=db,
+            series_articles=all_verified_pre,
+        )
         saved = db.save_article(saved)
 
         pinterest_client = PinterestClient(config)
@@ -277,8 +287,8 @@ def cmd_run_daily(
     staged_n = int(
         sum(
             1
-            for r in (blogger_res, pinterest_res, devto_res)
-            if r.get("status") in {"staged_draft", "published_live"}
+            for r in (blogger_res, patreon_res, pinterest_res, devto_res)
+            if r.get("status") in {"staged_draft", "published_live", "staged_pack_synced"}
         )
     )
     db.record_publish_run(
@@ -311,6 +321,7 @@ def cmd_run_daily(
         if saved
         else None,
         "blogger": blogger_res,
+        "patreon": patreon_res,
         "pinterest": pinterest_res,
         "devto": devto_res,
         "storefronts": store_sync_res,
@@ -324,7 +335,7 @@ def cmd_run_daily(
         slug_lbl = saved.slug if saved else "none"
         print(f"[{run_id}] Day {day_num}/30 ({effective_date}) -> {slug_lbl}")
         print(f"  - Blogger   : {blogger_res.get('status')}")
-        print(f"  - Pinterest : {pinterest_res.get('status')} (RSS: {site_summary['pinterest_feed_xml']})")
+        print(f"  - Patreon   : {patreon_res.get('status')}")
         print(f"  - DEV.to    : {devto_res.get('status')}")
         print(f"  - 30d Report: {exp_artifacts['markdown_path']}")
     return result
@@ -362,6 +373,7 @@ def cmd_sync_stores(
         print(json.dumps(out, indent=2))
     else:
         print(f"Storefront Sync ({out['synced_at']}):")
+        print(f"  - Patreon      : {out['patreon']['status']} ({out['patreon']['orders_synced']} members/orders)")
         print(f"  - Gumroad      : {out['gumroad']['status']} ({out['gumroad']['orders_synced']} orders)")
         print(f"  - LemonSqueezy : {out['lemonsqueezy']['status']} ({out['lemonsqueezy']['orders_synced']} orders)")
     return out
@@ -487,18 +499,20 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
     return {
         "author": config.author_name,
         "timezone": config.timezone,
-        "schedule": "Daily 18:30 Asia/Colombo (Blogger + Pinterest) & Mon/Wed/Fri (DEV.to)",
+        "schedule": "Daily 18:30 Asia/Colombo (Blogger + Patreon) & Mon/Wed/Fri (DEV.to)",
         "experiment_window": f"{config.experiment_start_date} -> {config.experiment_end_date}",
         "publish_mode": config.publish_mode,
         "blogger_publish_mode": config.blogger_publish_mode,
         "devto_api_key_configured": bool(config.devto_api_key),
         "blogger_credentials_configured": BloggerClient(config).has_live_credentials(),
+        "patreon_credentials_configured": PatreonClient(config).has_live_credentials(),
         "pinterest_credentials_configured": PinterestClient(config).has_live_credentials(),
         "lemonsqueezy_api_configured": bool(config.lemonsqueezy_api_key),
         "gumroad_api_configured": bool(config.gumroad_access_token),
         "kofi_profile_url": config.kofi_profile_url,
         "primary_store_url": config.primary_store_url,
         "mirror_store_url": config.mirror_store_url,
+        "patreon_url": config.patreon_url,
         "lemonsqueezy_store_url": config.lemonsqueezy_store_url,
         "gumroad_store_url": config.gumroad_store_url,
         "free_checkout_url": config.free_checkout_url,
@@ -521,6 +535,8 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
                 "devto_url": a.devto_url,
                 "blogger_post_id": a.blogger_post_id,
                 "blogger_url": a.blogger_url,
+                "patreon_post_id": a.patreon_post_id,
+                "patreon_url": a.patreon_url,
                 "pinterest_pin_id": a.pinterest_pin_id,
                 "pinterest_url": a.pinterest_url,
                 "duration_ms": a.verification.get("total_duration_ms", 0),
@@ -558,7 +574,11 @@ def render_dashboard_html(config: AppConfig) -> str:
     exp = status_data["experiment"]
     ls_meter = exp["storefronts"]["lemonsqueezy"]
     gr_meter = exp["storefronts"]["gumroad"]
+    pt_meter = exp["storefronts"]["patreon"]
     copy_map: dict[str, str] = {}
+
+    patreon_guide_path = write_patreon_setup_guide(config)
+    copy_map["patreon_guide"] = patreon_guide_path.read_text(encoding="utf-8")
 
     storefront_md_path = config.exports_dir / "storefront" / "kofi_profile_and_shop_copy.md"
     copy_map["storefront_guide"] = (
@@ -622,6 +642,8 @@ def render_dashboard_html(config: AppConfig) -> str:
         day_num = art.get("series_day") or (len(status_data["articles"]) - idx + 1)
         bundles = load_bundle_texts(config.exports_dir, slug)
         copy_map[f"{slug}:blogger"] = bundles.get("blogger_html", "")
+        copy_map[f"{slug}:patreon_public"] = bundles.get("patreon_public", "")
+        copy_map[f"{slug}:patreon_paid"] = bundles.get("patreon_paid", "")
         copy_map[f"{slug}:pinterest"] = bundles.get("pinterest_json", "")
         copy_map[f"{slug}:kofi"] = bundles.get("kofi_post", "")
         copy_map[f"{slug}:medium"] = bundles.get("medium_import", "")
@@ -631,30 +653,25 @@ def render_dashboard_html(config: AppConfig) -> str:
 
         meta = PILLAR_META.get(str(art["pillar"]), PILLAR_META["pillar_a"])
         blogger_state = "LIVE/DRAFT SYNCED" if art.get("blogger_post_id") else "HTML EXPORTED"
-        pin_state = "PINNED API v5" if art.get("pinterest_pin_id") else "PNG + RSS READY"
+        patreon_state = "LIVE SYNCED v2" if art.get("patreon_post_id") else "PUBLIC + TIER MD READY"
         article_cards.append(
             f"""        <article class="card">
           <div>
             <div class="meta-row">
               <span class="badge badge-verified">DAY {day_num}/30 · {html.escape(str(art["status"]).upper())} ({art["duration_ms"]} ms)</span>
               <span class="badge">Blogger: {blogger_state}</span>
-              <span class="badge">Pinterest: {pin_state}</span>
+              <span class="badge">Patreon: {patreon_state}</span>
               <span class="badge">{html.escape(meta["weekday"])}</span>
               <span class="tabular">{art["word_count"]} words · {art["code_blocks_tested"]} blocks</span>
             </div>
             <h3><a href="/site/posts/{html.escape(slug, quote=True)}/index.html" style="color:var(--text);text-decoration:none;">{html.escape(str(art["title"]))}</a></h3>
             <p class="tabular">Canonical URL: <code>{html.escape(str(art["canonical_url"]))}</code></p>
           </div>
-          <div>
-            <a class="pin-thumb-link" href="/site/pins/{html.escape(slug, quote=True)}.png" aria-label="View 1000x1500 Pinterest PNG for {html.escape(str(art['title']), quote=True)}">
-              <img class="pin-thumb" src="/site/pins/{html.escape(slug, quote=True)}.png" width="180" height="270" loading="lazy" alt="2:3 Pinterest infographic preview for {html.escape(str(art['title']), quote=True)}" />
-            </a>
-          </div>
           <div class="cta-row" role="group" aria-label="Syndication actions for {html.escape(str(art['title']), quote=True)}">
             <a class="btn btn-primary" href="/site/posts/{html.escape(slug, quote=True)}/index.html">Preview Post</a>
-            <a class="btn" href="/site/pins/{html.escape(slug, quote=True)}.png">Open 2:3 Pin PNG</a>
+            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_public" data-label="Copy Patreon Public MD">Copy Patreon Public MD</button>
+            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_paid" data-label="Copy Patreon Paid/Shop MD">Copy Patreon Paid/Shop MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:blogger" data-label="Copy Blogger Series HTML">Copy Blogger Series HTML</button>
-            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:pinterest" data-label="Copy Pin Metadata">Copy Pin Metadata</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:kofi" data-label="Copy Ko-fi Post">Copy Ko-fi Post</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:medium" data-label="Copy Medium MD">Copy Medium MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:substack" data-label="Copy Substack MD">Copy Substack MD</button>
@@ -671,7 +688,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Omnichannel Control Center — Lemon Squeezy, Gumroad, Blogger &amp; Pinterest</title>
+  <title>Omnichannel Control Center — Patreon, Lemon Squeezy, Gumroad &amp; Blogger</title>
   <style>
 {SITE_STYLESHEET}
   .kpi-strip {{
@@ -738,11 +755,10 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <span class="badge badge-verified">30-DAY EXPERIMENT · NOV 18 → DEC 18, 2026</span>
         <h1>{html.escape(SERIES_30D_NAME)}</h1>
-        <p>Automated Lemon Squeezy ($50 Sri Lanka wire) + Gumroad ($100 bank deposit) storefronts paired with daily Blogger series publishing, daily 1000x1500 Pinterest 2:3 pins, and Mon/Wed/Fri DEV.to syndication.</p>
+        <p>Automated Patreon ($25 Payoneer) + Lemon Squeezy ($50 Sri Lanka wire) + Gumroad ($100 bank deposit) storefronts paired with daily Blogger series publishing, daily Patreon Public &amp; Paid Tier/Shop drops, and Mon/Wed/Fri DEV.to syndication.</p>
         <div class="cta-row">
-          <button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="dual_storefront_guide" data-label="Copy Lemon Squeezy & Gumroad Setup">Copy Lemon Squeezy &amp; Gumroad Setup</button>
-          <button type="button" class="btn copy-pack-btn" data-copy-key="storefront_guide" data-label="Copy Ko-fi Profile & Shop Copy">Copy Ko-fi Profile &amp; Shop Copy</button>
-          <a class="btn" href="/site/pinterest_feed.xml">Open Pinterest Auto-Publish RSS</a>
+          <button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="patreon_guide" data-label="Copy Patreon Tiers & Shop Setup">Copy Patreon Tiers &amp; Shop Setup</button>
+          <button type="button" class="btn copy-pack-btn" data-copy-key="dual_storefront_guide" data-label="Copy Lemon Squeezy & Gumroad Setup">Copy Lemon Squeezy &amp; Gumroad Setup</button>
           <a class="btn" href="/site/index.html">Preview Static Hub</a>
         </div>
         <div class="kpi-strip">
@@ -751,8 +767,8 @@ def render_dashboard_html(config: AppConfig) -> str:
             <div class="kpi-val tabular">{status_data["counts"]["articles_verified"]} / 30 Verified</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Queued Unused Seeds</div>
-            <div class="kpi-val tabular">{status_data["counts"]["signals_unused"]}</div>
+            <div class="kpi-label">Patreon ($25 Payoneer)</div>
+            <div class="kpi-val tabular">${pt_meter["net_usd"]:.2f} ({pt_meter["unlock_progress_pct"]:.1f}%)</div>
           </div>
           <div class="kpi-box">
             <div class="kpi-label">Lemon Squeezy ($50 Wire)</div>
@@ -770,6 +786,19 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <h2 id="scoreboard-heading" class="section-title">1. 30-Day Experiment Scoreboard (Nov 18 → Dec 18, 2026)</h2>
         <div class="grid-cards">
+          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">PATREON ($5/MO TIER &amp; $14 SHOP)</span>
+                <span class="badge tabular">${pt_meter["net_usd"]:.2f} / $25.00</span>
+              </div>
+              <h3>Patreon Payoneer Unlock Meter</h3>
+              <div class="meter-track" role="progressbar" aria-label="Patreon payout unlock progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(pt_meter['unlock_progress_pct']))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(pt_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">Free followers: <strong>{pt_meter["free_downloads"]}</strong> · Paid members: <strong>{pt_meter["paid_orders"]}</strong> · Remaining: <strong>${pt_meter["remaining_to_unlock_usd"]:.2f} USD</strong></p>
+            </div>
+          </div>
           <div class="card">
             <div>
               <div class="meta-row">
@@ -822,7 +851,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     <section class="section-block" aria-labelledby="skus-heading">
       <div class="container">
-        <h2 id="skus-heading" class="section-title">2. Dual Storefront <code>.zip</code> Toolkits (Lemon Squeezy + Gumroad)</h2>
+        <h2 id="skus-heading" class="section-title">2. Storefront <code>.zip</code> Toolkits (Patreon Shop + Lemon Squeezy + Gumroad)</h2>
         <div class="grid-cards">
 {chr(10).join(prod_cards)}
         </div>
@@ -831,7 +860,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     <section class="section-block" aria-labelledby="syndication-heading">
       <div class="container">
-        <h2 id="syndication-heading" class="section-title">3. Daily Verified Series, 2:3 Pinterest Pins &amp; 1-Click Packs</h2>
+        <h2 id="syndication-heading" class="section-title">3. Daily Verified Series, Patreon Public/Paid Packs &amp; 1-Click Syndication</h2>
         <div class="stack-list">
 {chr(10).join(article_cards) if article_cards else '<p>No articles generated yet. Run <code>python3 autopilot.py run-daily</code>.</p>'}
         </div>
