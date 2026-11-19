@@ -42,7 +42,7 @@
 1. Open `https://www.patreon.com/portal/registration/register-clients` while logged into your Patreon creator account.
 2. Click **Create Client** (Name: `Omnichannel Autopilot`, Redirect URI: `http://127.0.0.1:8765/`).
 3. Expand your newly created client and copy **`Creator's Access Token`**.
-4. Add these lines to `/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/.env`:
+4. Add these lines to `/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/.env`:
    ```ini
    PATREON_URL=https://www.patreon.com/c/tharushanuwansara
    PATREON_CREATOR_ACCESS_TOKEN=paste_your_creators_access_token_here
