@@ -8,7 +8,7 @@ How to verify raw webhook bytes in constant time, block intra-window replay atta
 3. Every snippet in our Friday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
 
 Read the full benchmark + runnable code here:
-https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/
 
 Free $0+ Mini-Kit & MIT Starter Kit in my shop:
 https://ko-fi.com/tharushanuwansara/shop

@@ -10,7 +10,7 @@
       "backend"
     ],
     "series": "Zero-Cost Production Reliability",
-    "canonical_url": "https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/",
+    "canonical_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/",
     "description": "Benchmarking atomic BEGIN IMMEDIATE visibility leases, duplicate webhook suppression, and poison-pill dead-letter isolation on a single SQLite WAL file.",
     "ai_disclosure_level": "some_ai"
   }

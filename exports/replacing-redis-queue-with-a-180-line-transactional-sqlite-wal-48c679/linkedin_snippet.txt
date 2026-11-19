@@ -8,7 +8,7 @@ Benchmarking atomic BEGIN IMMEDIATE visibility leases, duplicate webhook suppres
 3. Every snippet in our Wednesday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
 
 Read the full benchmark + runnable code here:
-https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/
 
 Free $0+ Mini-Kit & MIT Starter Kit in my shop:
 https://ko-fi.com/tharushanuwansara/shop

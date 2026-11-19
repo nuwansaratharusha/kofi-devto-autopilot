@@ -8,7 +8,7 @@ How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and
 3. Every snippet in our Monday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
 
 Read the full benchmark + runnable code here:
-https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/
 
 Free $0+ Mini-Kit & MIT Starter Kit in my shop:
 https://ko-fi.com/tharushanuwansara/shop

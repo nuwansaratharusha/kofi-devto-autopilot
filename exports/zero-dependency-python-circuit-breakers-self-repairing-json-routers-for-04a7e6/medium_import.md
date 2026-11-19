@@ -1,7 +1,7 @@
 <!--
 MEDIUM SYNDICATION INSTRUCTIONS (60-Second Canonical Import):
-1. Deploy `site/` to GitHub Pages (or ensure `https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/` is live).
-2. Open https://medium.com/p/import and paste `https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/`.
+1. Deploy `site/` to GitHub Pages (or ensure `https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/` is live).
+2. Open https://medium.com/p/import and paste `https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/`.
    Medium automatically sets `<link rel="canonical">` and preserves code blocks cleanly!
 3. Fallback if pasting manually: copy everything below into a new Medium draft (keep FREE / un-paywalled).
 -->
@@ -206,4 +206,4 @@ If you are building autonomous workflows, scheduled scrapers, or SaaS backends w
 
 ---
 
-*Originally published at [https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/).*
+*Originally published at [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/).*

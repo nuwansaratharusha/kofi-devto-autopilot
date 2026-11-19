@@ -9,7 +9,7 @@ Welcome to **Day 2 of 30** in *30 Days of Zero-Cost Production Python & AI Relia
 ## Why This Matters in Production
 - **Track:** Zero-Cost Backend, SQLite WAL Queues & Cron Automation (Wednesday Pillar)
 - **Empirical Verification:** `2` runnable blocks (`818` words total)
-- **Full Benchmark & Runnable Code:** [https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)
+- **Full Benchmark & Runnable Code:** [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)
 
 ---
 
@@ -19,5 +19,5 @@ Welcome to **Day 2 of 30** in *30 Days of Zero-Cost Production Python & AI Relia
    *(Paid Patreon members can also download `production-agent-automation-kit.zip` directly from today's member attachment post on [https://ko-fi.com/tharushanuwansara/shop](https://ko-fi.com/tharushanuwansara/shop)!)*
 
 ### Recent 30 Days of Zero-Cost Production Python & AI Reliability Drops
-- Day 1/30: [Zero-Dependency Python Circuit Breakers & Self-Repairing JSON Routers for Unreliable LLM APIs](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
-- Day 2/30: [Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)
+- Day 1/30: [Zero-Dependency Python Circuit Breakers & Self-Repairing JSON Routers for Unreliable LLM APIs](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
+- Day 2/30: [Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)

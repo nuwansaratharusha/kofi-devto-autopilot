@@ -9,7 +9,7 @@ Welcome to **Day 3 of 30** in *30 Days of Zero-Cost Production Python & AI Relia
 ## Why This Matters in Production
 - **Track:** Idempotent Webhooks & Double-Entry Ledger Teardowns (Friday Pillar)
 - **Empirical Verification:** `2` runnable blocks (`854` words total)
-- **Full Benchmark & Runnable Code:** [https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/)
+- **Full Benchmark & Runnable Code:** [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/)
 
 ---
 
@@ -19,6 +19,6 @@ Welcome to **Day 3 of 30** in *30 Days of Zero-Cost Production Python & AI Relia
    *(Paid Patreon members can also download `production-agent-automation-kit.zip` directly from today's member attachment post on [https://ko-fi.com/tharushanuwansara/shop](https://ko-fi.com/tharushanuwansara/shop)!)*
 
 ### Recent 30 Days of Zero-Cost Production Python & AI Reliability Drops
-- Day 1/30: [Zero-Dependency Python Circuit Breakers & Self-Repairing JSON Routers for Unreliable LLM APIs](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
-- Day 2/30: [Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)
-- Day 3/30: [Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/)
+- Day 1/30: [Zero-Dependency Python Circuit Breakers & Self-Repairing JSON Routers for Unreliable LLM APIs](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
+- Day 2/30: [Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/)
+- Day 3/30: [Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/)

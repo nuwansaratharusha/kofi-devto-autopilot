@@ -9,7 +9,7 @@ Welcome to **Day 1 of 30** in *30 Days of Zero-Cost Production Python & AI Relia
 ## Why This Matters in Production
 - **Track:** Fault-Tolerant AI & API Guardrails (Monday Pillar)
 - **Empirical Verification:** `2` runnable blocks (`875` words total)
-- **Full Benchmark & Runnable Code:** [https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
+- **Full Benchmark & Runnable Code:** [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
 
 ---
 

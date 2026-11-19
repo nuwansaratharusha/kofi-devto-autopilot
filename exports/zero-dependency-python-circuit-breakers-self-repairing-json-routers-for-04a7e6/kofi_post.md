@@ -5,7 +5,7 @@ How to stop cascading HTTP 429/503 stalls, repair fenced JSON tool payloads, and
 **Sandbox Verification Summary:**
 - Prose Length: `875` words
 - Runnable Blocks Verified (`python3 -I`): `2` passed (`returncode == 0` in `99.12 ms`)
-- Full Free Tutorial + Benchmarks: [https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://tharushanuwansara.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
+- Full Free Tutorial + Benchmarks: [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/)
 
 Want the drop-in modules and unit test suites ready to copy into your repo?
 1. **Free ($0+ Pay-What-You-Want):** [Free Idempotent Cron & Circuit-Breaker Mini-Kit](https://ko-fi.com/tharushanuwansara/shop?utm_source=kofi_post&utm_medium=syndication&utm_campaign=zero-dependency-python-circuit-breakers-self-rep&slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6&sku=free-idempotent-cron-mini-kit)
