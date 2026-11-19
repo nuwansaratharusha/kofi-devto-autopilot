@@ -13,7 +13,10 @@ from typing import Callable, Optional
 
 from engine.curriculum_30d import EXTRA_21_PILLAR_SEEDS
 from engine.db import utc_now_iso
+from engine.devto_client import build_ssl_context
 from engine.models import TopicSignal
+
+_HARVESTER_SSL_CTX = build_ssl_context()
 
 USER_AGENT = "KofiDevtoAutopilot/1.0 (+https://ko-fi.com/tharushanuwansara)"
 
@@ -125,7 +128,8 @@ def _default_http_get(url: str, timeout: float = 4.0) -> bytes:
         },
         method="GET",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    ctx = _HARVESTER_SSL_CTX if url.lower().startswith("https://") else None
+    with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
         return resp.read(262_144)  # Cap read at 256 KiB for memory & disk hygiene
 
 

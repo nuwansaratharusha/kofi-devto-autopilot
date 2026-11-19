@@ -3,7 +3,7 @@
   "slug": "constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f",
   "public_title": "[Day 3/30] Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python",
   "paid_title": "[Members & Shop \u00b7 Day 3/30] Runnable Kit + Full Benchmark: Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python",
-  "patreon_url": "",
+  "patreon_url": "https://www.patreon.com/NuwansaraT",
   "patreon_post_id": null,
   "published_post_url": null,
   "tags": [
@@ -12,10 +12,10 @@
     "sql",
     "backend"
   ],
-  "free_kit_zip": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/free-idempotent-cron-mini-kit.zip",
-  "paid_kit_zip": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip",
-  "utm_free_checkout_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=patreon&utm_medium=public_post&utm_campaign=30d_day03&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit",
-  "utm_paid_checkout_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=patreon&utm_medium=tier_post&utm_campaign=30d_day03&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit",
-  "public_markdown_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/patreon_public_post.md",
-  "paid_markdown_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/patreon_paid_tier_post.md"
+  "free_kit_zip": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/free-idempotent-cron-mini-kit.zip",
+  "paid_kit_zip": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip",
+  "utm_free_checkout_url": "https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=public_post&utm_campaign=30d_day03&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=free-idempotent-cron-mini-kit",
+  "utm_paid_checkout_url": "https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=tier_post&utm_campaign=30d_day03&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=production-agent-automation-kit",
+  "public_markdown_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/patreon_public_post.md",
+  "paid_markdown_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/patreon_paid_tier_post.md"
 }

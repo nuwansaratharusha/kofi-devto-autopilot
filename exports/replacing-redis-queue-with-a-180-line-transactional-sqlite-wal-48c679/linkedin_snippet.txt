@@ -11,4 +11,4 @@ Read the full benchmark + runnable code here:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/
 
 Free $0+ Mini-Kit & MIT Starter Kit in my shop:
-https://nuwansaratharusha.github.io/kofi-devto-autopilot
+https://www.patreon.com/NuwansaraT

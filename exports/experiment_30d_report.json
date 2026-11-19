@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T23:42:30Z",
+  "generated_at": "2026-11-19T23:48:53Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -26,7 +26,7 @@
     "lemonsqueezy": {
       "storefront": "lemonsqueezy",
       "label": "Lemon Squeezy ($50 Sri Lanka Bank Wire)",
-      "store_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot",
+      "store_url": "https://www.patreon.com/NuwansaraT",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,
@@ -43,7 +43,7 @@
     "gumroad": {
       "storefront": "gumroad",
       "label": "Gumroad ($100 Sri Lanka Bank Deposit)",
-      "store_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot",
+      "store_url": "https://www.patreon.com/NuwansaraT",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,
@@ -60,7 +60,7 @@
     "patreon": {
       "storefront": "patreon",
       "label": "Patreon ($25 Payoneer Payout)",
-      "store_url": "https://www.patreon.com",
+      "store_url": "https://www.patreon.com/NuwansaraT",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,

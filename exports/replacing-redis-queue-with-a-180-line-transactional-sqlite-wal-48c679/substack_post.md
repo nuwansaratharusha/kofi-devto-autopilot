@@ -228,5 +228,5 @@ If you want the full CLI wrapper (`enqueue`, `stats`, `requeue-dlq`), exponentia
 ---
 
 ### Grab the Tested `.zip` Toolkits
-- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=free-idempotent-cron-mini-kit)
-- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://nuwansaratharusha.github.io/kofi-devto-autopilot?utm_source=substack&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=production-agent-automation-kit)
+- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://www.patreon.com/NuwansaraT?utm_source=substack&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=free-idempotent-cron-mini-kit)
+- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://www.patreon.com/NuwansaraT?utm_source=substack&utm_medium=syndication&utm_campaign=replacing-redis-queue-with-a-180-line-transactio&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=production-agent-automation-kit)

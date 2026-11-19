@@ -281,7 +281,7 @@ class PatreonClient:
             return self.campaign_id
         payload = self._get_json(
             "/campaigns",
-            query={"fields[campaign]": "creation_name,url,patron_count,pledge_sum"},
+            query={"fields[campaign]": "creation_name,url,vanity,patron_count"},
         )
         items = payload.get("data") or []
         if not items:

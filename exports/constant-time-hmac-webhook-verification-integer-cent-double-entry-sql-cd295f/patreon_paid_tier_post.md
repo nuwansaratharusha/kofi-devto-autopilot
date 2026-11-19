@@ -4,7 +4,7 @@ Thank you for backing **30 Days of Zero-Cost Production Python & AI Reliability*
 
 **Attachment Checklist Before Clicking Publish in Patreon:**
 - Access Setting: **Paid members only** (or sell as a **$14 one-time Patreon Shop post**)
-- File Attachment: `/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip`
+- File Attachment: `/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip`
 
 ---
 

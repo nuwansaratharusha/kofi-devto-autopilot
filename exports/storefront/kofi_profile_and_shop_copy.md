@@ -1,7 +1,7 @@
 # Ready-to-Paste Ko-fi Profile, Shop & Sri Lanka Payout Guide
 
-**Target Profile:** [https://nuwansaratharusha.github.io/kofi-devto-autopilot](https://nuwansaratharusha.github.io/kofi-devto-autopilot)  
-**Primary Shop URL (`PRIMARY_STORE_URL`):** `https://nuwansaratharusha.github.io/kofi-devto-autopilot`  
+**Target Profile:** [https://www.patreon.com/NuwansaraT](https://www.patreon.com/NuwansaraT)  
+**Primary Shop URL (`PRIMARY_STORE_URL`):** `https://www.patreon.com/NuwansaraT`  
 **Mirror Store Status:** Not set yet (leave `MIRROR_STORE_URL=` empty if using Ko-fi PayPal/Stripe, or set to your Polar.sh / Lemon Squeezy URL in `.env`).
 
 ---

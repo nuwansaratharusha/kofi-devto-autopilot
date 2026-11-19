@@ -1,7 +1,7 @@
 # Patreon Storefront, Membership Tiers & API v2 Setup Guide
 
 - **Creator:** Tharusha Nuwansara (`Asia/Colombo`)
-- **Target Patreon URL:** `https://www.patreon.com/c/tharushanuwansara`
+- **Target Patreon URL:** `https://www.patreon.com/NuwansaraT`
 - **Sri Lanka Payout Path:** Patreon holds your earnings balance safely; withdraw via **Payoneer** (**$25 USD** Patreon minimum payout, ~$1 transfer fee; Payoneer -> Sri Lanka local bank minimum typically $50–$100 USD). Keep **Lemon Squeezy** active alongside Patreon for direct $50 Sri Lanka bank wires with zero annual wallet fees.
 
 ---
@@ -42,9 +42,9 @@
 1. Open `https://www.patreon.com/portal/registration/register-clients` while logged into your Patreon creator account.
 2. Click **Create Client** (Name: `Omnichannel Autopilot`, Redirect URI: `http://127.0.0.1:8765/`).
 3. Expand your newly created client and copy **`Creator's Access Token`**.
-4. Add these lines to `/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/.env`:
+4. Add these lines to `/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/.env`:
    ```ini
-   PATREON_URL=https://www.patreon.com/c/tharushanuwansara
+   PATREON_URL=https://www.patreon.com/NuwansaraT
    PATREON_CREATOR_ACCESS_TOKEN=paste_your_creators_access_token_here
    # Optional: leave PATREON_CAMPAIGN_ID blank and autopilot.py discovers it automatically!
    PATREON_CAMPAIGN_ID=

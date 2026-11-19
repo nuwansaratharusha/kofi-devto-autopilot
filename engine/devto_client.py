@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -78,9 +79,21 @@ def build_devto_payload(
     return {"article": article_obj}
 
 
+def build_ssl_context() -> ssl.SSLContext:
+    """Create a strict TLS context, loading macOS `/etc/ssl/cert.pem` when Python's bundled store is empty."""
+    ctx = ssl.create_default_context()
+    if ctx.cert_store_stats().get("x509_ca", 0) == 0 and Path("/etc/ssl/cert.pem").is_file():
+        ctx.load_verify_locations(cafile="/etc/ssl/cert.pem")
+    return ctx
+
+
+_DEFAULT_SSL_CONTEXT = build_ssl_context()
+
+
 def _urllib_sender(req: urllib.request.Request, timeout: float) -> HttpResult:
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        ctx = _DEFAULT_SSL_CONTEXT if req.full_url.lower().startswith("https://") else None
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
             hdrs = {k.lower(): v for k, v in resp.headers.items()}
             return HttpResult(status=int(resp.status), headers=hdrs, body=resp.read())
     except urllib.error.HTTPError as err:
