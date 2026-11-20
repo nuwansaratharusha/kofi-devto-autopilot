@@ -64,15 +64,38 @@ class AppConfig:
     patreon_client_id: str = ""
     patreon_client_secret: str = ""
     patreon_creator_refresh_token: str = ""
+    whop_company_id: str = ""
+    whop_store_url: str = ""
+    whop_api_key: str = ""
+    whop_webhook_secret: str = ""
     nasio_store_url: str = ""
     nasio_webhook_secret: str = ""
     experiment_start_date: str = "2026-11-18"
     experiment_end_date: str = "2026-12-18"
 
     @property
+    def whop_dashboard_url(self) -> str:
+        cid = self.whop_company_id.strip() or "biz_Af4z3lgivbct7t"
+        return f"https://whop.com/dashboard/{cid}/"
+
+    @property
+    def is_legacy_nasio_mode(self) -> bool:
+        """True only when legacy NASIO_STORE_URL is set without any Whop configuration."""
+        return bool(
+            self.nasio_store_url
+            and not (
+                self.whop_company_id
+                or self.whop_store_url
+                or self.whop_api_key
+                or self.whop_webhook_secret
+            )
+        )
+
+    @property
     def free_checkout_url(self) -> str:
         return (
-            self.nasio_store_url
+            self.whop_store_url
+            or self.nasio_store_url
             or self.gumroad_store_url
             or self.patreon_url
             or self.lemonsqueezy_store_url
@@ -84,7 +107,8 @@ class AppConfig:
     @property
     def paid_checkout_url(self) -> str:
         return (
-            self.nasio_store_url
+            self.whop_store_url
+            or self.nasio_store_url
             or self.patreon_url
             or self.lemonsqueezy_store_url
             or self.gumroad_store_url
@@ -124,16 +148,30 @@ class AppConfig:
             .rstrip("/")
             or "https://nuwansaratharusha.github.io/kofi-devto-autopilot"
         )
+        raw_whop_store = env_map.get("WHOP_STORE_URL", "").strip().rstrip("/")
+        raw_whop_cid = env_map.get("WHOP_COMPANY_ID", "").strip()
+        # Guard against accidentally pasting the seller-only `/dashboard/biz_...` URL into WHOP_STORE_URL
+        if "/dashboard/" in raw_whop_store.lower():
+            if not raw_whop_cid:
+                for seg in raw_whop_store.split("/"):
+                    if seg.startswith("biz_"):
+                        raw_whop_cid = seg
+                        break
+            whop_store = ""
+        else:
+            whop_store = raw_whop_store
         nasio_store = env_map.get("NASIO_STORE_URL", "").strip().rstrip("/")
         patreon_store = env_map.get("PATREON_URL", "").strip().rstrip("/")
         kofi_profile = (
             env_map.get("KOFI_PROFILE_URL", "").strip().rstrip("/")
             or patreon_store
+            or whop_store
             or nasio_store
             or canonical_base
         )
         primary_store = (
             env_map.get("PRIMARY_STORE_URL", "").strip().rstrip("/")
+            or whop_store
             or nasio_store
             or env_map.get("LEMONSQUEEZY_STORE_URL", "").strip().rstrip("/")
             or patreon_store
@@ -176,6 +214,10 @@ class AppConfig:
             patreon_client_id=env_map.get("PATREON_CLIENT_ID", "").strip(),
             patreon_client_secret=env_map.get("PATREON_CLIENT_SECRET", "").strip(),
             patreon_creator_refresh_token=env_map.get("PATREON_CREATOR_REFRESH_TOKEN", "").strip(),
+            whop_company_id=raw_whop_cid,
+            whop_store_url=whop_store,
+            whop_api_key=env_map.get("WHOP_API_KEY", "").strip(),
+            whop_webhook_secret=env_map.get("WHOP_WEBHOOK_SECRET", "").strip(),
             nasio_store_url=nasio_store,
             nasio_webhook_secret=env_map.get("NASIO_WEBHOOK_SECRET", "").strip(),
             experiment_start_date=env_map.get("EXPERIMENT_START_DATE", "2026-11-18").strip() or "2026-11-18",

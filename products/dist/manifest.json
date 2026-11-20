@@ -11,7 +11,7 @@
       "zip_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/free-idempotent-cron-mini-kit.zip",
       "zip_filename": "free-idempotent-cron-mini-kit.zip",
       "size_bytes": 9859,
-      "sha256": "852daf37db2ba501ad5dfd348b93e1236717ef459953d1a64fc2bce6ae7f2a9d",
+      "sha256": "c2d03abcc0a0f346c5eb5dc4cd174cf8e79b2fe076cdde3a1a02cde2df0fdb5c",
       "file_count": 5,
       "python_tests_passed": true,
       "node_tests_passed": null
@@ -24,8 +24,8 @@
       "suggested_price_usd": 14,
       "zip_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip",
       "zip_filename": "production-agent-automation-kit.zip",
-      "size_bytes": 21100,
-      "sha256": "bd7b8c8d7fd4b2b3ccfc384d92506b7d4d1b6636d85bcdba87a58045ded90ebc",
+      "size_bytes": 21102,
+      "sha256": "c3f1cdcda9af6021c3c0c743d97cc4822da7bed32a53d6ba96b267f9306f1e49",
       "file_count": 15,
       "python_tests_passed": true,
       "node_tests_passed": true

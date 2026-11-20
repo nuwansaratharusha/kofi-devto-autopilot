@@ -6,12 +6,12 @@
 
 ---
 
-## 1. Sri Lanka Merchant-of-Record Payout Unlock Meters
+## 1. Sri Lanka Storefront & Payout Unlock Meters
 
 | Storefront | Net Settled | Payout Unlock Minimum | Progress | Remaining | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Nas.io** | `$0.00` | `$50.00` ($10 Payoneer / $65 LKR Wire) | `0.0%` | `$50.00` | `ACCUMULATING` |
-| **Patreon** | `$0.00` | `$25.00` (Payoneer) | `0.0%` | `$25.00` | `ACCUMULATING` |
+| **Storefront #1: Whop ($10 Min Payout · Built-in Marketplace)** | `$0.00` | `$50.00` ($10 Min Payout · Built-in Marketplace) | `0.0%` | `$50.00` | `ACCUMULATING` |
+| **Storefront #2: Patreon ($25 Payoneer)** | `$0.00` | `$25.00` (Payoneer) | `0.0%` | `$25.00` | `ACCUMULATING` |
 | **Lemon Squeezy** | `$0.00` | `$50.00` (Bank Wire) | `0.0%` | `$50.00` | `ACCUMULATING` |
 | **Gumroad** | `$0.00` | `$100.00` (Local Bank) | `0.0%` | `$100.00` | `ACCUMULATING` |
 
@@ -21,9 +21,9 @@
 
 | Channel | Assets Ready | Views | Clicks | CTR | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `blogger` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `whop` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `patreon` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `nasio` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `blogger` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `devto` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `canonical_site` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `pinterest` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |

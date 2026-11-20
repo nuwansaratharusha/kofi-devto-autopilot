@@ -496,16 +496,31 @@ def sync_storefronts(
     gumroad_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
     lemonsqueezy_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
     patreon_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
+    whop_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
 ) -> dict[str, Any]:
-    """Sync products, members & sales across Gumroad v2, Lemon Squeezy v1 & Patreon v2 into SQLite."""
+    """Sync products, members & sales across Whop v1, Patreon v2, Gumroad v2 & Lemon Squeezy v1 into SQLite."""
     from engine.patreon_client import PatreonClient
+    from engine.whop_client import WhopClient
 
     report: dict[str, Any] = {
         "synced_at": utc_now_iso(),
+        "whop": {
+            "status": "dry_run",
+            "company_id": config.whop_company_id,
+            "payments_synced": 0,
+            "memberships_synced": 0,
+            "orders_synced": 0,
+        },
         "gumroad": {"status": "dry_run", "products_count": 0, "orders_synced": 0, "drafts_created": []},
         "lemonsqueezy": {"status": "dry_run", "products_count": 0, "orders_synced": 0},
         "patreon": {"status": "dry_run", "campaign_id": "", "orders_synced": 0},
     }
+
+    if config.whop_api_key:
+        whop = WhopClient(config, sender=whop_sender, sleeper=lambda _s: None)
+        report["whop"] = whop.sync_to_db(db)
+    else:
+        report["whop"]["reason"] = "WHOP_API_KEY not configured; skipped live HTTP calls."
 
     if config.gumroad_access_token:
         gr = GumroadClient(config.gumroad_access_token, sender=gumroad_sender, sleeper=lambda _s: None)

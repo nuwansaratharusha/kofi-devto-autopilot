@@ -15,6 +15,7 @@ from engine.nasio_client import export_nasio_daily_pack, write_nasio_setup_guide
 from engine.patreon_client import export_patreon_bundle, write_patreon_setup_guide
 from engine.pinterest_client import PinterestClient
 from engine.storefronts import append_storefront_utm
+from engine.whop_client import export_whop_daily_pack, write_whop_setup_guide
 
 
 def _utm(
@@ -205,9 +206,13 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
     patreon_paths = export_patreon_bundle(article, config, series_articles=series_articles)
     write_patreon_setup_guide(config)
 
-    # 8. Nas.io Daily 60-Minute Execution Pack + Strategy & Challenge Guide
-    nasio_paths = export_nasio_daily_pack(article, config, series_articles=series_articles)
-    write_nasio_setup_guide(config)
+    # 8. Whop Daily 60-Minute Execution Pack + Strategy & Challenge Guide (plus legacy Nas.io fallback if configured)
+    whop_paths = export_whop_daily_pack(article, config, series_articles=series_articles)
+    write_whop_setup_guide(config)
+    nasio_paths: dict[str, str] = {}
+    if config.is_legacy_nasio_mode:
+        nasio_paths = export_nasio_daily_pack(article, config, series_articles=series_articles)
+        write_nasio_setup_guide(config)
 
     # 9. Optional visual card / legacy 2:3 graphic metadata (dry-run local export)
     dry_pin_cfg = AppConfig(
@@ -229,6 +234,7 @@ Free $0+ Mini-Kit & MIT Starter Kit in my shop:
         "blogger_post_html": str(blogger_html_path),
         "blogger_payload": str(blogger_json_path),
         **patreon_paths,
+        **whop_paths,
         **nasio_paths,
         "pinterest_pin_png": str(pin_info["png_path"]),
         "pinterest_pin_svg": str(pin_info["svg_path"]),
@@ -241,6 +247,7 @@ def load_bundle_texts(exports_dir: Path, slug: str) -> dict[str, Any]:
     d = exports_dir / slug
     result: dict[str, Any] = {}
     for key, filename in (
+        ("whop_daily_pack", "whop_daily_pack.md"),
         ("nasio_daily_pack", "nasio_daily_pack.md"),
         ("patreon_public", "patreon_public_post.md"),
         ("patreon_paid", "patreon_paid_tier_post.md"),

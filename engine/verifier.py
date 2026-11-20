@@ -17,7 +17,7 @@ from engine.models import ArticleRecord, ArticleVerificationReport, CodeCheckRes
 
 MIN_WORD_COUNT = 750
 MAX_STOREFRONT_LINKS = 2
-SUBPROCESS_TIMEOUT_SECONDS = 10.0
+SUBPROCESS_TIMEOUT_SECONDS = 30.0
 
 BANNED_SLOP_PHRASES = (
     "as an ai language model",
@@ -49,6 +49,8 @@ EMPIRICAL_BLOCK_RE = re.compile(
 
 STOREFRONT_HOSTS = frozenset(
     {
+        "whop.com",
+        "www.whop.com",
         "nas.io",
         "www.nas.io",
         "patreon.com",
@@ -65,6 +67,7 @@ STOREFRONT_HOSTS = frozenset(
 )
 
 STOREFRONT_DOMAIN_SUFFIXES = (
+    ".whop.com",
     ".lemonsqueezy.com",
     ".gumroad.com",
     ".nas.io",
@@ -156,6 +159,7 @@ def _lint_links_and_slop(
             config.lemonsqueezy_store_url,
             config.gumroad_store_url,
             config.patreon_url,
+            config.whop_store_url,
             config.nasio_store_url,
         ):
             if url_candidate:

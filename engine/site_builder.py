@@ -1003,8 +1003,12 @@ def _render_index_page(
         is_challenge = prod_slug == "nasio-7day-ai-automation-challenge-pack"
         price_label = "$0+ Pay-What-You-Want" if is_free else f"${prod['price_usd']} USD · MIT License"
         if is_challenge:
-            raw_store = config.nasio_store_url or config.patreon_url or config.paid_checkout_url
-            store_tag = "Nas.io 7-Day Challenge & Patreon Shop"
+            if config.is_legacy_nasio_mode:
+                raw_store = config.nasio_store_url or config.patreon_url or config.paid_checkout_url
+                store_tag = "Nas.io 7-Day Challenge & Patreon Shop"
+            else:
+                raw_store = config.whop_store_url or config.patreon_url or config.paid_checkout_url
+                store_tag = "Whop Challenges / Courses / Files & Patreon Shop"
         elif is_free:
             raw_store = config.free_checkout_url
             store_tag = "Free Starter / Instant Lead Magnet"
@@ -1035,6 +1039,11 @@ def _render_index_page(
         )
 
     exp = experiment_report or {}
+    wh_meter = (exp.get("storefronts") or {}).get("whop") or {
+        "net_usd": 0.0,
+        "threshold_usd": 50.0,
+        "unlock_progress_pct": 0.0,
+    }
     ns_meter = (exp.get("storefronts") or {}).get("nasio") or {
         "net_usd": 0.0,
         "threshold_usd": 50.0,
@@ -1109,14 +1118,19 @@ def _render_index_page(
         medium="hero",
         sku="free-idempotent-cron-mini-kit",
     )
+    challenge_store_base = (
+        (config.nasio_store_url or config.patreon_url or config.paid_checkout_url)
+        if config.is_legacy_nasio_mode
+        else (config.whop_store_url or config.patreon_url or config.paid_checkout_url)
+    )
     hero_challenge_url = _canonical_store_url(
-        config.nasio_store_url or config.patreon_url or config.paid_checkout_url,
+        challenge_store_base,
         config,
         medium="hero",
         sku="nasio-7day-ai-automation-challenge-pack",
     )
-    meter_nasio_url = _canonical_store_url(
-        config.nasio_store_url or config.patreon_url or config.paid_checkout_url,
+    meter_primary_url = _canonical_store_url(
+        challenge_store_base,
         config,
         medium="scoreboard",
         sku="nasio-7day-ai-automation-challenge-pack",
@@ -1134,11 +1148,47 @@ def _render_index_page(
         sku="free-idempotent-cron-mini-kit",
     )
 
+    lead_platform_label = "Nas.io" if config.is_legacy_nasio_mode else "Whop"
+    if config.is_legacy_nasio_mode:
+        sf1_card_html = f"""          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">STOREFRONT #1 · NAS.IO</span>
+                <span class="badge tabular">${float(ns_meter["net_usd"]):.2f} / ${float(ns_meter["threshold_usd"]):.0f} USD</span>
+              </div>
+              <h3>Nas.io Payout &amp; Target Meter ($10 Payoneer USD / $65 LKR Wire)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Nas.io $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(ns_meter['unlock_progress_pct'])))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ns_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">{float(ns_meter["unlock_progress_pct"]):.1f}% toward $50 USD Month-1 goal ($10 Payoneer USD min · 4 × $15 7-Day Challenge seats = $60).</p>
+            </div>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="{html.escape(meter_primary_url, quote=True)}" rel="noopener">Open Nas.io 7-Day Challenge</a>
+            </div>
+          </div>"""
+    else:
+        sf1_card_html = f"""          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">STOREFRONT #1 · WHOP</span>
+                <span class="badge tabular">${float(wh_meter["net_usd"]):.2f} / ${float(wh_meter["threshold_usd"]):.0f} USD</span>
+              </div>
+              <h3>Storefront #1: Whop ($10 Min Payout · Built-in Marketplace)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Whop $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(wh_meter['unlock_progress_pct'])))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(wh_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">{float(wh_meter["unlock_progress_pct"]):.1f}% toward $50 USD Month-1 goal ($10 USD min payout · Built-in Whop Discover Marketplace · 4 × $15 Challenge seats = ~$55.36 net).</p>
+            </div>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="{html.escape(meter_primary_url, quote=True)}" rel="noopener">Open Whop 7-Day Challenge</a>
+            </div>
+          </div>"""
+
     main_html = f"""    <section class="hero">
       <div class="container">
         <span class="badge badge-verified">30-DAY SERIES · 100% STDLIB SANDBOX VERIFIED</span>
         <h1>{html.escape(SERIES_30D_NAME)}</h1>
-        <p>Daily Nas.io, Patreon, Blogger &amp; Pinterest 2:3 visual engineering series plus Mon/Wed/Fri DEV.to teardowns by {html.escape(config.author_name)} ({html.escape(config.experiment_start_date)} to {html.escape(config.experiment_end_date)}). Every snippet runs inside an isolated <code>python3 -I</code> sandbox before release.</p>
+        <p>Daily {lead_platform_label}, Patreon, Blogger &amp; Pinterest 2:3 visual engineering series plus Mon/Wed/Fri DEV.to teardowns by {html.escape(config.author_name)} ({html.escape(config.experiment_start_date)} to {html.escape(config.experiment_end_date)}). Every snippet runs inside an isolated <code>python3 -I</code> sandbox before release.</p>
         <div class="cta-row">
           <a class="btn btn-primary" href="{html.escape(hero_challenge_url, quote=True)}" rel="noopener">Join $15 7-Day Challenge</a>
           <a class="btn" href="{html.escape(hero_paid_url, quote=True)}" rel="noopener">Get $14 Starter Kit</a>
@@ -1152,29 +1202,14 @@ def _render_index_page(
       <div class="container">
         <h2 id="scoreboard-heading" class="section-title">30-Day Experiment Scoreboard (Nov 18 → Dec 18, 2026)</h2>
         <div class="grid-cards">
-          <div class="card">
-            <div>
-              <div class="meta-row">
-                <span class="badge badge-verified">STOREFRONT #1 · NAS.IO</span>
-                <span class="badge tabular">${float(ns_meter["net_usd"]):.2f} / ${float(ns_meter["threshold_usd"]):.0f} USD</span>
-              </div>
-              <h3>Nas.io Payout &amp; Target Meter ($10 Payoneer USD / $65 LKR Wire)</h3>
-              <div class="meter-track" role="progressbar" aria-label="Nas.io $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(ns_meter['unlock_progress_pct'])))}">
-                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ns_meter['unlock_progress_pct']))):.1f}%;"></div>
-              </div>
-              <p class="tabular">{float(ns_meter["unlock_progress_pct"]):.1f}% toward $50 USD Month-1 goal ($10 Payoneer USD min · 4 × $15 7-Day Challenge seats = $60).</p>
-            </div>
-            <div class="cta-row">
-              <a class="btn btn-primary" href="{html.escape(meter_nasio_url, quote=True)}" rel="noopener">Open Nas.io 7-Day Challenge</a>
-            </div>
-          </div>
+{sf1_card_html}
           <div class="card">
             <div>
               <div class="meta-row">
                 <span class="badge badge-verified">STOREFRONT #2 · PATREON</span>
                 <span class="badge tabular">${float(pt_meter["net_usd"]):.2f} / ${float(pt_meter["threshold_usd"]):.0f} USD</span>
               </div>
-              <h3>Patreon Payout Meter ($25 Payoneer)</h3>
+              <h3>Storefront #2: Patreon ($25 Payoneer)</h3>
               <div class="meter-track" role="progressbar" aria-label="Patreon $25 payout progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(float(pt_meter['unlock_progress_pct'])))}">
                 <div class="meter-fill" style="width:{min(100.0, max(0.0, float(pt_meter['unlock_progress_pct']))):.1f}%;"></div>
               </div>
@@ -1373,6 +1408,27 @@ def _build_sitemap_xml(articles: list[ArticleRecord], config: AppConfig) -> str:
 
     xml_bytes = ET.tostring(urlset, encoding="utf-8", xml_declaration=True)
     return xml_bytes.decode("utf-8") + "\n"
+
+
+def refresh_site_scoreboard(
+    articles: list[ArticleRecord],
+    products: list[dict[str, Any]],
+    config: AppConfig,
+    *,
+    experiment_report: Optional[dict[str, Any]] = None,
+) -> Path:
+    """Fast `<2ms` update of `site/index.html` scoreboard without regenerating PNG pins or post HTML on webhooks."""
+    site_dir = config.site_dir
+    site_dir.mkdir(parents=True, exist_ok=True)
+    css_path = site_dir / "style.css"
+    if not css_path.is_file():
+        css_path.write_text(SITE_STYLESHEET, encoding="utf-8")
+    index_path = site_dir / "index.html"
+    index_path.write_text(
+        _render_index_page(articles, products, config, experiment_report=experiment_report),
+        encoding="utf-8",
+    )
+    return index_path
 
 
 def build_static_site(

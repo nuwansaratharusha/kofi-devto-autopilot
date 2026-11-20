@@ -43,7 +43,7 @@ Both kits are 100% stdlib-first, unit-tested, and ready in the Shop tab!
 
 ## 3. Ko-fi Shop Listing #1 — Free Lead Magnet ($0+ Pay-What-You-Want)
 
-- **Upload File:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `852daf37db2ba501...`)
+- **Upload File:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `c2d03abcc0a0f346...`)
 - **Item Name:** `Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)`
 - **Price:** `$0` (Enable *"Pay what you want"* • Suggested amount: `$3`)
 - **Summary / Description:**
@@ -68,7 +68,7 @@ Unzip and run:
 
 ## 4. Ko-fi Shop Listing #2 — Flagship Revenue Driver ($14 USD • 4 Sales = ~$52 Net)
 
-- **Upload File:** `products/dist/production-agent-automation-kit.zip` (`21,100` bytes • SHA-256 `bd7b8c8d7fd4b2b3...`)
+- **Upload File:** `products/dist/production-agent-automation-kit.zip` (`21,102` bytes • SHA-256 `c3f1cdcda9af6021...`)
 - **Item Name:** `Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)`
 - **Price:** `$14 USD` (Fixed or $14+ Pay-What-You-Want)
 - **Summary / Description:**

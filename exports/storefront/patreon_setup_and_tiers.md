@@ -2,7 +2,7 @@
 
 - **Creator:** Tharusha Nuwansara (`Asia/Colombo`)
 - **Target Patreon URL:** `https://www.patreon.com/NuwansaraT`
-- **Sri Lanka Payout Path:** Patreon holds your earnings balance safely; withdraw via **Payoneer** (**$25 USD** Patreon minimum payout, ~$1 transfer fee; pool with your **Nas.io `$10 USD` Payoneer withdrawals** inside one Payoneer USD account to cross local Sri Lanka bank transfer minimums rapidly).
+- **Sri Lanka Payout Path:** Patreon holds your earnings balance safely; withdraw via **Payoneer** (**$25 USD** Patreon minimum payout, ~$1 transfer fee; pool with your **Whop `$10 USD` minimum payouts** inside one Payoneer USD account to cross local Sri Lanka bank transfer minimums rapidly).
 
 ---
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-20T00:53:52Z",
+  "generated_at": "2026-11-20T06:55:20Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -22,10 +22,11 @@
     "net_usd": 0.0,
     "winning_channels": []
   },
+  "legacy_nasio_active": false,
   "storefronts": {
-    "nasio": {
-      "storefront": "nasio",
-      "label": "Nas.io ($10 Payoneer USD / $65 LKR Wire)",
+    "whop": {
+      "storefront": "whop",
+      "label": "Storefront #1: Whop ($10 Min Payout \u00b7 Built-in Marketplace)",
       "store_url": "https://www.patreon.com/NuwansaraT",
       "paid_orders": 0,
       "free_downloads": 0,
@@ -39,14 +40,12 @@
       "unlock_progress_pct": 0.0,
       "remaining_to_unlock_usd": 50.0,
       "unlocked": false,
-      "payoneer_min_usd": 10.0,
-      "payoneer_unlocked": false,
-      "lkr_wire_min_usd": 65.0,
-      "lkr_wire_unlocked": false
+      "min_payout_usd": 10.0,
+      "min_payout_unlocked": false
     },
     "patreon": {
       "storefront": "patreon",
-      "label": "Patreon ($25 Payoneer Payout)",
+      "label": "Storefront #2: Patreon ($25 Payoneer)",
       "store_url": "https://www.patreon.com/NuwansaraT",
       "paid_orders": 0,
       "free_downloads": 0,
@@ -94,11 +93,32 @@
       "unlock_progress_pct": 0.0,
       "remaining_to_unlock_usd": 100.0,
       "unlocked": false
+    },
+    "nasio": {
+      "storefront": "nasio",
+      "label": "Nas.io ($10 Payoneer USD / $65 LKR Wire)",
+      "store_url": "https://www.patreon.com/NuwansaraT",
+      "paid_orders": 0,
+      "free_downloads": 0,
+      "refunded_orders": 0,
+      "gross_cents": 0,
+      "fee_cents": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "threshold_cents": 5000,
+      "threshold_usd": 50.0,
+      "unlock_progress_pct": 0.0,
+      "remaining_to_unlock_usd": 50.0,
+      "unlocked": false,
+      "payoneer_min_usd": 10.0,
+      "payoneer_unlocked": false,
+      "lkr_wire_min_usd": 65.0,
+      "lkr_wire_unlocked": false
     }
   },
   "channels": {
-    "blogger": {
-      "channel": "blogger",
+    "whop": {
+      "channel": "whop",
       "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,
@@ -127,8 +147,8 @@
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
       "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
-    "nasio": {
-      "channel": "nasio",
+    "blogger": {
+      "channel": "blogger",
       "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,

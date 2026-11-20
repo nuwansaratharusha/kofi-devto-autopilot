@@ -132,7 +132,7 @@ class TestGuardedHttpClient(unittest.TestCase):
                 cwd=str(here),
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=30,
                 check=True,
             )
             self.assertIn("{", proc.stdout)

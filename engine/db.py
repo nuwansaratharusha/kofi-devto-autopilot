@@ -517,12 +517,12 @@ class PipelineDatabase:
                             created_at, synced_at, raw_json
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(storefront, order_id) DO UPDATE SET
-                            sku = excluded.sku,
-                            product_name = excluded.product_name,
-                            gross_cents = excluded.gross_cents,
-                            fee_cents = excluded.fee_cents,
+                            sku = CASE WHEN excluded.sku != '' THEN excluded.sku ELSE store_orders.sku END,
+                            product_name = CASE WHEN excluded.product_name != '' THEN excluded.product_name ELSE store_orders.product_name END,
+                            gross_cents = CASE WHEN excluded.gross_cents > 0 OR excluded.refunded = 0 THEN excluded.gross_cents ELSE store_orders.gross_cents END,
+                            fee_cents = CASE WHEN excluded.fee_cents > 0 OR excluded.refunded = 0 THEN excluded.fee_cents ELSE store_orders.fee_cents END,
                             net_cents = excluded.net_cents,
-                            currency = excluded.currency,
+                            currency = CASE WHEN excluded.currency != '' THEN excluded.currency ELSE store_orders.currency END,
                             refunded = excluded.refunded,
                             utm_source = CASE WHEN excluded.utm_source != '' THEN excluded.utm_source ELSE store_orders.utm_source END,
                             utm_medium = CASE WHEN excluded.utm_medium != '' THEN excluded.utm_medium ELSE store_orders.utm_medium END,
@@ -556,6 +556,27 @@ class PipelineDatabase:
                 conn.execute("ROLLBACK;")
                 raise
         return upserted
+
+    def delete_store_orders(self, keys: Iterable[tuple[str, str]]) -> int:
+        pairs = [(sf.strip().lower(), str(oid).strip()) for sf, oid in keys if sf and oid]
+        if not pairs:
+            return 0
+        deleted = 0
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                for sf, oid in pairs:
+                    cur = conn.execute(
+                        "DELETE FROM store_orders WHERE storefront = ? AND order_id = ?",
+                        (sf, oid),
+                    )
+                    if cur.rowcount > 0:
+                        deleted += cur.rowcount
+                conn.execute("COMMIT;")
+            except Exception:
+                conn.execute("ROLLBACK;")
+                raise
+        return deleted
 
     def list_store_orders(self, *, include_refunded: bool = True) -> list[StoreOrderRecord]:
         with self._connect() as conn:

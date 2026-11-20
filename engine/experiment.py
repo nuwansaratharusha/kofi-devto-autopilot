@@ -9,7 +9,13 @@ from typing import Any, Optional
 
 from engine.config import AppConfig
 from engine.db import PipelineDatabase, utc_now_iso
-from engine.models import PILLAR_META, SERIES_30D_NAME, VALID_CHANNELS, StoreOrderRecord
+from engine.models import (
+    PILLAR_META,
+    PRIMARY_CHANNELS,
+    SERIES_30D_NAME,
+    VALID_CHANNELS,
+    StoreOrderRecord,
+)
 
 COLOMBO_TZ = timezone(timedelta(hours=5, minutes=30))
 
@@ -17,12 +23,14 @@ VERDICT_WORKING = "WORKING — SCALE IN MONTH 2"
 VERDICT_BOTTLENECK = "BOTTLENECK — KEEP CHANNEL, FIX CTA"
 VERDICT_NOT_WORKING = "NOT WORKING — PAUSE & REALLOCATE"
 
+WHOP_TARGET_PAYOUT_CENTS = 5_000        # $50.00 USD Month-1 Whop Challenge & Store target
+WHOP_MIN_PAYOUT_CENTS = 1_000           # $10.00 USD Whop minimum payout threshold
 LEMONSQUEEZY_MIN_PAYOUT_CENTS = 5_000   # $50.00 USD Sri Lanka bank wire threshold
 GUMROAD_MIN_PAYOUT_CENTS = 10_000       # $100.00 USD Sri Lanka bank deposit threshold
 PATREON_MIN_PAYOUT_CENTS = 2_500        # $25.00 USD Patreon -> Payoneer payout threshold
-NASIO_TARGET_PAYOUT_CENTS = 5_000       # $50.00 USD Month-1 Nas.io Challenge & Store target
-NASIO_PAYONEER_MIN_CENTS = 1_000        # $10.00 USD Nas.io -> Payoneer USD payout unlock
-NASIO_LKR_WIRE_MIN_CENTS = 6_500        # $65.00 USD Nas.io -> Sri Lanka LKR bank wire threshold
+NASIO_TARGET_PAYOUT_CENTS = 5_000       # $50.00 USD Legacy Nas.io target
+NASIO_PAYONEER_MIN_CENTS = 1_000        # $10.00 USD Legacy Nas.io Payoneer min
+NASIO_LKR_WIRE_MIN_CENTS = 6_500        # $65.00 USD Legacy Nas.io LKR wire min
 
 
 def colombo_today_iso() -> str:
@@ -43,6 +51,17 @@ def compute_series_day_for_date(date_str: str, start_date_str: str) -> int:
 
 def normalize_utm_channel(raw_source: str) -> str:
     low = raw_source.strip().lower()
+    if low in {
+        "whop",
+        "whop.com",
+        "whop_discover",
+        "whop_marketplace",
+        "whop_challenge",
+        "whop_announcements",
+        "whop_forum",
+        "whop_dm",
+    }:
+        return "whop"
     if low in {"blogger", "blogspot", "google_blogger"}:
         return "blogger"
     if low in {"patreon", "patreon_post", "patreon_shop", "patreon_tier"}:
@@ -145,6 +164,16 @@ def build_experiment_report(
     slug_to_pillar = {a.slug: a.pillar for a in articles}
 
     # Storefront payout unlock meters
+    whop_meter = _storefront_meter(
+        all_orders,
+        storefront_key="whop",
+        label="Storefront #1: Whop ($10 Min Payout · Built-in Marketplace)",
+        threshold_cents=WHOP_TARGET_PAYOUT_CENTS,
+        store_url=config.whop_store_url or config.patreon_url or config.paid_checkout_url,
+    )
+    whop_meter["min_payout_usd"] = round(WHOP_MIN_PAYOUT_CENTS / 100.0, 2)
+    whop_meter["min_payout_unlocked"] = whop_meter["net_cents"] >= WHOP_MIN_PAYOUT_CENTS
+
     ls_meter = _storefront_meter(
         all_orders,
         storefront_key="lemonsqueezy",
@@ -162,7 +191,7 @@ def build_experiment_report(
     pt_meter = _storefront_meter(
         all_orders,
         storefront_key="patreon",
-        label="Patreon ($25 Payoneer Payout)",
+        label="Storefront #2: Patreon ($25 Payoneer)",
         threshold_cents=PATREON_MIN_PAYOUT_CENTS,
         store_url=config.patreon_url or "https://www.patreon.com",
     )
@@ -181,9 +210,19 @@ def build_experiment_report(
     active_orders = [o for o in all_orders if not o.refunded]
     refunded_orders = [o for o in all_orders if o.refunded]
 
+    has_nasio_activity = (
+        config.is_legacy_nasio_mode
+        or any(m.channel == "nasio" for m in metrics)
+        or any(
+            o.storefront.lower() == "nasio" or normalize_utm_channel(o.utm_source) == "nasio"
+            for o in all_orders
+        )
+    )
+    channels_to_report = list(VALID_CHANNELS) if has_nasio_activity else list(PRIMARY_CHANNELS)
+
     # Per-channel aggregation
     channel_kpis: dict[str, dict[str, Any]] = {}
-    for ch in VALID_CHANNELS:
+    for ch in channels_to_report:
         ch_metrics = [m for m in metrics if m.channel == ch]
         views = sum(m.views for m in ch_metrics)
         clicks = sum(m.clicks for m in ch_metrics)
@@ -192,7 +231,14 @@ def build_experiment_report(
         paid_n = sum(1 for o in ch_orders if o.gross_cents > 0)
         net_c = sum(o.net_cents for o in ch_orders)
 
-        if ch == "blogger":
+        if ch == "whop":
+            posts_count = sum(
+                1
+                for a in articles
+                if (config.exports_dir / a.slug / "whop_daily_pack.md").is_file()
+            )
+            live_remote = sum(1 for o in active_orders if o.storefront.lower() == "whop")
+        elif ch == "blogger":
             posts_count = len(articles)
             live_remote = sum(1 for a in articles if a.blogger_post_id)
         elif ch == "patreon":
@@ -334,11 +380,13 @@ def build_experiment_report(
             "net_usd": round(total_net_cents / 100.0, 2),
             "winning_channels": winning_channels,
         },
+        "legacy_nasio_active": config.is_legacy_nasio_mode,
         "storefronts": {
-            "nasio": nasio_meter,
+            "whop": whop_meter,
             "patreon": pt_meter,
             "lemonsqueezy": ls_meter,
             "gumroad": gr_meter,
+            "nasio": nasio_meter,
         },
         "channels": channel_kpis,
         "pillars": pillar_kpis,
@@ -351,6 +399,14 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
     ls = report["storefronts"]["lemonsqueezy"]
     gr = report["storefronts"]["gumroad"]
     pt = report["storefronts"]["patreon"]
+    wh = report["storefronts"].get("whop") or {
+        "net_usd": 0.0,
+        "threshold_usd": 50.0,
+        "unlock_progress_pct": 0.0,
+        "remaining_to_unlock_usd": 50.0,
+        "unlocked": False,
+        "min_payout_unlocked": False,
+    }
     ns = report["storefronts"].get("nasio") or {
         "net_usd": 0.0,
         "threshold_usd": 50.0,
@@ -358,12 +414,36 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
         "remaining_to_unlock_usd": 50.0,
         "unlocked": False,
         "payoneer_unlocked": False,
+        "paid_orders": 0,
+        "free_downloads": 0,
     }
+    wh_status = (
+        "TARGET HIT ($50+)"
+        if wh["unlocked"]
+        else ("$10 PAYOUT UNLOCKED" if wh.get("min_payout_unlocked") else "ACCUMULATING")
+    )
     ns_status = (
         "TARGET HIT ($50+)"
         if ns["unlocked"]
         else ("PAYONEER $10 UNLOCKED" if ns.get("payoneer_unlocked") else "ACCUMULATING")
     )
+
+    if report.get("legacy_nasio_active"):
+        primary_sf_row = (
+            f"| **Nas.io** | `${ns['net_usd']:.2f}` | `${ns['threshold_usd']:.2f}` ($10 Payoneer / $65 LKR Wire) "
+            f"| `{ns['unlock_progress_pct']}%` | `${ns['remaining_to_unlock_usd']:.2f}` | `{ns_status}` |"
+        )
+    else:
+        primary_sf_row = (
+            f"| **Storefront #1: Whop ($10 Min Payout · Built-in Marketplace)** | `${wh['net_usd']:.2f}` "
+            f"| `${wh['threshold_usd']:.2f}` ($10 Min Payout · Built-in Marketplace) | `{wh['unlock_progress_pct']}%` "
+            f"| `${wh['remaining_to_unlock_usd']:.2f}` | `{wh_status}` |"
+        )
+        if ns.get("net_usd", 0.0) > 0 or ns.get("paid_orders", 0) > 0 or ns.get("free_downloads", 0) > 0:
+            primary_sf_row += (
+                f"\n| **Nas.io (Legacy)** | `${ns['net_usd']:.2f}` | `${ns['threshold_usd']:.2f}` ($10 Payoneer / $65 LKR Wire) "
+                f"| `{ns['unlock_progress_pct']}%` | `${ns['remaining_to_unlock_usd']:.2f}` | `{ns_status}` |"
+            )
 
     ch_rows = "\n".join(
         f"| `{ch}` | {d['posts_prepared']} | {d['views']} | {d['clicks']} | {d['ctr_pct']}% | "
@@ -391,12 +471,12 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 
 ---
 
-## 1. Sri Lanka Merchant-of-Record Payout Unlock Meters
+## 1. Sri Lanka Storefront & Payout Unlock Meters
 
 | Storefront | Net Settled | Payout Unlock Minimum | Progress | Remaining | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Nas.io** | `${ns['net_usd']:.2f}` | `${ns['threshold_usd']:.2f}` ($10 Payoneer / $65 LKR Wire) | `{ns['unlock_progress_pct']}%` | `${ns['remaining_to_unlock_usd']:.2f}` | `{ns_status}` |
-| **Patreon** | `${pt['net_usd']:.2f}` | `${pt['threshold_usd']:.2f}` (Payoneer) | `{pt['unlock_progress_pct']}%` | `${pt['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if pt["unlocked"] else "ACCUMULATING"}` |
+{primary_sf_row}
+| **Storefront #2: Patreon ($25 Payoneer)** | `${pt['net_usd']:.2f}` | `${pt['threshold_usd']:.2f}` (Payoneer) | `{pt['unlock_progress_pct']}%` | `${pt['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if pt["unlocked"] else "ACCUMULATING"}` |
 | **Lemon Squeezy** | `${ls['net_usd']:.2f}` | `${ls['threshold_usd']:.2f}` (Bank Wire) | `{ls['unlock_progress_pct']}%` | `${ls['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if ls["unlocked"] else "ACCUMULATING"}` |
 | **Gumroad** | `${gr['net_usd']:.2f}` | `${gr['threshold_usd']:.2f}` (Local Bank) | `{gr['unlock_progress_pct']}%` | `${gr['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if gr["unlocked"] else "ACCUMULATING"}` |
 

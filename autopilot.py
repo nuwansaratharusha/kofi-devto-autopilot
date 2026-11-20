@@ -49,9 +49,20 @@ from engine.patreon_client import (
     write_patreon_setup_guide,
 )
 from engine.pinterest_client import PinterestClient
-from engine.site_builder import SITE_STYLESHEET, build_static_site
+from engine.site_builder import SITE_STYLESHEET, build_static_site, refresh_site_scoreboard
 from engine.storefronts import StorefrontApiError, sync_storefronts
 from engine.verifier import verify_article
+from engine.whop_client import (
+    DEFAULT_WHOP_COMPANY_ID,
+    WhopApiError,
+    WhopClient,
+    WhopWebhookError,
+    export_whop_daily_pack,
+    ingest_whop_webhook_order,
+    parse_whop_webhook_payload,
+    verify_whop_webhook_auth,
+    write_whop_setup_guide,
+)
 from products.builder import build_all_products, load_catalog
 
 PILLAR_CLI_MAP = {
@@ -72,26 +83,85 @@ def _safe_json_for_html_script(obj: Any) -> str:
 
 def _load_or_build_products(config: AppConfig, *, force_rebuild: bool = False) -> dict[str, Any]:
     manifest_file = config.dist_dir / "manifest.json"
+    storefront_copy_file = config.exports_dir / "storefront" / "kofi_profile_and_shop_copy.md"
     dual_setup_file = config.exports_dir / "storefront" / "lemonsqueezy_and_gumroad_setup.md"
+    whop_setup_file = config.exports_dir / "storefront" / "whop_setup_and_challenge_guide.md"
     nasio_setup_file = config.exports_dir / "storefront" / "nasio_setup_and_challenge_guide.md"
-    expected_count = len(load_catalog(config.project_root).get("products", []))
-    if (
-        not force_rebuild
-        and manifest_file.is_file()
-        and dual_setup_file.is_file()
-        and nasio_setup_file.is_file()
-    ):
+    catalog = load_catalog(config.project_root)
+    expected_count = len(catalog.get("products", []))
+    if not force_rebuild and manifest_file.is_file():
         data = json.loads(manifest_file.read_text(encoding="utf-8"))
         products = data.get("products", [])
-        if len(products) == expected_count and all(Path(p["zip_path"]).is_file() for p in products):
+        if len(products) == expected_count and all(
+            (config.dist_dir / str(p["zip_filename"])).is_file() for p in products
+        ):
+            from products.builder import (
+                BuiltProductArtifact,
+                _render_dual_storefront_setup,
+                _render_nasio_setup_and_challenge_guide,
+                _render_storefront_copy,
+                _render_whop_setup_and_challenge_guide,
+            )
+
+            normalized_products = [
+                {**p, "zip_path": str(config.dist_dir / str(p["zip_filename"]))}
+                for p in products
+            ]
+            storefront_copy_file.parent.mkdir(parents=True, exist_ok=True)
+            arts = [BuiltProductArtifact(**np) for np in normalized_products]
+            whop_setup_file.write_text(
+                _render_whop_setup_and_challenge_guide(
+                    catalog,
+                    arts,
+                    whop_company_id=config.whop_company_id or DEFAULT_WHOP_COMPANY_ID,
+                    whop_store_url=config.whop_store_url,
+                    patreon_url=config.patreon_url,
+                ),
+                encoding="utf-8",
+            )
+            if not (
+                storefront_copy_file.is_file()
+                and dual_setup_file.is_file()
+                and nasio_setup_file.is_file()
+            ):
+                if not storefront_copy_file.is_file():
+                    storefront_copy_file.write_text(
+                        _render_storefront_copy(
+                            catalog,
+                            arts,
+                            kofi_profile_url=config.kofi_profile_url,
+                            primary_store_url=config.primary_store_url,
+                            mirror_store_url=config.mirror_store_url,
+                        ),
+                        encoding="utf-8",
+                    )
+                if not dual_setup_file.is_file():
+                    dual_setup_file.write_text(
+                        _render_dual_storefront_setup(
+                            catalog,
+                            arts,
+                            lemonsqueezy_store_url=config.lemonsqueezy_store_url,
+                            gumroad_store_url=config.gumroad_store_url,
+                        ),
+                        encoding="utf-8",
+                    )
+                if not nasio_setup_file.is_file():
+                    nasio_setup_file.write_text(
+                        _render_nasio_setup_and_challenge_guide(
+                            catalog,
+                            arts,
+                            nasio_store_url=config.nasio_store_url,
+                            patreon_url=config.patreon_url,
+                        ),
+                        encoding="utf-8",
+                    )
             return {
                 "manifest_path": str(manifest_file),
-                "storefront_copy_path": str(
-                    config.exports_dir / "storefront" / "kofi_profile_and_shop_copy.md"
-                ),
+                "storefront_copy_path": str(storefront_copy_file),
                 "dual_storefront_setup_path": str(dual_setup_file),
+                "whop_setup_path": str(whop_setup_file),
                 "nasio_setup_path": str(nasio_setup_file),
-                "products": products,
+                "products": normalized_products,
             }
     return build_all_products(
         config.project_root,
@@ -100,6 +170,8 @@ def _load_or_build_products(config: AppConfig, *, force_rebuild: bool = False) -
         mirror_store_url=config.mirror_store_url,
         lemonsqueezy_store_url=config.lemonsqueezy_store_url,
         gumroad_store_url=config.gumroad_store_url,
+        whop_company_id=config.whop_company_id or DEFAULT_WHOP_COMPANY_ID,
+        whop_store_url=config.whop_store_url,
         nasio_store_url=config.nasio_store_url,
         patreon_url=config.patreon_url,
     )
@@ -115,9 +187,9 @@ def cmd_build_products(config: AppConfig, *, as_json: bool = False) -> dict[str,
             print(
                 f"  - {p['zip_filename']} ({p['size_bytes']:,} bytes | SHA-256: {p['sha256'][:16]}...)"
             )
-        print(f"Nas.io Challenge setup ready at: {result['nasio_setup_path']}")
-        print(f"Dual Storefront setup ready at : {result['dual_storefront_setup_path']}")
-        print(f"Storefront copy ready at       : {result['storefront_copy_path']}")
+        print(f"Whop Challenge & API setup ready at: {result['whop_setup_path']}")
+        print(f"Dual Storefront setup ready at     : {result['dual_storefront_setup_path']}")
+        print(f"Storefront copy ready at           : {result['storefront_copy_path']}")
     return result
 
 
@@ -265,6 +337,7 @@ def cmd_run_daily(
 
     blogger_res: dict[str, Any] = {"status": "no_article_available"}
     patreon_res: dict[str, Any] = {"status": "no_article_available"}
+    whop_res: dict[str, Any] = {"status": "no_article_available"}
     nasio_res: dict[str, Any] = {"status": "no_article_available"}
     pinterest_res: dict[str, Any] = {"status": "no_article_available"}
     devto_res: dict[str, Any] = {"status": "no_article_available"}
@@ -296,13 +369,24 @@ def cmd_run_daily(
             )
         saved = db.save_article(saved)
 
-        nasio_paths = export_nasio_daily_pack(saved, config, series_articles=all_verified_pre)
-        nasio_guide = write_nasio_setup_guide(config)
-        nasio_res = {
+        whop_paths = export_whop_daily_pack(saved, config, series_articles=all_verified_pre)
+        whop_guide = write_whop_setup_guide(config)
+        whop_res = {
             "status": "pack_ready",
-            "setup_guide": str(nasio_guide),
-            **nasio_paths,
+            "setup_guide": str(whop_guide),
+            **whop_paths,
         }
+
+        if config.is_legacy_nasio_mode:
+            nasio_paths = export_nasio_daily_pack(saved, config, series_articles=all_verified_pre)
+            nasio_guide = write_nasio_setup_guide(config)
+            nasio_res = {
+                "status": "pack_ready",
+                "setup_guide": str(nasio_guide),
+                **nasio_paths,
+            }
+        else:
+            nasio_res = {"status": "superseded_by_whop"}
 
         pinterest_client = PinterestClient(config)
         if offline and pinterest_client.has_live_credentials():
@@ -330,6 +414,13 @@ def cmd_run_daily(
     if offline:
         store_sync_res = {
             "synced_at": utc_now_iso(),
+            "whop": {
+                "status": "dry_run",
+                "company_id": config.whop_company_id,
+                "payments_synced": 0,
+                "memberships_synced": 0,
+                "orders_synced": 0,
+            },
             "gumroad": {"status": "dry_run", "products_count": 0, "orders_synced": 0, "drafts_created": []},
             "lemonsqueezy": {"status": "dry_run", "products_count": 0, "orders_synced": 0},
             "patreon": {"status": "dry_run", "campaign_id": config.patreon_campaign_id, "orders_synced": 0},
@@ -337,10 +428,11 @@ def cmd_run_daily(
     else:
         try:
             store_sync_res = sync_storefronts(config, db)
-        except (PatreonApiError, StorefrontApiError, OSError) as sync_exc:
+        except (WhopApiError, PatreonApiError, StorefrontApiError, OSError) as sync_exc:
             store_sync_res = {
                 "synced_at": utc_now_iso(),
                 "error": str(sync_exc),
+                "whop": {"status": "error", "orders_synced": 0},
                 "gumroad": {"status": "error", "orders_synced": 0},
                 "lemonsqueezy": {"status": "error", "orders_synced": 0},
                 "patreon": {"status": "error", "orders_synced": 0},
@@ -348,6 +440,8 @@ def cmd_run_daily(
     all_verified = db.list_articles(verified_only=True)
     for art in all_verified:
         BloggerClient(config).export_artifacts(art, series_articles=all_verified)
+        if not config.is_legacy_nasio_mode:
+            export_whop_daily_pack(art, config, series_articles=all_verified)
 
     exp_artifacts = write_experiment_artifacts(db, config, as_of=effective_date)
     site_summary = build_static_site(
@@ -396,6 +490,7 @@ def cmd_run_daily(
         else None,
         "blogger": blogger_res,
         "patreon": patreon_res,
+        "whop": whop_res,
         "nasio": nasio_res,
         "pinterest": pinterest_res,
         "devto": devto_res,
@@ -411,7 +506,7 @@ def cmd_run_daily(
         print(f"[{run_id}] Day {day_num}/30 ({effective_date}) -> {slug_lbl}")
         print(f"  - Blogger   : {blogger_res.get('status')}")
         print(f"  - Patreon   : {patreon_res.get('status')}")
-        print(f"  - Nas.io    : {nasio_res.get('status')} ({nasio_res.get('nasio_daily_pack', '')})")
+        print(f"  - Whop      : {whop_res.get('status')} ({whop_res.get('whop_daily_pack', '')})")
         print(f"  - DEV.to    : {devto_res.get('status')}")
         print(f"  - 30d Report: {exp_artifacts['markdown_path']}")
     return result
@@ -549,6 +644,7 @@ def cmd_sync_stores(
         print(json.dumps(out, indent=2))
     else:
         print(f"Storefront Sync ({out['synced_at']}):")
+        print(f"  - Whop         : {out['whop']['status']} ({out['whop']['orders_synced']} payments/memberships)")
         print(f"  - Patreon      : {out['patreon']['status']} ({out['patreon']['orders_synced']} members/orders)")
         print(f"  - Gumroad      : {out['gumroad']['status']} ({out['gumroad']['orders_synced']} orders)")
         print(f"  - LemonSqueezy : {out['lemonsqueezy']['status']} ({out['lemonsqueezy']['orders_synced']} orders)")
@@ -682,12 +778,17 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
         "devto_api_key_configured": bool(config.devto_api_key),
         "blogger_credentials_configured": BloggerClient(config).has_live_credentials(),
         "patreon_credentials_configured": PatreonClient(config).has_live_credentials(),
+        "whop_credentials_configured": WhopClient(config).has_live_credentials(),
         "pinterest_credentials_configured": PinterestClient(config).has_live_credentials(),
         "lemonsqueezy_api_configured": bool(config.lemonsqueezy_api_key),
         "gumroad_api_configured": bool(config.gumroad_access_token),
         "kofi_profile_url": config.kofi_profile_url,
         "primary_store_url": config.primary_store_url,
         "mirror_store_url": config.mirror_store_url,
+        "whop_company_id": config.whop_company_id or DEFAULT_WHOP_COMPANY_ID,
+        "whop_dashboard_url": config.whop_dashboard_url,
+        "whop_store_url": config.whop_store_url,
+        "whop_webhook_secret_configured": bool(config.whop_webhook_secret),
         "nasio_store_url": config.nasio_store_url,
         "nasio_webhook_secret_configured": bool(config.nasio_webhook_secret),
         "patreon_url": config.patreon_url,
@@ -750,14 +851,20 @@ def render_dashboard_html(config: AppConfig) -> str:
     """Render the zero-dependency accessible Omnichannel Operator Dashboard (zero raw backticks!)."""
     status_data = gather_status(config)
     exp = status_data["experiment"]
+    wh_meter = exp["storefronts"]["whop"]
     ns_meter = exp["storefronts"]["nasio"]
     ls_meter = exp["storefronts"]["lemonsqueezy"]
     gr_meter = exp["storefronts"]["gumroad"]
     pt_meter = exp["storefronts"]["patreon"]
+    legacy_nasio = config.is_legacy_nasio_mode
     copy_map: dict[str, str] = {}
 
-    nasio_guide_path = write_nasio_setup_guide(config)
-    copy_map["nasio_guide"] = nasio_guide_path.read_text(encoding="utf-8")
+    whop_guide_path = write_whop_setup_guide(config)
+    copy_map["whop_guide"] = whop_guide_path.read_text(encoding="utf-8")
+
+    if legacy_nasio:
+        nasio_guide_path = write_nasio_setup_guide(config)
+        copy_map["nasio_guide"] = nasio_guide_path.read_text(encoding="utf-8")
 
     patreon_guide_path = write_patreon_setup_guide(config)
     copy_map["patreon_guide"] = patreon_guide_path.read_text(encoding="utf-8")
@@ -780,7 +887,11 @@ def render_dashboard_html(config: AppConfig) -> str:
         p_slug = str(p.get("slug", ""))
         is_free = int(p["price_usd"]) == 0
         if p_slug == "nasio-7day-ai-automation-challenge-pack":
-            price_str = f"${p['price_usd']} USD 7-Day Challenge (Nas.io & Patreon)"
+            price_str = (
+                f"${p['price_usd']} USD 7-Day Challenge (Nas.io & Patreon)"
+                if legacy_nasio
+                else f"${p['price_usd']} USD 7-Day Challenge (Whop & Patreon)"
+            )
         elif is_free:
             price_str = "$0+ PWYW (Free Lead Magnet)"
         else:
@@ -829,7 +940,14 @@ def render_dashboard_html(config: AppConfig) -> str:
         slug = str(art["slug"])
         day_num = art.get("series_day") or (len(status_data["articles"]) - idx + 1)
         bundles = load_bundle_texts(config.exports_dir, slug)
-        copy_map[f"{slug}:nasio_daily_pack"] = bundles.get("nasio_daily_pack", "")
+        if not legacy_nasio and not bundles.get("whop_daily_pack"):
+            rec = PipelineDatabase(config.db_path).get_article(slug)
+            if rec is not None:
+                export_whop_daily_pack(rec, config)
+                bundles = load_bundle_texts(config.exports_dir, slug)
+        copy_map[f"{slug}:whop_daily_pack"] = bundles.get("whop_daily_pack", "")
+        if legacy_nasio:
+            copy_map[f"{slug}:nasio_daily_pack"] = bundles.get("nasio_daily_pack", "")
         copy_map[f"{slug}:blogger"] = bundles.get("blogger_html", "")
         copy_map[f"{slug}:patreon_public"] = bundles.get("patreon_public", "")
         copy_map[f"{slug}:patreon_paid"] = bundles.get("patreon_paid", "")
@@ -843,13 +961,19 @@ def render_dashboard_html(config: AppConfig) -> str:
         meta = PILLAR_META.get(str(art["pillar"]), PILLAR_META["pillar_a"])
         blogger_state = "LIVE/DRAFT SYNCED" if art.get("blogger_post_id") else "HTML EXPORTED"
         patreon_state = "LIVE SYNCED v2" if art.get("patreon_post_id") else "PUBLIC + TIER MD READY"
-        nasio_state = "1-HR PACK READY" if bundles.get("nasio_daily_pack") else "PENDING"
+        if legacy_nasio:
+            lead_badge = f'<span class="badge">Nas.io: {"1-HR PACK READY" if bundles.get("nasio_daily_pack") else "PENDING"}</span>'
+            lead_pack_btn = f'<button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:nasio_daily_pack" data-label="Copy Nas.io 1-Hr Pack">Copy Nas.io 1-Hr Pack</button>'
+        else:
+            lead_badge = f'<span class="badge">Whop: {"1-HR PACK READY" if bundles.get("whop_daily_pack") else "PENDING"}</span>'
+            lead_pack_btn = f'<button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:whop_daily_pack" data-label="Copy Whop 1-Hr Pack">Copy Whop 1-Hr Pack</button>'
+
         article_cards.append(
             f"""        <article class="card">
           <div>
             <div class="meta-row">
               <span class="badge badge-verified">DAY {day_num}/30 · {html.escape(str(art["status"]).upper())} ({art["duration_ms"]} ms)</span>
-              <span class="badge">Nas.io: {nasio_state}</span>
+              {lead_badge}
               <span class="badge">Patreon: {patreon_state}</span>
               <span class="badge">Blogger: {blogger_state}</span>
               <span class="badge">{html.escape(meta["weekday"])}</span>
@@ -860,7 +984,7 @@ def render_dashboard_html(config: AppConfig) -> str:
           </div>
           <div class="cta-row" role="group" aria-label="Syndication actions for {html.escape(str(art['title']), quote=True)}">
             <a class="btn btn-primary" href="/site/posts/{html.escape(slug, quote=True)}/index.html">Preview Post</a>
-            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:nasio_daily_pack" data-label="Copy Nas.io 1-Hr Pack">Copy Nas.io 1-Hr Pack</button>
+            {lead_pack_btn}
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_public" data-label="Copy Patreon Public MD">Copy Patreon Public MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_paid" data-label="Copy Patreon Paid/Shop MD">Copy Patreon Paid/Shop MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:blogger" data-label="Copy Blogger Series HTML">Copy Blogger Series HTML</button>
@@ -875,12 +999,53 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     embedded_json = _safe_json_for_html_script(copy_map)
 
+    if legacy_nasio:
+        dash_title = "Omnichannel Control Center — Nas.io, Patreon, Lemon Squeezy, Gumroad &amp; Blogger"
+        hero_desc = "Focused Month-1 Nas.io ($15 7-Day Challenge · $10 Payoneer USD / $65 LKR Wire) + Automated Patreon ($25 Payoneer · 7-day weekly scheduler + daily API v2 sync) paired with Blogger series publishing and Mon/Wed/Fri DEV.to syndication."
+        hero_guide_btn = '<button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="nasio_guide" data-label="Copy Nas.io Challenge &amp; Payout Guide">Copy Nas.io Challenge &amp; Payout Guide</button>'
+        kpi_lead_label = "Nas.io ($10 Payoneer / $50 Goal)"
+        kpi_lead_val = f'${ns_meter["net_usd"]:.2f} ({ns_meter["unlock_progress_pct"]:.1f}%)'
+        sf1_card_dash = f"""          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">NAS.IO ($15 7-DAY CHALLENGE)</span>
+                <span class="badge tabular">${ns_meter["net_usd"]:.2f} / $50.00</span>
+              </div>
+              <h3>Nas.io ($10 Payoneer USD / $65 LKR Wire)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Nas.io $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(ns_meter['unlock_progress_pct']))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ns_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">Free leads: <strong>{ns_meter["free_downloads"]}</strong> · Paid seats/orders: <strong>{ns_meter["paid_orders"]}</strong> · Remaining to $50 target: <strong>${ns_meter["remaining_to_unlock_usd"]:.2f} USD</strong></p>
+            </div>
+          </div>"""
+        skus_heading = "2. Storefront <code>.zip</code> Toolkits (Nas.io + Patreon Shop + Lemon Squeezy + Gumroad)"
+    else:
+        dash_title = "Omnichannel Control Center — Whop, Patreon, Lemon Squeezy, Gumroad &amp; Blogger"
+        hero_desc = f"Focused Month-1 Whop ({html.escape(config.whop_company_id or DEFAULT_WHOP_COMPANY_ID)} · $15 7-Day Challenge · $10 Min Payout · Built-in Discover Marketplace) + Automated Patreon ($25 Payoneer · 7-day weekly scheduler + daily API v2 sync) paired with Blogger series publishing and Mon/Wed/Fri DEV.to syndication."
+        hero_guide_btn = '<button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="whop_guide" data-label="Copy Whop Challenge &amp; Marketplace Guide">Copy Whop Challenge &amp; Marketplace Guide</button>'
+        kpi_lead_label = "Whop ($10 Min Payout / $50 Goal)"
+        kpi_lead_val = f'${wh_meter["net_usd"]:.2f} ({wh_meter["unlock_progress_pct"]:.1f}%)'
+        sf1_card_dash = f"""          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">STOREFRONT #1 · WHOP ($15 CHALLENGE)</span>
+                <span class="badge tabular">${wh_meter["net_usd"]:.2f} / $50.00</span>
+              </div>
+              <h3>Storefront #1: Whop ($10 Min Payout · Built-in Marketplace)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Whop $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(wh_meter['unlock_progress_pct']))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(wh_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">Free members: <strong>{wh_meter["free_downloads"]}</strong> · Paid Challenge/orders: <strong>{wh_meter["paid_orders"]}</strong> · Remaining to $50 target: <strong>${wh_meter["remaining_to_unlock_usd"]:.2f} USD</strong></p>
+            </div>
+          </div>"""
+        skus_heading = "2. Storefront <code>.zip</code> Toolkits (Whop Challenges/Files + Patreon Shop + Lemon Squeezy + Gumroad)"
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Omnichannel Control Center — Nas.io, Patreon, Lemon Squeezy, Gumroad &amp; Blogger</title>
+  <title>{dash_title}</title>
   <style>
 {SITE_STYLESHEET}
   .kpi-strip {{
@@ -947,9 +1112,9 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <span class="badge badge-verified">30-DAY EXPERIMENT · NOV 18 → DEC 18, 2026</span>
         <h1>{html.escape(SERIES_30D_NAME)}</h1>
-        <p>Focused Month-1 Nas.io ($15 7-Day Challenge · $10 Payoneer USD / $65 LKR Wire) + Automated Patreon ($25 Payoneer · 7-day weekly scheduler + daily API v2 sync) paired with Blogger series publishing and Mon/Wed/Fri DEV.to syndication.</p>
+        <p>{hero_desc}</p>
         <div class="cta-row">
-          <button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="nasio_guide" data-label="Copy Nas.io Challenge &amp; Payout Guide">Copy Nas.io Challenge &amp; Payout Guide</button>
+          {hero_guide_btn}
           <button type="button" class="btn copy-pack-btn" data-copy-key="patreon_guide" data-label="Copy Patreon Tiers &amp; Shop Setup">Copy Patreon Tiers &amp; Shop Setup</button>
           <button type="button" class="btn copy-pack-btn" data-copy-key="dual_storefront_guide" data-label="Copy Lemon Squeezy &amp; Gumroad Setup">Copy Lemon Squeezy &amp; Gumroad Setup</button>
           <a class="btn" href="/site/index.html">Preview Static Hub</a>
@@ -960,8 +1125,8 @@ def render_dashboard_html(config: AppConfig) -> str:
             <div class="kpi-val tabular">{status_data["counts"]["articles_verified"]} / 30 Verified</div>
           </div>
           <div class="kpi-box">
-            <div class="kpi-label">Nas.io ($10 Payoneer / $50 Goal)</div>
-            <div class="kpi-val tabular">${ns_meter["net_usd"]:.2f} ({ns_meter["unlock_progress_pct"]:.1f}%)</div>
+            <div class="kpi-label">{kpi_lead_label}</div>
+            <div class="kpi-val tabular">{kpi_lead_val}</div>
           </div>
           <div class="kpi-box">
             <div class="kpi-label">Patreon ($25 Payoneer)</div>
@@ -983,26 +1148,14 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <h2 id="scoreboard-heading" class="section-title">1. 30-Day Experiment Scoreboard (Nov 18 → Dec 18, 2026)</h2>
         <div class="grid-cards">
+{sf1_card_dash}
           <div class="card">
             <div>
               <div class="meta-row">
-                <span class="badge badge-verified">NAS.IO ($15 7-DAY CHALLENGE)</span>
-                <span class="badge tabular">${ns_meter["net_usd"]:.2f} / $50.00</span>
-              </div>
-              <h3>Nas.io ($10 Payoneer USD / $65 LKR Wire)</h3>
-              <div class="meter-track" role="progressbar" aria-label="Nas.io $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(ns_meter['unlock_progress_pct']))}">
-                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ns_meter['unlock_progress_pct']))):.1f}%;"></div>
-              </div>
-              <p class="tabular">Free leads: <strong>{ns_meter["free_downloads"]}</strong> · Paid seats/orders: <strong>{ns_meter["paid_orders"]}</strong> · Remaining to $50 target: <strong>${ns_meter["remaining_to_unlock_usd"]:.2f} USD</strong></p>
-            </div>
-          </div>
-          <div class="card">
-            <div>
-              <div class="meta-row">
-                <span class="badge badge-verified">PATREON ($5/MO TIER &amp; $14 SHOP)</span>
+                <span class="badge badge-verified">STOREFRONT #2 · PATREON ($5/MO TIER &amp; $14 SHOP)</span>
                 <span class="badge tabular">${pt_meter["net_usd"]:.2f} / $25.00</span>
               </div>
-              <h3>Patreon Payoneer Unlock Meter</h3>
+              <h3>Storefront #2: Patreon ($25 Payoneer) · Patreon Payoneer Unlock Meter</h3>
               <div class="meter-track" role="progressbar" aria-label="Patreon payout unlock progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(pt_meter['unlock_progress_pct']))}">
                 <div class="meter-fill" style="width:{min(100.0, max(0.0, float(pt_meter['unlock_progress_pct']))):.1f}%;"></div>
               </div>
@@ -1061,7 +1214,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     <section class="section-block" aria-labelledby="skus-heading">
       <div class="container">
-        <h2 id="skus-heading" class="section-title">2. Storefront <code>.zip</code> Toolkits (Nas.io + Patreon Shop + Lemon Squeezy + Gumroad)</h2>
+        <h2 id="skus-heading" class="section-title">{skus_heading}</h2>
         <div class="grid-cards">
 {chr(10).join(prod_cards)}
         </div>
@@ -1231,7 +1384,7 @@ def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
             parsed = urlparse(self.path)
             route = unquote(parsed.path)
 
-            if route != "/api/webhooks/nasio":
+            if route not in {"/api/webhooks/whop", "/api/webhooks/nasio"}:
                 err_body = json.dumps({"ok": False, "error": "not_found"}).encode("utf-8")
                 self._send_bytes(HTTPStatus.NOT_FOUND, "application/json; charset=utf-8", err_body)
                 return
@@ -1256,22 +1409,59 @@ def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
 
             raw_body = self.rfile.read(content_len)
             header_map = {str(k): str(v) for k, v in self.headers.items()}
-            if not verify_nasio_webhook_auth(raw_body, header_map, config.nasio_webhook_secret):
-                err_body = json.dumps({"ok": False, "error": "unauthorized_webhook_signature"}).encode("utf-8")
-                self._send_bytes(HTTPStatus.UNAUTHORIZED, "application/json; charset=utf-8", err_body)
-                return
+            is_whop_route = route == "/api/webhooks/whop"
 
-            try:
-                payload = json.loads(raw_body.decode("utf-8"))
-                order = parse_nasio_webhook_payload(payload)
-            except (UnicodeDecodeError, json.JSONDecodeError, NasioWebhookError, ValueError) as exc:
-                err_body = json.dumps({"ok": False, "error": str(exc)}).encode("utf-8")
-                self._send_bytes(HTTPStatus.BAD_REQUEST, "application/json; charset=utf-8", err_body)
-                return
+            if is_whop_route:
+                if not verify_whop_webhook_auth(raw_body, header_map, config.whop_webhook_secret):
+                    err_body = json.dumps({"ok": False, "error": "unauthorized_webhook_signature"}).encode("utf-8")
+                    self._send_bytes(HTTPStatus.UNAUTHORIZED, "application/json; charset=utf-8", err_body)
+                    return
+                try:
+                    payload = json.loads(raw_body.decode("utf-8"))
+                    order = parse_whop_webhook_payload(
+                        payload,
+                        expected_company_id=config.whop_company_id,
+                    )
+                except (UnicodeDecodeError, json.JSONDecodeError, WhopWebhookError, ValueError) as exc:
+                    err_body = json.dumps({"ok": False, "error": str(exc)}).encode("utf-8")
+                    self._send_bytes(HTTPStatus.BAD_REQUEST, "application/json; charset=utf-8", err_body)
+                    return
+            else:
+                if not verify_nasio_webhook_auth(raw_body, header_map, config.nasio_webhook_secret):
+                    err_body = json.dumps({"ok": False, "error": "unauthorized_webhook_signature"}).encode("utf-8")
+                    self._send_bytes(HTTPStatus.UNAUTHORIZED, "application/json; charset=utf-8", err_body)
+                    return
+                try:
+                    payload = json.loads(raw_body.decode("utf-8"))
+                    order = parse_nasio_webhook_payload(payload)
+                except (UnicodeDecodeError, json.JSONDecodeError, NasioWebhookError, ValueError) as exc:
+                    err_body = json.dumps({"ok": False, "error": str(exc)}).encode("utf-8")
+                    self._send_bytes(HTTPStatus.BAD_REQUEST, "application/json; charset=utf-8", err_body)
+                    return
 
+            meter_key = "whop_meter" if is_whop_route else "nasio_meter"
+            sf_key = "whop" if is_whop_route else "nasio"
             with webhook_lock:
                 db = PipelineDatabase(config.db_path)
-                db.upsert_store_orders([order])
+                if is_whop_route:
+                    order = ingest_whop_webhook_order(db, order)
+                elif order is not None:
+                    db.upsert_store_orders([order])
+
+                if order is None:
+                    cur_report = build_experiment_report(db, config)
+                    ignored_body = json.dumps(
+                        {
+                            "ok": True,
+                            "ignored": True,
+                            "order": None,
+                            meter_key: cur_report["storefronts"][sf_key],
+                        },
+                        indent=2,
+                    ).encode("utf-8")
+                    self._send_bytes(HTTPStatus.OK, "application/json; charset=utf-8", ignored_body)
+                    return
+
                 exp_artifacts = write_experiment_artifacts(db, config)
                 manifest_path = config.dist_dir / "manifest.json"
                 products: list[dict[str, Any]] = []
@@ -1281,7 +1471,7 @@ def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                     except ValueError:
                         products = []
                 all_verified = db.list_articles(verified_only=True)
-                build_static_site(
+                refresh_site_scoreboard(
                     all_verified,
                     products,
                     config,
@@ -1291,7 +1481,7 @@ def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
                 {
                     "ok": True,
                     "order": order.to_dict(),
-                    "nasio_meter": exp_artifacts["report"]["storefronts"]["nasio"],
+                    meter_key: exp_artifacts["report"]["storefronts"][sf_key],
                 },
                 indent=2,
             ).encode("utf-8")
@@ -1332,7 +1522,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     p_daily = sub.add_parser(
         "run-daily",
-        help="Daily automation: Blogger + Patreon + Nas.io 1-hr pack + Pinterest (+ Mon/Wed/Fri DEV.to) + 30d report",
+        help="Daily automation: Blogger + Patreon + Whop 1-hr pack + Pinterest (+ Mon/Wed/Fri DEV.to) + 30d report",
     )
     p_daily.add_argument("--date", default=None, help="Override Asia/Colombo date (YYYY-MM-DD)")
     p_daily.add_argument("--offline", action="store_true", help="Use deterministic 30-day seeds only")
@@ -1350,13 +1540,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     p_order = sub.add_parser(
         "log-order",
-        help="Log a Nas.io, Patreon, Lemon Squeezy, or Gumroad sale/free lead into state/pipeline.db",
+        help="Log a Whop, Patreon, Lemon Squeezy, or Gumroad sale/free lead into state/pipeline.db",
     )
     p_order.add_argument("--storefront", required=True, choices=list(VALID_ORDER_STOREFRONTS), help="Storefront source")
     p_order.add_argument("--order-id", required=True, help="Unique storefront transaction/order ID")
     p_order.add_argument("--gross-usd", required=True, type=str, help="Gross order amount in USD (e.g. 15, 14.99, $15.00, or 0 for free lead)")
     p_order.add_argument("--fee-usd", default=None, type=str, help="Optional platform/gateway fee in USD")
-    p_order.add_argument("--utm-source", default="", help="Traffic attribution channel (e.g. nasio, patreon, blogger, devto)")
+    p_order.add_argument("--utm-source", default="", help="Traffic attribution channel (e.g. whop, patreon, blogger, devto)")
     p_order.add_argument("--utm-medium", default="manual_log", help="UTM medium")
     p_order.add_argument("--utm-campaign", default="30d_exp_2026_11", help="UTM campaign")
     p_order.add_argument("--sku", default="", help="Product SKU slug")
@@ -1365,7 +1555,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_order.add_argument("--refunded", action="store_true", help="Mark order as refunded (0 net revenue)")
     p_order.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    p_sync = sub.add_parser("sync-stores", help="Sync Gumroad v2 & Lemon Squeezy v1 orders + UTM attribution")
+    p_sync = sub.add_parser("sync-stores", help="Sync Whop v1, Patreon v2, Gumroad v2 & Lemon Squeezy v1 orders + UTM attribution")
     p_sync.add_argument("--create-gumroad-drafts", action="store_true", help="Create unpublished Gumroad v2 draft SKUs if missing")
     p_sync.add_argument("--json", action="store_true", help="Emit JSON output")
 

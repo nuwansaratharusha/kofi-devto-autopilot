@@ -15,7 +15,7 @@
 - **Name:** `Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)`
 - **Custom Permalink:** `free-idempotent-cron-mini-kit`
 - **Price:** `$0` (Toggle **"Allow customers to pay what they want"** -> Minimum `$0`, Suggested `$3`)
-- **Content File to Upload:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `852daf37db2ba501`)
+- **Content File to Upload:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `c2d03abcc0a0f346`)
 - **Tags:** `python, sqlite, cron, reliability, backend`
 - **Summary:** `Stop double-firing scheduled jobs and cascading 429/503 API outages without Redis or Celery.`
 - **Description (Copy & Paste):**
@@ -40,7 +40,7 @@ python3 idempotent_cron.py --demo
 - **Name:** `Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)`
 - **Custom Permalink:** `production-agent-automation-kit`
 - **Price:** `$14 USD` (Allow PWYW minimum `$14`, suggested `$19`)
-- **Content File to Upload:** `products/dist/production-agent-automation-kit.zip` (`21,100` bytes • SHA-256 `bd7b8c8d7fd4b2b3`)
+- **Content File to Upload:** `products/dist/production-agent-automation-kit.zip` (`21,102` bytes • SHA-256 `c3f1cdcda9af6021`)
 - **Tags:** `python, typescript, sqlite, ai-agents, webhooks`
 - **Summary:** `Ship fault-tolerant AI workflows, transactional SQLite WAL queues, HMAC webhooks, and double-entry ledgers on $0 infrastructure.`
 - **Description (Copy & Paste):**
@@ -69,7 +69,7 @@ python3 wal_queue.py --demo
 ### Lemon Squeezy Product #1 — Flagship Revenue Driver (`$14 USD` • 4 Sales Unlocks `$50` Wire)
 - **Name:** `Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)`
 - **Pricing Model:** Standard One-Time Payment — **`$14.00 USD`** (Tax Category: *Digital Goods / Software*)
-- **Digital File Upload:** `products/dist/production-agent-automation-kit.zip` (`21,100` bytes • SHA-256 `bd7b8c8d7fd4b2b3`)
+- **Digital File Upload:** `products/dist/production-agent-automation-kit.zip` (`21,102` bytes • SHA-256 `c3f1cdcda9af6021`)
 - **Description (Copy & Paste):**
 ```markdown
 Ship fault-tolerant AI workflows, transactional SQLite WAL queues, HMAC webhooks, and double-entry ledgers on $0 infrastructure.
@@ -87,7 +87,7 @@ Complete MIT-licensed engineering starter kit combining a transactional SQLite W
 ### Lemon Squeezy Product #2 — Free Lead Magnet Mirror (`$0+` PWYW)
 - **Name:** `Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)`
 - **Pricing Model:** Pay What You Want — Minimum **`$0.00`**, Suggested **`$3.00`**
-- **Digital File Upload:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `852daf37db2ba501`)
+- **Digital File Upload:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `c2d03abcc0a0f346`)
 - **Description:** Same summary & highlights as Gumroad Product #1 above.
 
 ---

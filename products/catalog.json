@@ -81,7 +81,7 @@
       "highlights": [
         "7 self-contained daily Python 3.11+ labs (`day01_retry_jitter.py` through `day07_end_to_end_agent_pipeline.py`) with interactive `--demo` telemetry",
         "Eliminates thundering-herd 429 retries, `isinstance(True, int)` LLM JSON bugs, overlapping cron double-runs, and webhook replay vulnerabilities",
-        "Includes `CHALLENGE_WORKBOOK.md` with daily 45-minute failure-injection drills designed for Nas.io Cohort Challenges & Patreon builders",
+        "Includes `CHALLENGE_WORKBOOK.md` with daily 45-minute failure-injection drills designed for Whop Challenges / Courses / Files & Patreon Shop builders",
         "100% Python standard library (`0` third-party dependencies), deterministic `unittest` suite (`test_challenge_kit.py`), and MIT Commercial License"
       ],
       "required_files": [

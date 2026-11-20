@@ -21,7 +21,7 @@
 ## 2. 3-Product Nas.io Funnel Setup (One-Time 15-Minute Upload)
 
 ### Step A — Free Lead Magnet & Community Entry (`$0` Digital Resource -> Magic Reach List)
-- **Upload File:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `852daf37db2ba501`)
+- **Upload File:** `products/dist/free-idempotent-cron-mini-kit.zip` (`9,859` bytes • SHA-256 `c2d03abcc0a0f346`)
 - **Title:** `Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)`
 - **Price:** `Free ($0)` — Every downloader joins your Nas.io community and becomes reachable via **Magic Reach** email/chat broadcasts at `$0` ESP cost.
 
@@ -39,7 +39,7 @@ A structured 7-day hands-on reliability challenge pack featuring 7 runnable, uni
 ### What You Build Across 7 Days (`nasio-7day-ai-automation-challenge-pack.zip`)
 - 7 self-contained daily Python 3.11+ labs (`day01_retry_jitter.py` through `day07_end_to_end_agent_pipeline.py`) with interactive `--demo` telemetry
 - Eliminates thundering-herd 429 retries, `isinstance(True, int)` LLM JSON bugs, overlapping cron double-runs, and webhook replay vulnerabilities
-- Includes `CHALLENGE_WORKBOOK.md` with daily 45-minute failure-injection drills designed for Nas.io Cohort Challenges & Patreon builders
+- Includes `CHALLENGE_WORKBOOK.md` with daily 45-minute failure-injection drills designed for Whop Challenges / Courses / Files & Patreon Shop builders
 - 100% Python standard library (`0` third-party dependencies), deterministic `unittest` suite (`test_challenge_kit.py`), and MIT Commercial License
 
 ### Verify Locally in 5 Seconds
@@ -48,7 +48,7 @@ python3 day07_end_to_end_agent_pipeline.py --demo
 ```
 
 ### Step C — Complete Pro Architecture Upsell (`$14 USD` Digital Product)
-- **Upload File:** `products/dist/production-agent-automation-kit.zip` (`21,100` bytes • SHA-256 `bd7b8c8d7fd4b2b3`)
+- **Upload File:** `products/dist/production-agent-automation-kit.zip` (`21,102` bytes • SHA-256 `c3f1cdcda9af6021`)
 - **Title:** `Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)`
 - **Price:** **`$14.00 USD`** (Includes Node/TypeScript guardrails, double-entry SQL ledger schemas, and 4 production GitHub Actions workflows).
 

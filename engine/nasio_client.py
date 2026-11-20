@@ -22,8 +22,9 @@ from engine.db import utc_now_iso
 from engine.models import PILLAR_META, SERIES_30D_NAME, ArticleRecord, StoreOrderRecord
 from engine.patreon_client import estimate_patreon_fee_cents
 from engine.storefronts import _extract_utm_from_mapping_or_url, append_storefront_utm
+from engine.whop_client import CHALLENGE_SKU_ALIASES, estimate_whop_fee_cents
 
-VALID_ORDER_STOREFRONTS = ("nasio", "patreon", "lemonsqueezy", "gumroad")
+VALID_ORDER_STOREFRONTS = ("whop", "patreon", "lemonsqueezy", "gumroad", "nasio")
 
 
 class NasioWebhookError(ValueError):
@@ -123,6 +124,8 @@ def estimate_default_storefront_fee_cents(storefront: str, gross_cents: int) -> 
     if gross_cents <= 0:
         return 0
     sf = storefront.strip().lower()
+    if sf == "whop":
+        return estimate_whop_fee_cents(gross_cents)
     if sf == "nasio":
         return estimate_nasio_fee_cents(gross_cents, pass_fees_to_buyer=True)
     if sf == "patreon":
@@ -171,14 +174,14 @@ def build_logged_order(
     net_cents = 0 if refunded else max(0, gross_cents - fee_cents)
 
     eff_source = utm_source.strip().lower()
-    if not eff_source and sf in {"nasio", "patreon"}:
+    if not eff_source and sf in {"whop", "nasio", "patreon"}:
         eff_source = sf
 
     eff_sku = sku.strip()
     if not eff_sku:
         if gross_cents == 0:
             eff_sku = "free-idempotent-cron-mini-kit"
-        elif sf == "nasio":
+        elif sf in {"whop", "nasio"}:
             eff_sku = "nasio-7day-ai-automation-challenge-pack"
         else:
             eff_sku = "production-agent-automation-kit"
@@ -187,7 +190,7 @@ def build_logged_order(
     if not eff_name:
         if gross_cents == 0:
             eff_name = "Free Idempotent Cron Mini-Kit"
-        elif eff_sku == "nasio-7day-ai-automation-challenge-pack":
+        elif eff_sku in CHALLENGE_SKU_ALIASES:
             eff_name = "7-Day AI & Python Reliability Challenge Pack"
         else:
             eff_name = f"{sf.capitalize()} Digital Kit"
