@@ -1,6 +1,6 @@
 # 30-Day Omnichannel Experiment Report (`2026-11-18` → `2026-12-18`)
 
-- **As-Of Date (`Asia/Colombo`):** `2026-11-20` (Day `3` / `30` · `28` days remaining)
+- **As-Of Date (`Asia/Colombo`):** `2026-11-21` (Day `4` / `30` · `27` days remaining)
 - **Verified Series Articles Built:** `7 / 30`
 - **Total Net Revenue (Refunds Excluded):** `$0.00 USD` (`0` paid orders, `0` free leads, `0` refunded excluded)
 
