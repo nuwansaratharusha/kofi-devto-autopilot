@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 6/30] Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication\u2026",
+  "description": "Day 6/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends\u2014and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 159.42 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #security #python #api #database",
+  "alt_text": "1000x1500 technical infographic for Day 6 of 30 (Idempotent Webhooks & Double-Entry Ledger Teardowns): Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load) \u2014 verified in Python 3.11+ stdlib sandbox (837 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a.png",
+  "png_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/site/pins/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a.png",
+  "svg_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/pinterest_pin.svg",
+  "png_size_bytes": 11310,
+  "png_sha256": "c7ca6f871af93186baed33e165c34a2dec48ffeb03655b8d7742cf328d12322a",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 15080
+  }
+}

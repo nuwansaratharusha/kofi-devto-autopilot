@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T23:48:53Z",
+  "generated_at": "2026-11-20T00:48:43Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -9,7 +9,7 @@
     "days_elapsed": 3,
     "days_remaining": 28,
     "target_daily_articles": 30,
-    "verified_articles_built": 3
+    "verified_articles_built": 7
   },
   "totals": {
     "paid_orders": 0,
@@ -23,6 +23,44 @@
     "winning_channels": []
   },
   "storefronts": {
+    "nasio": {
+      "storefront": "nasio",
+      "label": "Nas.io ($10 Payoneer USD / $65 LKR Wire)",
+      "store_url": "https://www.patreon.com/NuwansaraT",
+      "paid_orders": 0,
+      "free_downloads": 0,
+      "refunded_orders": 0,
+      "gross_cents": 0,
+      "fee_cents": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "threshold_cents": 5000,
+      "threshold_usd": 50.0,
+      "unlock_progress_pct": 0.0,
+      "remaining_to_unlock_usd": 50.0,
+      "unlocked": false,
+      "payoneer_min_usd": 10.0,
+      "payoneer_unlocked": false,
+      "lkr_wire_min_usd": 65.0,
+      "lkr_wire_unlocked": false
+    },
+    "patreon": {
+      "storefront": "patreon",
+      "label": "Patreon ($25 Payoneer Payout)",
+      "store_url": "https://www.patreon.com/NuwansaraT",
+      "paid_orders": 0,
+      "free_downloads": 0,
+      "refunded_orders": 0,
+      "gross_cents": 0,
+      "fee_cents": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "threshold_cents": 2500,
+      "threshold_usd": 25.0,
+      "unlock_progress_pct": 0.0,
+      "remaining_to_unlock_usd": 25.0,
+      "unlocked": false
+    },
     "lemonsqueezy": {
       "storefront": "lemonsqueezy",
       "label": "Lemon Squeezy ($50 Sri Lanka Bank Wire)",
@@ -56,29 +94,12 @@
       "unlock_progress_pct": 0.0,
       "remaining_to_unlock_usd": 100.0,
       "unlocked": false
-    },
-    "patreon": {
-      "storefront": "patreon",
-      "label": "Patreon ($25 Payoneer Payout)",
-      "store_url": "https://www.patreon.com/NuwansaraT",
-      "paid_orders": 0,
-      "free_downloads": 0,
-      "refunded_orders": 0,
-      "gross_cents": 0,
-      "fee_cents": 0,
-      "net_cents": 0,
-      "net_usd": 0.0,
-      "threshold_cents": 2500,
-      "threshold_usd": 25.0,
-      "unlock_progress_pct": 0.0,
-      "remaining_to_unlock_usd": 25.0,
-      "unlocked": false
     }
   },
   "channels": {
     "blogger": {
       "channel": "blogger",
-      "posts_prepared": 3,
+      "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -93,7 +114,22 @@
     },
     "patreon": {
       "channel": "patreon",
-      "posts_prepared": 3,
+      "posts_prepared": 7,
+      "posts_remote_id_logged": 0,
+      "views": 0,
+      "clicks": 0,
+      "ctr_pct": 0.0,
+      "free_downloads": 0,
+      "paid_orders": 0,
+      "net_cents": 0,
+      "net_usd": 0.0,
+      "conversion_rate_pct": 0.0,
+      "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+    },
+    "nasio": {
+      "channel": "nasio",
+      "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -108,7 +144,7 @@
     },
     "devto": {
       "channel": "devto",
-      "posts_prepared": 3,
+      "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -123,8 +159,8 @@
     },
     "canonical_site": {
       "channel": "canonical_site",
-      "posts_prepared": 3,
-      "posts_remote_id_logged": 3,
+      "posts_prepared": 7,
+      "posts_remote_id_logged": 7,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -138,7 +174,7 @@
     },
     "pinterest": {
       "channel": "pinterest",
-      "posts_prepared": 3,
+      "posts_prepared": 7,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -156,7 +192,7 @@
     "pillar_a": {
       "pillar": "pillar_a",
       "label": "Fault-Tolerant AI & API Guardrails",
-      "articles_verified": 1,
+      "articles_verified": 3,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -170,7 +206,7 @@
     "pillar_b": {
       "pillar": "pillar_b",
       "label": "Zero-Cost Backend, SQLite WAL Queues & Cron Automation",
-      "articles_verified": 1,
+      "articles_verified": 2,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -184,7 +220,7 @@
     "pillar_c": {
       "pillar": "pillar_c",
       "label": "Idempotent Webhooks & Double-Entry Ledger Teardowns",
-      "articles_verified": 1,
+      "articles_verified": 2,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,

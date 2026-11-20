@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 4/30] Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter\u2026",
+  "description": "Day 4/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Simulating 60 synchronized API workers hitting HTTP 429 at once\u2014and proving why Retry-After-aware full jitter eliminates thundering-herd retry amplification in pure Python. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 102.82 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #api #reliability #webdev",
+  "alt_text": "1000x1500 technical infographic for Day 4 of 30 (Fault-Tolerant AI & API Guardrails): Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter in Pure Python) \u2014 verified in Python 3.11+ stdlib sandbox (799 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e.png",
+  "png_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/site/pins/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e.png",
+  "svg_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/pinterest_pin.svg",
+  "png_size_bytes": 10514,
+  "png_sha256": "9245591601b700fff567e3e5b82b8ea9b62c7ecc0740a49657b69527eea3dd00",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14020
+  }
+}

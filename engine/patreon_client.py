@@ -15,6 +15,7 @@ import json
 import time
 import urllib.parse
 import urllib.request
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional
 
@@ -25,6 +26,7 @@ from engine.models import PILLAR_META, SERIES_30D_NAME, ArticleRecord, StoreOrde
 from engine.storefronts import append_storefront_utm
 
 PATREON_API_BASE = "https://www.patreon.com/api/oauth2/v2"
+PATREON_TOKEN_URL = "https://www.patreon.com/api/oauth2/token"
 USER_AGENT = "KofiDevtoAutopilot/2.1 (+https://www.patreon.com; creator-sync)"
 
 
@@ -47,12 +49,12 @@ def write_patreon_setup_guide(config: AppConfig) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / "patreon_setup_and_tiers.md"
 
-    patreon_link = config.patreon_url or "https://www.patreon.com/c/tharushanuwansara"
+    patreon_link = config.patreon_url or "https://www.patreon.com/NuwansaraT"
     guide = f"""# Patreon Storefront, Membership Tiers & API v2 Setup Guide
 
 - **Creator:** {config.author_name} (`{config.timezone}`)
 - **Target Patreon URL:** `{patreon_link}`
-- **Sri Lanka Payout Path:** Patreon holds your earnings balance safely; withdraw via **Payoneer** (**$25 USD** Patreon minimum payout, ~$1 transfer fee; Payoneer -> Sri Lanka local bank minimum typically $50–$100 USD). Keep **Lemon Squeezy** active alongside Patreon for direct $50 Sri Lanka bank wires with zero annual wallet fees.
+- **Sri Lanka Payout Path:** Patreon holds your earnings balance safely; withdraw via **Payoneer** (**$25 USD** Patreon minimum payout, ~$1 transfer fee; pool with your **Nas.io `$10 USD` Payoneer withdrawals** inside one Payoneer USD account to cross local Sri Lanka bank transfer minimums rapidly).
 
 ---
 
@@ -65,7 +67,7 @@ def write_patreon_setup_guide(config: AppConfig) -> Path:
 > Hey, I'm {config.author_name}! I'm running **{SERIES_30D_NAME}** — shipping battle-tested, zero-dependency Python 3.11+ and TypeScript reliability modules where every single code block is executed and verified inside an isolated sandbox before release.
 >
 > - **Follow for Free:** Get daily `[Day N/30]` engineering benchmarks, failure-mode tables, and the **Free Idempotent Cron & Circuit-Breaker Mini-Kit**.
-> - **Join the Production Builder Tier ($5/month) or Shop ($14 one-time):** Download full MIT-licensed `.zip` starter kits (`wal_queue.py`, `llm_circuit_breaker.py`, `webhook_hmac.py`, TypeScript guardrails, SQL double-entry schemas, and GitHub Actions CI workflows).
+> - **Join the Production Builder Tier ($5/month) or Shop ($14–$15 one-time):** Download full MIT-licensed `.zip` starter kits (`wal_queue.py`, `llm_circuit_breaker.py`, `webhook_hmac.py`, the 7-Day AI & Python Challenge Pack, TypeScript guardrails, SQL double-entry schemas, and GitHub Actions CI workflows).
 
 ---
 
@@ -85,14 +87,30 @@ def write_patreon_setup_guide(config: AppConfig) -> Path:
 - **Upload File:** `products/dist/production-agent-automation-kit.zip`
 - **Summary:** Complete 15-file Python + Node/TypeScript + SQL + GitHub Actions reliability kit (`wal_queue.py`, `llm_circuit_breaker.py`, `webhook_hmac.py`, `agent_guardrails.mjs`, double-entry ledger SQL, and 5-page architecture cheat sheet — MIT Commercial License).
 
+### Patreon Shop Item 3 — `7-Day Fault-Tolerant Python & AI Agent Reliability Challenge Pack` (`$15 USD`)
+- **Upload File:** `products/dist/nasio-7day-ai-automation-challenge-pack.zip`
+- **Summary:** 7 self-tested daily Python 3.11+ reliability labs (`day01_retry_jitter.py` .. `day07_end_to_end_agent_pipeline.py`), `test_challenge_kit.py`, and `CHALLENGE_WORKBOOK.md` (MIT Commercial License).
+
 ---
 
-## 3. Connect 100% Automated Patreon API v2 Sync (30 Seconds)
+## 3. Near-100% Automated Weekly Patreon Flow (5 Minutes Once Per Week)
+
+Because Patreon API v2 is read-only for posts (`GET /campaigns/{{id}}/posts` & `GET /campaigns/{{id}}/members`), combine the **7-Day Batch Generator** with Patreon's built-in **Post Scheduler**:
+1. Run once a week:
+   ```bash
+   python3 autopilot.py batch-patreon --start-date 2026-11-18 --days 7
+   ```
+2. Open `exports/patreon_weekly_batch/` and queue all 7 generated `[Day N/30]` posts for `18:30 Asia/Colombo` (`13:00 UTC`) using Patreon's native **Schedule** button in a single 5-minute sitting.
+3. Every day at `18:30 Asia/Colombo`, GitHub Actions (`0 13 * * *`) automatically queries Patreon API v2, reconciles every newly published post URL into `state/pipeline.db`, and syncs active member pledges into your `$25` Payoneer unlock meter!
+
+---
+
+## 4. Connect 100% Automated Patreon API v2 Sync (30 Seconds)
 
 1. Open `https://www.patreon.com/portal/registration/register-clients` while logged into your Patreon creator account.
 2. Click **Create Client** (Name: `Omnichannel Autopilot`, Redirect URI: `http://127.0.0.1:8765/`).
 3. Expand your newly created client and copy **`Creator's Access Token`**.
-4. Add these lines to `{config.project_root / '.env'}`:
+4. Add these lines to `.env`:
    ```ini
    PATREON_URL={patreon_link}
    PATREON_CREATOR_ACCESS_TOKEN=paste_your_creators_access_token_here
@@ -181,8 +199,8 @@ Welcome to **Day {day_num} of 30** in *{SERIES_30D_NAME}* ({meta["label"]}). Eve
 Thank you for backing **{SERIES_30D_NAME}**! Attached to this post is the latest unit-tested `.zip` release (`production-agent-automation-kit.zip` — MIT Commercial License) covering today's **{meta["label"]}** teardown.
 
 **Attachment Checklist Before Clicking Publish in Patreon:**
-- Access Setting: **Paid members only** (or sell as a **$14 one-time Patreon Shop post**)
-- File Attachment: `{config.dist_dir / 'production-agent-automation-kit.zip'}`
+- Access Setting: **Paid members only** (or sell as a **$14–$15 one-time Patreon Shop post**)
+- File Attachment: `products/dist/production-agent-automation-kit.zip` (or `products/dist/nasio-7day-ai-automation-challenge-pack.zip`)
 
 ---
 
@@ -207,6 +225,7 @@ Thank you for backing **{SERIES_30D_NAME}**! Attached to this post is the latest
         "tags": list(article.tags[:5]),
         "free_kit_zip": str(config.dist_dir / "free-idempotent-cron-mini-kit.zip"),
         "paid_kit_zip": str(config.dist_dir / "production-agent-automation-kit.zip"),
+        "challenge_kit_zip": str(config.dist_dir / "nasio-7day-ai-automation-challenge-pack.zip"),
         "utm_free_checkout_url": free_url,
         "utm_paid_checkout_url": paid_url,
         "public_markdown_path": str(public_path),
@@ -242,6 +261,41 @@ class PatreonClient:
     def has_live_credentials(self) -> bool:
         return bool(self.access_token)
 
+    def _try_refresh_access_token(self) -> bool:
+        """Refresh `self.access_token` in-memory via OAuth2 if refresh credentials are configured."""
+        rtok = self.config.patreon_creator_refresh_token.strip()
+        cid = self.config.patreon_client_id.strip()
+        csec = self.config.patreon_client_secret.strip()
+        if not (rtok and cid and csec):
+            return False
+        form = urllib.parse.urlencode(
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": rtok,
+                "client_id": cid,
+                "client_secret": csec,
+            }
+        ).encode("utf-8")
+        req = urllib.request.Request(
+            url=PATREON_TOKEN_URL,
+            data=form,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+                "User-Agent": USER_AGENT,
+            },
+            method="POST",
+        )
+        res = self._sender(req, self.timeout_seconds)
+        if res.status != 200:
+            return False
+        parsed = json.loads(res.body.decode("utf-8") or "{}")
+        new_tok = str(parsed.get("access_token") or "").strip()
+        if not new_tok:
+            return False
+        self.access_token = new_tok
+        return True
+
     def _get_json(self, url_or_path: str, *, query: Optional[Mapping[str, str]] = None) -> dict[str, Any]:
         if not self.access_token:
             raise PatreonApiError("PATREON_CREATOR_ACCESS_TOKEN is empty")
@@ -255,15 +309,18 @@ class PatreonClient:
                 if clean_q:
                     url = f"{url}?{urllib.parse.urlencode(clean_q)}"
 
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Accept": "application/vnd.api+json, application/json",
-            "User-Agent": USER_AGENT,
-        }
-
+        refreshed_once = False
         for attempt in range(1, 4):
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Accept": "application/vnd.api+json, application/json",
+                "User-Agent": USER_AGENT,
+            }
             req = urllib.request.Request(url=url, headers=headers, method="GET")
             res = self._sender(req, self.timeout_seconds)
+            if res.status == 401 and not refreshed_once and self._try_refresh_access_token():
+                refreshed_once = True
+                continue
             if res.status == 429 and attempt < 3:
                 self._sleep(1.0 * attempt)
                 continue
@@ -420,14 +477,11 @@ class PatreonClient:
             }
 
         posts = self.list_campaign_posts()
-        day_tag = f"[day {article.series_day}/30]" if article.series_day else ""
-        norm_title = article.title.strip().lower()
-        matched_post: Optional[dict[str, Any]] = None
-        for p in posts:
-            low_t = p["title"].lower()
-            if (day_tag and day_tag in low_t) or (norm_title and norm_title in low_t):
-                matched_post = p
-                break
+        matched_post = _match_remote_patreon_post(
+            posts,
+            series_day=article.series_day,
+            title=article.title,
+        )
 
         if matched_post:
             article.patreon_post_id = matched_post["id"]
@@ -445,3 +499,234 @@ class PatreonClient:
             "patreon_url": article.patreon_url,
             **paths,
         }
+
+
+def _match_remote_patreon_post(
+    posts: list[dict[str, Any]],
+    *,
+    series_day: Optional[int],
+    title: str,
+) -> Optional[dict[str, Any]]:
+    """Match a published Patreon post by `[Day N/30]` / `Day N/30]` or title, preferring public posts."""
+    day_exact = f"[day {series_day}/30]" if series_day else ""
+    day_suffix = f"day {series_day}/30]" if series_day else ""
+    norm_title = title.strip().lower()
+    candidates: list[dict[str, Any]] = []
+    for post in posts:
+        low_t = str(post.get("title") or "").lower()
+        if (
+            (day_exact and day_exact in low_t)
+            or (day_suffix and day_suffix in low_t)
+            or (norm_title and norm_title in low_t)
+        ):
+            candidates.append(post)
+    if not candidates:
+        return None
+    for cand in candidates:
+        if cand.get("is_public", True) and not cand.get("is_paid", False):
+            return cand
+    for cand in candidates:
+        if cand.get("is_public", True):
+            return cand
+    return candidates[0]
+
+
+def generate_patreon_weekly_batch(
+    config: AppConfig,
+    *,
+    start_date: str,
+    days: int = 7,
+    offline: bool = False,
+    sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
+) -> dict[str, Any]:
+    """Generate `days` consecutive verified `[Day N/30]` Patreon Public & Paid/Shop posts + manifest."""
+    from engine.composer import compose_article
+    from engine.experiment import compute_series_day_for_date
+    from engine.harvester import harvest_signals
+    from engine.verifier import verify_article
+
+    if days < 1 or days > 30:
+        raise ValueError("days must be between 1 and 30")
+    start_dt = date.fromisoformat(start_date.strip())
+
+    db = PipelineDatabase(config.db_path)
+    discovered = harvest_signals(offline=offline)
+    db.upsert_signals(discovered)
+
+    batch_dir = config.exports_dir / "patreon_weekly_batch"
+    batch_dir.mkdir(parents=True, exist_ok=True)
+    for old_md in batch_dir.glob("day*_*.md"):
+        old_md.unlink()
+
+    pt_client = PatreonClient(config, sender=sender, sleeper=lambda _s: None)
+    remote_posts: list[dict[str, Any]] = []
+    reconciliation_mode = "offline_local"
+    if not offline and pt_client.has_live_credentials():
+        try:
+            remote_posts = pt_client.list_campaign_posts()
+            reconciliation_mode = "patreon_api_v2_synced"
+        except (PatreonApiError, OSError):
+            if sender is not _urllib_sender:
+                raise
+            reconciliation_mode = "patreon_api_v2_unreachable_local_fallback"
+
+    batch_items: list[dict[str, Any]] = []
+    seen_days_in_batch: set[int] = set()
+
+    for offset in range(days):
+        d_dt = start_dt + timedelta(days=offset)
+        d_iso = d_dt.isoformat()
+        day_num = compute_series_day_for_date(d_iso, config.experiment_start_date)
+        if day_num in seen_days_in_batch:
+            highest_seen = max(seen_days_in_batch)
+            if highest_seen >= 30:
+                break
+            day_num = highest_seen + 1
+        seen_days_in_batch.add(day_num)
+
+        saved = db.get_article_by_series_day(day_num)
+        composed_fresh = False
+        if saved is None:
+            candidates = db.select_unused_signals(limit=1)
+            if not candidates:
+                raise PatreonApiError(f"No unused signals remaining to compose Day {day_num}")
+            sig = candidates[0]
+            draft_rec = compose_article(sig, config, series_day=day_num)
+            verified_rec, ver_rep = verify_article(draft_rec, config=config)
+            if not ver_rep.passed:
+                raise PatreonApiError(
+                    f"Sandbox verification failed on Day {day_num} ({draft_rec.slug}): {ver_rep.lint_errors}"
+                )
+            saved = db.save_article(verified_rec)
+            db.mark_signal_used(sig.fingerprint)
+            composed_fresh = True
+
+        if remote_posts:
+            matched_rp = _match_remote_patreon_post(
+                remote_posts,
+                series_day=day_num,
+                title=saved.title,
+            )
+            if matched_rp is not None:
+                saved.patreon_post_id = matched_rp["id"]
+                saved.patreon_url = matched_rp["url"] or config.patreon_url
+                saved = db.save_article(saved)
+
+        series_so_far = db.list_articles(verified_only=True)
+        bundle_paths = export_patreon_bundle(saved, config, series_articles=series_so_far)
+
+        pub_src = Path(bundle_paths["patreon_public_md"]).read_text(encoding="utf-8")
+        paid_src = Path(bundle_paths["patreon_paid_md"]).read_text(encoding="utf-8")
+
+        primary_zip_name = (
+            "nasio-7day-ai-automation-challenge-pack.zip"
+            if day_num % 3 == 0
+            else "production-agent-automation-kit.zip"
+        )
+        sched_colombo = f"{d_iso} 18:30 Asia/Colombo"
+        sched_utc = f"{d_iso}T13:00:00Z"
+
+        batch_pub_path = batch_dir / f"day{day_num:02d}_{d_iso}_public.md"
+        batch_paid_path = batch_dir / f"day{day_num:02d}_{d_iso}_paid_tier_and_shop.md"
+
+        pub_header = (
+            f"<!-- PATREON WEEKLY BATCH · DAY {day_num}/30 · SCHEDULE: {sched_colombo} ({sched_utc}) · ACCESS: PUBLIC (FREE) -->\n\n"
+        )
+        paid_header = (
+            f"<!-- PATREON WEEKLY BATCH · DAY {day_num}/30 · SCHEDULE: {sched_colombo} ({sched_utc}) · "
+            f"ACCESS: PAID MEMBERS ($5/MO) & SHOP · ATTACH: products/dist/{primary_zip_name} -->\n\n"
+        )
+        batch_pub_path.write_text(pub_header + pub_src, encoding="utf-8")
+        batch_paid_path.write_text(paid_header + paid_src, encoding="utf-8")
+
+        batch_items.append(
+            {
+                "date": d_iso,
+                "series_day": day_num,
+                "slug": saved.slug,
+                "composed_fresh": composed_fresh,
+                "word_count": saved.word_count,
+                "public_title": f"[Day {day_num}/30] {saved.title}",
+                "paid_title": f"[Members & Shop · Day {day_num}/30] Runnable Kit + Full Benchmark: {saved.title}",
+                "scheduled_at_colombo": sched_colombo,
+                "scheduled_at_utc": sched_utc,
+                "public_markdown_path": str(batch_pub_path),
+                "paid_markdown_path": str(batch_paid_path),
+                "recommended_attachment_zip": f"products/dist/{primary_zip_name}",
+                "patreon_post_id": saved.patreon_post_id,
+                "patreon_url": saved.patreon_url,
+                "reconciled_live": bool(saved.patreon_post_id),
+            }
+        )
+
+    write_patreon_setup_guide(config)
+
+    dist_manifest_path = config.dist_dir / "manifest.json"
+    attachments: list[dict[str, Any]] = []
+    if dist_manifest_path.is_file():
+        try:
+            dist_data = json.loads(dist_manifest_path.read_text(encoding="utf-8"))
+            for p in dist_data.get("products", []):
+                attachments.append(
+                    {
+                        "slug": p.get("slug"),
+                        "zip_filename": p.get("zip_filename"),
+                        "price_usd": p.get("price_usd"),
+                        "size_bytes": p.get("size_bytes"),
+                        "sha256": p.get("sha256"),
+                    }
+                )
+        except ValueError:
+            attachments = []
+
+    actual_days = len(batch_items)
+    end_iso = (
+        str(batch_items[-1]["date"])
+        if batch_items
+        else (start_dt + timedelta(days=days - 1)).isoformat()
+    )
+    manifest_obj = {
+        "generated_at": utc_now_iso(),
+        "start_date": start_dt.isoformat(),
+        "end_date": end_iso,
+        "days": actual_days,
+        "requested_days": days,
+        "patreon_url": config.patreon_url or "https://www.patreon.com/NuwansaraT",
+        "campaign_id": pt_client.campaign_id or config.patreon_campaign_id,
+        "reconciliation_mode": reconciliation_mode,
+        "remote_posts_checked": len(remote_posts),
+        "attachments": attachments,
+        "items": batch_items,
+    }
+    manifest_path = batch_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest_obj, indent=2) + "\n", encoding="utf-8")
+
+    table_lines = "\n".join(
+        f"| Day `{it['series_day']}/30` | `{it['date']}` (`18:30 IST`) | `{Path(it['public_markdown_path']).name}` | "
+        f"`{Path(it['paid_markdown_path']).name}` | `{it['recommended_attachment_zip']}` | "
+        f"`{'LIVE (' + str(it['patreon_post_id']) + ')' if it['reconciled_live'] else 'READY TO SCHEDULE'}` |"
+        for it in batch_items
+    )
+    readme_md = f"""# {actual_days}-Day Patreon Batch Queue (`{start_dt.isoformat()}` → `{end_iso}`)
+
+- **Target Creator Hub:** `{manifest_obj["patreon_url"]}` (Campaign `{manifest_obj["campaign_id"] or "auto"}`)
+- **Why This Flow Exists:** Official Patreon API v2 supports 100% automated `GET` syncing for members, pledges, and published post URLs, while post creation uses Patreon's native web **Post Scheduler**. Queue all `{actual_days}` days below in **one 5-minute weekly session**, and GitHub Actions (`0 13 * * *`) automatically reconciles live URLs and revenue every evening!
+
+| Day | Schedule (`Asia/Colombo`) | Public Post File | Paid / Shop Post File | `.zip` Attachment | API v2 Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+{table_lines}
+
+## 5-Minute Weekly Patreon Scheduler Steps
+1. Open `{manifest_obj["patreon_url"]}` -> **Create -> Post**.
+2. Paste each `dayXX_*_public.md` file, set **Who can see this post = Free members / Public**, and click **Schedule** for `18:30` (`Asia/Colombo`).
+3. For your weekly deep-dive / Shop drops, paste `dayXX_*_paid_tier_and_shop.md`, attach the `.zip` from `products/dist/`, set **Paid members** (or **$14 / $15 Shop price**), and click **Schedule**.
+"""
+    readme_path = batch_dir / "README_WEEKLY_QUEUE.md"
+    readme_path.write_text(readme_md, encoding="utf-8")
+
+    return {
+        "batch_dir": str(batch_dir),
+        "manifest_path": str(manifest_path),
+        "readme_path": str(readme_path),
+        **manifest_obj,
+    }

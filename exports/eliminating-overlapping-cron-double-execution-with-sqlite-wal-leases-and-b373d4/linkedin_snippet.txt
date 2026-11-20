@@ -1,0 +1,14 @@
+Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover
+
+Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (100.13 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Wednesday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

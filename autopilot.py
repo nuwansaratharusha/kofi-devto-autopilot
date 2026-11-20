@@ -8,6 +8,7 @@ import html
 import json
 import mimetypes
 import sys
+import threading
 import uuid
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,10 +32,25 @@ from engine.experiment import (
 from engine.exporter import export_article_bundle, load_bundle_texts
 from engine.harvester import harvest_signals
 from engine.models import PILLAR_META, SERIES_30D_NAME, VALID_CHANNELS
-from engine.patreon_client import PatreonClient, write_patreon_setup_guide
+from engine.nasio_client import (
+    NasioWebhookError,
+    VALID_ORDER_STOREFRONTS,
+    build_logged_order,
+    export_nasio_daily_pack,
+    parse_nasio_webhook_payload,
+    verify_nasio_webhook_auth,
+    write_nasio_setup_guide,
+)
+from engine.patreon_client import (
+    PatreonApiError,
+    PatreonClient,
+    export_patreon_bundle,
+    generate_patreon_weekly_batch,
+    write_patreon_setup_guide,
+)
 from engine.pinterest_client import PinterestClient
 from engine.site_builder import SITE_STYLESHEET, build_static_site
-from engine.storefronts import sync_storefronts
+from engine.storefronts import StorefrontApiError, sync_storefronts
 from engine.verifier import verify_article
 from products.builder import build_all_products, load_catalog
 
@@ -57,16 +73,24 @@ def _safe_json_for_html_script(obj: Any) -> str:
 def _load_or_build_products(config: AppConfig, *, force_rebuild: bool = False) -> dict[str, Any]:
     manifest_file = config.dist_dir / "manifest.json"
     dual_setup_file = config.exports_dir / "storefront" / "lemonsqueezy_and_gumroad_setup.md"
-    if not force_rebuild and manifest_file.is_file() and dual_setup_file.is_file():
+    nasio_setup_file = config.exports_dir / "storefront" / "nasio_setup_and_challenge_guide.md"
+    expected_count = len(load_catalog(config.project_root).get("products", []))
+    if (
+        not force_rebuild
+        and manifest_file.is_file()
+        and dual_setup_file.is_file()
+        and nasio_setup_file.is_file()
+    ):
         data = json.loads(manifest_file.read_text(encoding="utf-8"))
         products = data.get("products", [])
-        if products and all(Path(p["zip_path"]).is_file() for p in products):
+        if len(products) == expected_count and all(Path(p["zip_path"]).is_file() for p in products):
             return {
                 "manifest_path": str(manifest_file),
                 "storefront_copy_path": str(
                     config.exports_dir / "storefront" / "kofi_profile_and_shop_copy.md"
                 ),
                 "dual_storefront_setup_path": str(dual_setup_file),
+                "nasio_setup_path": str(nasio_setup_file),
                 "products": products,
             }
     return build_all_products(
@@ -76,6 +100,8 @@ def _load_or_build_products(config: AppConfig, *, force_rebuild: bool = False) -
         mirror_store_url=config.mirror_store_url,
         lemonsqueezy_store_url=config.lemonsqueezy_store_url,
         gumroad_store_url=config.gumroad_store_url,
+        nasio_store_url=config.nasio_store_url,
+        patreon_url=config.patreon_url,
     )
 
 
@@ -89,8 +115,9 @@ def cmd_build_products(config: AppConfig, *, as_json: bool = False) -> dict[str,
             print(
                 f"  - {p['zip_filename']} ({p['size_bytes']:,} bytes | SHA-256: {p['sha256'][:16]}...)"
             )
-        print(f"Dual Storefront setup ready at: {result['dual_storefront_setup_path']}")
-        print(f"Storefront copy ready at      : {result['storefront_copy_path']}")
+        print(f"Nas.io Challenge setup ready at: {result['nasio_setup_path']}")
+        print(f"Dual Storefront setup ready at : {result['dual_storefront_setup_path']}")
+        print(f"Storefront copy ready at       : {result['storefront_copy_path']}")
     return result
 
 
@@ -238,31 +265,61 @@ def cmd_run_daily(
 
     blogger_res: dict[str, Any] = {"status": "no_article_available"}
     patreon_res: dict[str, Any] = {"status": "no_article_available"}
+    nasio_res: dict[str, Any] = {"status": "no_article_available"}
     pinterest_res: dict[str, Any] = {"status": "no_article_available"}
     devto_res: dict[str, Any] = {"status": "no_article_available"}
 
     if saved is not None and saved.status in {"code_verified", "staged_draft", "published_live"}:
         all_verified_pre = db.list_articles(verified_only=True)
         blogger_client = BloggerClient(config)
-        blogger_res = blogger_client.stage_or_publish(saved, series_articles=all_verified_pre)
+        if offline and blogger_client.has_live_credentials():
+            _, b_html, b_json = blogger_client.export_artifacts(saved, series_articles=all_verified_pre)
+            blogger_res = {"status": "dry_run", "html_path": str(b_html), "payload_path": str(b_json)}
+        else:
+            blogger_res = blogger_client.stage_or_publish(saved, series_articles=all_verified_pre)
         saved = db.save_article(saved)
 
         patreon_client = PatreonClient(config)
-        patreon_res = patreon_client.package_and_reconcile(
-            saved,
-            db=db,
-            series_articles=all_verified_pre,
-        )
+        if offline:
+            pt_paths = export_patreon_bundle(saved, config, series_articles=all_verified_pre)
+            write_patreon_setup_guide(config)
+            patreon_res = {
+                "status": "pack_ready",
+                "reason": "Offline mode: exported Public & Paid/Shop Markdown packs locally.",
+                **pt_paths,
+            }
+        else:
+            patreon_res = patreon_client.package_and_reconcile(
+                saved,
+                db=db,
+                series_articles=all_verified_pre,
+            )
         saved = db.save_article(saved)
 
+        nasio_paths = export_nasio_daily_pack(saved, config, series_articles=all_verified_pre)
+        nasio_guide = write_nasio_setup_guide(config)
+        nasio_res = {
+            "status": "pack_ready",
+            "setup_guide": str(nasio_guide),
+            **nasio_paths,
+        }
+
         pinterest_client = PinterestClient(config)
-        pinterest_res = pinterest_client.render_and_publish(saved)
+        if offline and pinterest_client.has_live_credentials():
+            dry_pin_cfg = AppConfig(**{**config.__dict__, "pinterest_access_token": ""})
+            pinterest_res = PinterestClient(dry_pin_cfg).render_and_publish(saved)
+        else:
+            pinterest_res = pinterest_client.render_and_publish(saved)
         saved = db.save_article(saved)
 
         export_article_bundle(saved, config, series_articles=db.list_articles(verified_only=True))
 
         if force_devto or is_mon_wed_fri(effective_date):
-            devto_res = DevtoClient(config).stage_or_publish(saved)
+            if offline and config.devto_api_key:
+                dry_devto_cfg = AppConfig(**{**config.__dict__, "devto_api_key": ""})
+                devto_res = DevtoClient(dry_devto_cfg).stage_or_publish(saved)
+            else:
+                devto_res = DevtoClient(config).stage_or_publish(saved)
             saved = db.save_article(saved)
         else:
             devto_res = {
@@ -270,7 +327,24 @@ def cmd_run_daily(
                 "reason": f"{effective_date} is outside Mon/Wed/Fri DEV.to cadence (pass --force-devto to override).",
             }
 
-    store_sync_res = sync_storefronts(config, db)
+    if offline:
+        store_sync_res = {
+            "synced_at": utc_now_iso(),
+            "gumroad": {"status": "dry_run", "products_count": 0, "orders_synced": 0, "drafts_created": []},
+            "lemonsqueezy": {"status": "dry_run", "products_count": 0, "orders_synced": 0},
+            "patreon": {"status": "dry_run", "campaign_id": config.patreon_campaign_id, "orders_synced": 0},
+        }
+    else:
+        try:
+            store_sync_res = sync_storefronts(config, db)
+        except (PatreonApiError, StorefrontApiError, OSError) as sync_exc:
+            store_sync_res = {
+                "synced_at": utc_now_iso(),
+                "error": str(sync_exc),
+                "gumroad": {"status": "error", "orders_synced": 0},
+                "lemonsqueezy": {"status": "error", "orders_synced": 0},
+                "patreon": {"status": "error", "orders_synced": 0},
+            }
     all_verified = db.list_articles(verified_only=True)
     for art in all_verified:
         BloggerClient(config).export_artifacts(art, series_articles=all_verified)
@@ -322,6 +396,7 @@ def cmd_run_daily(
         else None,
         "blogger": blogger_res,
         "patreon": patreon_res,
+        "nasio": nasio_res,
         "pinterest": pinterest_res,
         "devto": devto_res,
         "storefronts": store_sync_res,
@@ -336,9 +411,110 @@ def cmd_run_daily(
         print(f"[{run_id}] Day {day_num}/30 ({effective_date}) -> {slug_lbl}")
         print(f"  - Blogger   : {blogger_res.get('status')}")
         print(f"  - Patreon   : {patreon_res.get('status')}")
+        print(f"  - Nas.io    : {nasio_res.get('status')} ({nasio_res.get('nasio_daily_pack', '')})")
         print(f"  - DEV.to    : {devto_res.get('status')}")
         print(f"  - 30d Report: {exp_artifacts['markdown_path']}")
     return result
+
+
+def cmd_batch_patreon(
+    config: AppConfig,
+    *,
+    start_date: Optional[str] = None,
+    days: int = 7,
+    offline: bool = False,
+    as_json: bool = False,
+) -> dict[str, Any]:
+    """Generate a 7-day verified Patreon Public + Paid/Shop queue pack + attachment manifest."""
+    eff_start = (start_date or colombo_today_iso()).strip()
+    product_info = _load_or_build_products(config, force_rebuild=False)
+    batch_res = generate_patreon_weekly_batch(
+        config,
+        start_date=eff_start,
+        days=days,
+        offline=offline,
+    )
+    db = PipelineDatabase(config.db_path)
+    all_verified = db.list_articles(verified_only=True)
+    for art in all_verified:
+        export_article_bundle(art, config, series_articles=all_verified)
+    exp_artifacts = write_experiment_artifacts(db, config)
+    build_static_site(
+        all_verified,
+        product_info["products"],
+        config,
+        experiment_report=exp_artifacts["report"],
+    )
+    if as_json:
+        print(json.dumps(batch_res, indent=2))
+    else:
+        print(
+            f"Generated {batch_res['days']}-day Patreon Scheduler Batch ({batch_res['start_date']} -> {batch_res['end_date']}):"
+        )
+        for item in batch_res["items"]:
+            print(
+                f"  - [Day {item['series_day']}/30 | {item['date']}] {item['slug']} -> {Path(item['public_markdown_path']).name}"
+            )
+        print(f"Batch manifest ready at: {batch_res['manifest_path']}")
+    return batch_res
+
+
+def cmd_log_order(
+    config: AppConfig,
+    *,
+    storefront: str,
+    order_id: str,
+    gross_usd: float | str,
+    fee_usd: Optional[float | str] = None,
+    utm_source: str = "",
+    utm_medium: str = "manual_log",
+    utm_campaign: str = "30d_exp_2026_11",
+    sku: str = "",
+    slug: str = "",
+    product_name: str = "",
+    refunded: bool = False,
+    as_json: bool = False,
+) -> dict[str, Any]:
+    """Record a Nas.io, Patreon, Lemon Squeezy, or Gumroad sale/free lead into `state/pipeline.db`."""
+    order = build_logged_order(
+        storefront=storefront,
+        order_id=order_id,
+        gross_usd=gross_usd,
+        fee_usd=fee_usd,
+        utm_source=utm_source,
+        utm_medium=utm_medium,
+        utm_campaign=utm_campaign,
+        sku=sku,
+        slug=slug,
+        product_name=product_name,
+        refunded=refunded,
+    )
+    db = PipelineDatabase(config.db_path)
+    db.upsert_store_orders([order])
+    exp_artifacts = write_experiment_artifacts(db, config)
+    product_info = _load_or_build_products(config, force_rebuild=False)
+    all_verified = db.list_articles(verified_only=True)
+    build_static_site(
+        all_verified,
+        product_info["products"],
+        config,
+        experiment_report=exp_artifacts["report"],
+    )
+    meter = exp_artifacts["report"]["storefronts"][order.storefront]
+    out = {
+        "order": order.to_dict(),
+        "storefront_meter": meter,
+        "totals": exp_artifacts["report"]["totals"],
+        "experiment_report_json": exp_artifacts["json_path"],
+    }
+    if as_json:
+        print(json.dumps(out, indent=2))
+    else:
+        print(
+            f"Logged {order.storefront} order '{order.order_id}' (${order.net_cents / 100.0:.2f} net USD | "
+            f"meter: ${meter['net_usd']:.2f}/${meter['threshold_usd']:.2f} USD · {meter['unlock_progress_pct']}%)"
+        )
+    return out
 
 
 def cmd_sync_stores(
@@ -512,6 +688,8 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
         "kofi_profile_url": config.kofi_profile_url,
         "primary_store_url": config.primary_store_url,
         "mirror_store_url": config.mirror_store_url,
+        "nasio_store_url": config.nasio_store_url,
+        "nasio_webhook_secret_configured": bool(config.nasio_webhook_secret),
         "patreon_url": config.patreon_url,
         "lemonsqueezy_store_url": config.lemonsqueezy_store_url,
         "gumroad_store_url": config.gumroad_store_url,
@@ -572,10 +750,14 @@ def render_dashboard_html(config: AppConfig) -> str:
     """Render the zero-dependency accessible Omnichannel Operator Dashboard (zero raw backticks!)."""
     status_data = gather_status(config)
     exp = status_data["experiment"]
+    ns_meter = exp["storefronts"]["nasio"]
     ls_meter = exp["storefronts"]["lemonsqueezy"]
     gr_meter = exp["storefronts"]["gumroad"]
     pt_meter = exp["storefronts"]["patreon"]
     copy_map: dict[str, str] = {}
+
+    nasio_guide_path = write_nasio_setup_guide(config)
+    copy_map["nasio_guide"] = nasio_guide_path.read_text(encoding="utf-8")
 
     patreon_guide_path = write_patreon_setup_guide(config)
     copy_map["patreon_guide"] = patreon_guide_path.read_text(encoding="utf-8")
@@ -595,8 +777,14 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     prod_cards: list[str] = []
     for p in status_data["products"]:
+        p_slug = str(p.get("slug", ""))
         is_free = int(p["price_usd"]) == 0
-        price_str = "$0+ PWYW (Gumroad Lead Magnet)" if is_free else f"${p['price_usd']} USD Flagship (Lemon Squeezy)"
+        if p_slug == "nasio-7day-ai-automation-challenge-pack":
+            price_str = f"${p['price_usd']} USD 7-Day Challenge (Nas.io & Patreon)"
+        elif is_free:
+            price_str = "$0+ PWYW (Free Lead Magnet)"
+        else:
+            price_str = f"${p['price_usd']} USD Flagship Starter Kit"
         fname = str(p["zip_filename"])
         prod_cards.append(
             f"""        <div class="card">
@@ -641,6 +829,7 @@ def render_dashboard_html(config: AppConfig) -> str:
         slug = str(art["slug"])
         day_num = art.get("series_day") or (len(status_data["articles"]) - idx + 1)
         bundles = load_bundle_texts(config.exports_dir, slug)
+        copy_map[f"{slug}:nasio_daily_pack"] = bundles.get("nasio_daily_pack", "")
         copy_map[f"{slug}:blogger"] = bundles.get("blogger_html", "")
         copy_map[f"{slug}:patreon_public"] = bundles.get("patreon_public", "")
         copy_map[f"{slug}:patreon_paid"] = bundles.get("patreon_paid", "")
@@ -654,13 +843,15 @@ def render_dashboard_html(config: AppConfig) -> str:
         meta = PILLAR_META.get(str(art["pillar"]), PILLAR_META["pillar_a"])
         blogger_state = "LIVE/DRAFT SYNCED" if art.get("blogger_post_id") else "HTML EXPORTED"
         patreon_state = "LIVE SYNCED v2" if art.get("patreon_post_id") else "PUBLIC + TIER MD READY"
+        nasio_state = "1-HR PACK READY" if bundles.get("nasio_daily_pack") else "PENDING"
         article_cards.append(
             f"""        <article class="card">
           <div>
             <div class="meta-row">
               <span class="badge badge-verified">DAY {day_num}/30 · {html.escape(str(art["status"]).upper())} ({art["duration_ms"]} ms)</span>
-              <span class="badge">Blogger: {blogger_state}</span>
+              <span class="badge">Nas.io: {nasio_state}</span>
               <span class="badge">Patreon: {patreon_state}</span>
+              <span class="badge">Blogger: {blogger_state}</span>
               <span class="badge">{html.escape(meta["weekday"])}</span>
               <span class="tabular">{art["word_count"]} words · {art["code_blocks_tested"]} blocks</span>
             </div>
@@ -669,6 +860,7 @@ def render_dashboard_html(config: AppConfig) -> str:
           </div>
           <div class="cta-row" role="group" aria-label="Syndication actions for {html.escape(str(art['title']), quote=True)}">
             <a class="btn btn-primary" href="/site/posts/{html.escape(slug, quote=True)}/index.html">Preview Post</a>
+            <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:nasio_daily_pack" data-label="Copy Nas.io 1-Hr Pack">Copy Nas.io 1-Hr Pack</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_public" data-label="Copy Patreon Public MD">Copy Patreon Public MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:patreon_paid" data-label="Copy Patreon Paid/Shop MD">Copy Patreon Paid/Shop MD</button>
             <button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:blogger" data-label="Copy Blogger Series HTML">Copy Blogger Series HTML</button>
@@ -688,7 +880,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Omnichannel Control Center — Patreon, Lemon Squeezy, Gumroad &amp; Blogger</title>
+  <title>Omnichannel Control Center — Nas.io, Patreon, Lemon Squeezy, Gumroad &amp; Blogger</title>
   <style>
 {SITE_STYLESHEET}
   .kpi-strip {{
@@ -755,16 +947,21 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <span class="badge badge-verified">30-DAY EXPERIMENT · NOV 18 → DEC 18, 2026</span>
         <h1>{html.escape(SERIES_30D_NAME)}</h1>
-        <p>Automated Patreon ($25 Payoneer) + Lemon Squeezy ($50 Sri Lanka wire) + Gumroad ($100 bank deposit) storefronts paired with daily Blogger series publishing, daily Patreon Public &amp; Paid Tier/Shop drops, and Mon/Wed/Fri DEV.to syndication.</p>
+        <p>Focused Month-1 Nas.io ($15 7-Day Challenge · $10 Payoneer USD / $65 LKR Wire) + Automated Patreon ($25 Payoneer · 7-day weekly scheduler + daily API v2 sync) paired with Blogger series publishing and Mon/Wed/Fri DEV.to syndication.</p>
         <div class="cta-row">
-          <button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="patreon_guide" data-label="Copy Patreon Tiers & Shop Setup">Copy Patreon Tiers &amp; Shop Setup</button>
-          <button type="button" class="btn copy-pack-btn" data-copy-key="dual_storefront_guide" data-label="Copy Lemon Squeezy & Gumroad Setup">Copy Lemon Squeezy &amp; Gumroad Setup</button>
+          <button type="button" class="btn btn-primary copy-pack-btn" data-copy-key="nasio_guide" data-label="Copy Nas.io Challenge &amp; Payout Guide">Copy Nas.io Challenge &amp; Payout Guide</button>
+          <button type="button" class="btn copy-pack-btn" data-copy-key="patreon_guide" data-label="Copy Patreon Tiers &amp; Shop Setup">Copy Patreon Tiers &amp; Shop Setup</button>
+          <button type="button" class="btn copy-pack-btn" data-copy-key="dual_storefront_guide" data-label="Copy Lemon Squeezy &amp; Gumroad Setup">Copy Lemon Squeezy &amp; Gumroad Setup</button>
           <a class="btn" href="/site/index.html">Preview Static Hub</a>
         </div>
         <div class="kpi-strip">
           <div class="kpi-box">
             <div class="kpi-label">30-Day Curriculum</div>
             <div class="kpi-val tabular">{status_data["counts"]["articles_verified"]} / 30 Verified</div>
+          </div>
+          <div class="kpi-box">
+            <div class="kpi-label">Nas.io ($10 Payoneer / $50 Goal)</div>
+            <div class="kpi-val tabular">${ns_meter["net_usd"]:.2f} ({ns_meter["unlock_progress_pct"]:.1f}%)</div>
           </div>
           <div class="kpi-box">
             <div class="kpi-label">Patreon ($25 Payoneer)</div>
@@ -786,6 +983,19 @@ def render_dashboard_html(config: AppConfig) -> str:
       <div class="container">
         <h2 id="scoreboard-heading" class="section-title">1. 30-Day Experiment Scoreboard (Nov 18 → Dec 18, 2026)</h2>
         <div class="grid-cards">
+          <div class="card">
+            <div>
+              <div class="meta-row">
+                <span class="badge badge-verified">NAS.IO ($15 7-DAY CHALLENGE)</span>
+                <span class="badge tabular">${ns_meter["net_usd"]:.2f} / $50.00</span>
+              </div>
+              <h3>Nas.io ($10 Payoneer USD / $65 LKR Wire)</h3>
+              <div class="meter-track" role="progressbar" aria-label="Nas.io $50 target progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{int(round(ns_meter['unlock_progress_pct']))}">
+                <div class="meter-fill" style="width:{min(100.0, max(0.0, float(ns_meter['unlock_progress_pct']))):.1f}%;"></div>
+              </div>
+              <p class="tabular">Free leads: <strong>{ns_meter["free_downloads"]}</strong> · Paid seats/orders: <strong>{ns_meter["paid_orders"]}</strong> · Remaining to $50 target: <strong>${ns_meter["remaining_to_unlock_usd"]:.2f} USD</strong></p>
+            </div>
+          </div>
           <div class="card">
             <div>
               <div class="meta-row">
@@ -836,7 +1046,7 @@ def render_dashboard_html(config: AppConfig) -> str:
                 <th scope="col">Clicks</th>
                 <th scope="col">CTR</th>
                 <th scope="col">Free Kits</th>
-                <th scope="col">Paid ($14)</th>
+                <th scope="col">Paid Orders</th>
                 <th scope="col">Net USD</th>
                 <th scope="col">Deterministic Month-2 Verdict</th>
               </tr>
@@ -851,7 +1061,7 @@ def render_dashboard_html(config: AppConfig) -> str:
 
     <section class="section-block" aria-labelledby="skus-heading">
       <div class="container">
-        <h2 id="skus-heading" class="section-title">2. Storefront <code>.zip</code> Toolkits (Patreon Shop + Lemon Squeezy + Gumroad)</h2>
+        <h2 id="skus-heading" class="section-title">2. Storefront <code>.zip</code> Toolkits (Nas.io + Patreon Shop + Lemon Squeezy + Gumroad)</h2>
         <div class="grid-cards">
 {chr(10).join(prod_cards)}
         </div>
@@ -940,6 +1150,8 @@ def render_dashboard_html(config: AppConfig) -> str:
 
 
 def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
+    webhook_lock = threading.Lock()
+
     class DashboardHandler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             return
@@ -1015,6 +1227,76 @@ def create_dashboard_handler(config: AppConfig) -> type[BaseHTTPRequestHandler]:
 
             self._send_bytes(HTTPStatus.NOT_FOUND, "text/plain; charset=utf-8", b"Not found")
 
+        def do_POST(self) -> None:  # noqa: N802
+            parsed = urlparse(self.path)
+            route = unquote(parsed.path)
+
+            if route != "/api/webhooks/nasio":
+                err_body = json.dumps({"ok": False, "error": "not_found"}).encode("utf-8")
+                self._send_bytes(HTTPStatus.NOT_FOUND, "application/json; charset=utf-8", err_body)
+                return
+
+            try:
+                content_len = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                content_len = -1
+
+            if content_len <= 0:
+                err_body = json.dumps({"ok": False, "error": "empty_request_body"}).encode("utf-8")
+                self._send_bytes(HTTPStatus.BAD_REQUEST, "application/json; charset=utf-8", err_body)
+                return
+            if content_len > 65_536:
+                err_body = json.dumps({"ok": False, "error": "payload_too_large"}).encode("utf-8")
+                self._send_bytes(
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                    "application/json; charset=utf-8",
+                    err_body,
+                )
+                return
+
+            raw_body = self.rfile.read(content_len)
+            header_map = {str(k): str(v) for k, v in self.headers.items()}
+            if not verify_nasio_webhook_auth(raw_body, header_map, config.nasio_webhook_secret):
+                err_body = json.dumps({"ok": False, "error": "unauthorized_webhook_signature"}).encode("utf-8")
+                self._send_bytes(HTTPStatus.UNAUTHORIZED, "application/json; charset=utf-8", err_body)
+                return
+
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+                order = parse_nasio_webhook_payload(payload)
+            except (UnicodeDecodeError, json.JSONDecodeError, NasioWebhookError, ValueError) as exc:
+                err_body = json.dumps({"ok": False, "error": str(exc)}).encode("utf-8")
+                self._send_bytes(HTTPStatus.BAD_REQUEST, "application/json; charset=utf-8", err_body)
+                return
+
+            with webhook_lock:
+                db = PipelineDatabase(config.db_path)
+                db.upsert_store_orders([order])
+                exp_artifacts = write_experiment_artifacts(db, config)
+                manifest_path = config.dist_dir / "manifest.json"
+                products: list[dict[str, Any]] = []
+                if manifest_path.is_file():
+                    try:
+                        products = json.loads(manifest_path.read_text(encoding="utf-8")).get("products", [])
+                    except ValueError:
+                        products = []
+                all_verified = db.list_articles(verified_only=True)
+                build_static_site(
+                    all_verified,
+                    products,
+                    config,
+                    experiment_report=exp_artifacts["report"],
+                )
+            ok_body = json.dumps(
+                {
+                    "ok": True,
+                    "order": order.to_dict(),
+                    "nasio_meter": exp_artifacts["report"]["storefronts"]["nasio"],
+                },
+                indent=2,
+            ).encode("utf-8")
+            self._send_bytes(HTTPStatus.OK, "application/json; charset=utf-8", ok_body)
+
     return DashboardHandler
 
 
@@ -1050,12 +1332,38 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     p_daily = sub.add_parser(
         "run-daily",
-        help="Daily automation: Blogger series + 1000x1500 Pinterest pin (+ Mon/Wed/Fri DEV.to) + 30d report",
+        help="Daily automation: Blogger + Patreon + Nas.io 1-hr pack + Pinterest (+ Mon/Wed/Fri DEV.to) + 30d report",
     )
     p_daily.add_argument("--date", default=None, help="Override Asia/Colombo date (YYYY-MM-DD)")
     p_daily.add_argument("--offline", action="store_true", help="Use deterministic 30-day seeds only")
     p_daily.add_argument("--force-devto", action="store_true", help="Also stage/publish DEV.to on non-Mon/Wed/Fri dates")
     p_daily.add_argument("--json", action="store_true", help="Emit JSON summary")
+
+    p_batch_pt = sub.add_parser(
+        "batch-patreon",
+        help="Generate 7 consecutive days of verified Patreon Public + Paid/Shop posts & attachment manifest",
+    )
+    p_batch_pt.add_argument("--start-date", default=None, help="Batch start date YYYY-MM-DD (default: today in Asia/Colombo)")
+    p_batch_pt.add_argument("--days", type=int, default=7, help="Number of consecutive days to generate (1..30, default: 7)")
+    p_batch_pt.add_argument("--offline", action="store_true", help="Skip live HTTP calls during batch generation")
+    p_batch_pt.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    p_order = sub.add_parser(
+        "log-order",
+        help="Log a Nas.io, Patreon, Lemon Squeezy, or Gumroad sale/free lead into state/pipeline.db",
+    )
+    p_order.add_argument("--storefront", required=True, choices=list(VALID_ORDER_STOREFRONTS), help="Storefront source")
+    p_order.add_argument("--order-id", required=True, help="Unique storefront transaction/order ID")
+    p_order.add_argument("--gross-usd", required=True, type=str, help="Gross order amount in USD (e.g. 15, 14.99, $15.00, or 0 for free lead)")
+    p_order.add_argument("--fee-usd", default=None, type=str, help="Optional platform/gateway fee in USD")
+    p_order.add_argument("--utm-source", default="", help="Traffic attribution channel (e.g. nasio, patreon, blogger, devto)")
+    p_order.add_argument("--utm-medium", default="manual_log", help="UTM medium")
+    p_order.add_argument("--utm-campaign", default="30d_exp_2026_11", help="UTM campaign")
+    p_order.add_argument("--sku", default="", help="Product SKU slug")
+    p_order.add_argument("--slug", default="", help="Attributed article slug")
+    p_order.add_argument("--product-name", default="", help="Optional human-readable product title")
+    p_order.add_argument("--refunded", action="store_true", help="Mark order as refunded (0 net revenue)")
+    p_order.add_argument("--json", action="store_true", help="Emit JSON output")
 
     p_sync = sub.add_parser("sync-stores", help="Sync Gumroad v2 & Lemon Squeezy v1 orders + UTM attribution")
     p_sync.add_argument("--create-gumroad-drafts", action="store_true", help="Create unpublished Gumroad v2 draft SKUs if missing")
@@ -1124,6 +1432,32 @@ def main(argv: Optional[list[str]] = None) -> int:
             )
             art_info = res_daily.get("article") or {}
             return 1 if art_info.get("status") == "verification_failed" else 0
+        if args.command == "batch-patreon":
+            cmd_batch_patreon(
+                config,
+                start_date=args.start_date,
+                days=args.days,
+                offline=args.offline,
+                as_json=args.json,
+            )
+            return 0
+        if args.command == "log-order":
+            cmd_log_order(
+                config,
+                storefront=args.storefront,
+                order_id=args.order_id,
+                gross_usd=args.gross_usd,
+                fee_usd=args.fee_usd,
+                utm_source=args.utm_source,
+                utm_medium=args.utm_medium,
+                utm_campaign=args.utm_campaign,
+                sku=args.sku,
+                slug=args.slug,
+                product_name=args.product_name,
+                refunded=args.refunded,
+                as_json=args.json,
+            )
+            return 0
         if args.command == "sync-stores":
             cmd_sync_stores(
                 config,

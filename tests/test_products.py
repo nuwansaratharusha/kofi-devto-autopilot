@@ -30,7 +30,7 @@ class TestDigitalProductBuilder(unittest.TestCase):
                 primary_store_url="https://ko-fi.com/tharushanuwansara/shop",
                 mirror_store_url="https://polar.sh/tharushanuwansara",
             )
-            self.assertEqual(len(first["products"]), 2)
+            self.assertEqual(len(first["products"]), 3)
 
             second = build_all_products(
                 workspace,

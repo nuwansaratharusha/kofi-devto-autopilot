@@ -49,6 +49,8 @@ EMPIRICAL_BLOCK_RE = re.compile(
 
 STOREFRONT_HOSTS = frozenset(
     {
+        "nas.io",
+        "www.nas.io",
         "patreon.com",
         "www.patreon.com",
         "ko-fi.com",
@@ -65,6 +67,7 @@ STOREFRONT_HOSTS = frozenset(
 STOREFRONT_DOMAIN_SUFFIXES = (
     ".lemonsqueezy.com",
     ".gumroad.com",
+    ".nas.io",
 )
 
 
@@ -152,6 +155,8 @@ def _lint_links_and_slop(
             config.kofi_profile_url,
             config.lemonsqueezy_store_url,
             config.gumroad_store_url,
+            config.patreon_url,
+            config.nasio_store_url,
         ):
             if url_candidate:
                 parsed_host = urlparse(url_candidate).netloc.lower()

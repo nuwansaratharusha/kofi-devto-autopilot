@@ -382,6 +382,115 @@ Then run:
 """
 
 
+def _render_nasio_setup_and_challenge_guide(
+    catalog: dict[str, Any],
+    artifacts: list[BuiltProductArtifact],
+    *,
+    nasio_store_url: str = "",
+    patreon_url: str = "",
+) -> str:
+    free_art = next((a for a in artifacts if a.tier == "free_pwyw"), artifacts[0])
+    paid_art = next((a for a in artifacts if a.tier == "flagship_paid"), artifacts[-1])
+    chal_art = next(
+        (a for a in artifacts if a.slug == "nasio-7day-ai-automation-challenge-pack"),
+        paid_art,
+    )
+    chal_spec = next(
+        (p for p in catalog["products"] if p["slug"] == chal_art.slug),
+        catalog["products"][-1],
+    )
+    chal_bullets = "\n".join(f"- {b}" for b in chal_spec.get("highlights", []))
+
+    nasio_display = nasio_store_url or "https://nas.io/nuwansarat"
+    patreon_display = patreon_url or "https://www.patreon.com/NuwansaraT"
+
+    return f"""# Nas.io Storefront, 7-Day Challenge & Sri Lanka Payout Strategy Guide
+
+- **Target Nas.io Hub (`NASIO_STORE_URL`):** `{nasio_display}`
+- **Paired Patreon Hub (`PATREON_URL`):** `{patreon_display}`
+- **Monthly Revenue Target:** `$50.00+ USD` net within 30 days (`$0` upfront subscription cost on Nas.io Free Plan)
+
+---
+
+## 1. Critical Sri Lanka (`Asia/Colombo`) Fee & Payout Settings
+
+1. **Stay on Nas.io Free Plan (`$0/month`):** Zero fixed overhead while validating Month-1 demand.
+2. **Turn `Pass fees to buyers = ON` (`Settings -> Payments / Pricing`):**
+   - By default, Nas.io Free charges a platform + gateway fee (`~5.9% + processing`).
+   - Toggling **`Pass fees to buyers = ON`** shifts checkout fees onto the buyer receipt so a **`$15.00` Challenge seat settles `~$15.00` net** into your creator wallet!
+3. **Payoneer USD (`$10` Min) vs Direct Sri Lanka Bank Wire (`$65` LKR Min):**
+   - **Recommended Month-1 Route — Payoneer USD (`$10 USD` minimum payout):** Link the **exact same Payoneer USD account** connected to your Patreon (`$25 USD` minimum). Pooling `$25+` from Patreon + `$25+` from Nas.io inside one Payoneer USD balance crosses Payoneer's local Sri Lanka bank transfer minimum (`$50 USD`) immediately in Month 1!
+   - **Month-2 High-Volume Route — Direct Sri Lanka LKR Bank Wire (`$65 USD` minimum payout):** Switch to or enable direct LKR wire once single-platform Nas.io balance exceeds `$65 USD`.
+
+---
+
+## 2. 3-Product Nas.io Funnel Setup (One-Time 15-Minute Upload)
+
+### Step A — Free Lead Magnet & Community Entry (`$0` Digital Resource -> Magic Reach List)
+- **Upload File:** `products/dist/{free_art.zip_filename}` (`{free_art.size_bytes:,}` bytes • SHA-256 `{free_art.sha256[:16]}`)
+- **Title:** `{free_art.title}`
+- **Price:** `Free ($0)` — Every downloader joins your Nas.io community and becomes reachable via **Magic Reach** email/chat broadcasts at `$0` ESP cost.
+
+### Step B — Flagship `$15 USD` 7-Day Cohort / Self-Paced Challenge (`4 Seats = $60 Net`)
+- **Feature to Use:** `Nas.io -> Challenges -> Create Challenge`
+- **Challenge Title:** `{chal_art.title}`
+- **Entry Price:** **`$15.00 USD`** (`Pass fees to buyers = ON`)
+- **Upload Resource Bundle:** `products/dist/{chal_art.zip_filename}` (`{chal_art.size_bytes:,}` bytes • SHA-256 `{chal_art.sha256[:16]}`)
+- **Challenge Copy (Ready to Paste):**
+```markdown
+{chal_spec["tagline"]}
+
+{chal_spec["summary"]}
+
+### What You Build Across 7 Days (`{chal_art.zip_filename}`)
+{chal_bullets}
+
+### Verify Locally in 5 Seconds
+python3 -m unittest test_challenge_kit -v
+python3 day07_end_to_end_agent_pipeline.py --demo
+```
+
+### Step C — Complete Pro Architecture Upsell (`$14 USD` Digital Product)
+- **Upload File:** `products/dist/{paid_art.zip_filename}` (`{paid_art.size_bytes:,}` bytes • SHA-256 `{paid_art.sha256[:16]}`)
+- **Title:** `{paid_art.title}`
+- **Price:** **`$14.00 USD`** (Includes Node/TypeScript guardrails, double-entry SQL ledger schemas, and 4 production GitHub Actions workflows).
+
+---
+
+## 3. Realistic `$50+ USD` Month-1 Target Math (`1 Hour/Day` Nas.io + Automated Patreon)
+
+| Mix | Unit Math | Net Settled (`Pass fees = ON`) |
+| :--- | :--- | :--- |
+| **Path A (Challenge-First)** | `4 × $15` Nas.io 7-Day Challenge seats | **`$60.00 USD`** (`120%` of `$50` target) |
+| **Path B (Hybrid Nas.io + Patreon)** | `2 × $15` Challenge + `1 × $14` Pro Kit + `2 × $5/mo` Patreon Builders | **`~$52.60 USD`** (`> $50` combined Payoneer payout!) |
+
+---
+
+## 4. Daily 60-Minute Nas.io Execution SOP (`exports/<slug>/nasio_daily_pack.md`)
+
+Every `python3 autopilot.py run-daily` run generates a tailored 3-block pack for your 1-hour Nas.io block (and exposes **`Copy Nas.io 1-Hr Pack`** on `http://127.0.0.1:8765`):
+1. **`00–15 min` — Nas.io Feed + Magic Reach Broadcast:** Paste Block 1 into your Nas.io community feed and toggle Magic Reach email notification.
+2. **`15–40 min` — External Value-Hook Post (`<= 2` Links):** Post Block 2 on LinkedIn / X / Python developer threads and leave 3 concrete engineering replies on active reliability discussions.
+3. **`40–60 min` — Warm Lead & Challenge Invite DMs:** Send the non-spammy 3-sentence diagnostic welcome from Block 3 to every new Free Mini-Kit downloader and active follower.
+
+---
+
+## 5. Automated Order Sync (`POST /api/webhooks/nasio` & `log-order`)
+
+1. Set in `.env`:
+   ```ini
+   NASIO_STORE_URL={nasio_display}
+   NASIO_WEBHOOK_SECRET=choose_a_random_32_char_secret
+   ```
+2. **Option A — Instant CLI Order Logging (3 Seconds):**
+   ```bash
+   python3 autopilot.py log-order --storefront nasio --order-id nas_001 --gross-usd 15.0 --utm-source nasio --sku nasio-7day-ai-automation-challenge-pack
+   ```
+3. **Option B — Zapier / Nas.io Webhook Receiver:**
+   Point Zapier's *"New Purchase Transaction in Nas.io"* -> *"Webhooks by Zapier (POST)"* to `http://127.0.0.1:8765/api/webhooks/nasio` (or your tunnel URL) with header `X-Webhook-Secret: <NASIO_WEBHOOK_SECRET>`. Orders upsert straight into `state/pipeline.db` and update your live `$50` scoreboard!
+"""
+
+
 def build_all_products(
     project_root: Path,
     *,
@@ -390,6 +499,8 @@ def build_all_products(
     mirror_store_url: str = "",
     lemonsqueezy_store_url: str = "",
     gumroad_store_url: str = "",
+    nasio_store_url: str = "",
+    patreon_url: str = "",
 ) -> dict[str, Any]:
     """Validate, unit-test, and deterministically package all digital products."""
     catalog = load_catalog(project_root)
@@ -454,9 +565,19 @@ def build_all_products(
     )
     dual_setup_path.write_text(dual_setup_md, encoding="utf-8")
 
+    nasio_setup_path = project_root / "exports" / "storefront" / "nasio_setup_and_challenge_guide.md"
+    nasio_setup_md = _render_nasio_setup_and_challenge_guide(
+        catalog,
+        built_artifacts,
+        nasio_store_url=nasio_store_url,
+        patreon_url=patreon_url,
+    )
+    nasio_setup_path.write_text(nasio_setup_md, encoding="utf-8")
+
     return {
         "manifest_path": str(manifest_path),
         "storefront_copy_path": str(storefront_copy_path),
         "dual_storefront_setup_path": str(dual_setup_path),
+        "nasio_setup_path": str(nasio_setup_path),
         "products": [asdict(a) for a in built_artifacts],
     }

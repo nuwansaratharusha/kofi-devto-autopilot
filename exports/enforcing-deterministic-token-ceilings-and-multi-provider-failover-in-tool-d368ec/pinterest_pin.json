@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 7/30] Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops",
+  "description": "Day 7/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Preventing runaway overnight API bills and silent Python bool-as-int schema bugs with hard per-run token budgets, repair hints, and instant secondary model failover. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 87.89 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #ai #security #programming",
+  "alt_text": "1000x1500 technical infographic for Day 7 of 30 (Fault-Tolerant AI & API Guardrails): Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops \u2014 verified in Python 3.11+ stdlib sandbox (831 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec.png",
+  "png_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/site/pins/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec.png",
+  "svg_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/pinterest_pin.svg",
+  "png_size_bytes": 10557,
+  "png_sha256": "9638e6002386543a06c8e2ec25577020f99121b3e9d4edd0f1a52fc4e65d9d46",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14076
+  }
+}

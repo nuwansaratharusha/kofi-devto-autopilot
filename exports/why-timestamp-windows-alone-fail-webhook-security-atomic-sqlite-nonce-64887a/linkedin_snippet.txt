@@ -1,0 +1,14 @@
+Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)
+
+Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (159.42 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Friday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

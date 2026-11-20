@@ -32,7 +32,7 @@ PILLAR_META: dict[str, dict[str, str]] = {
 }
 
 SERIES_30D_NAME = "30 Days of Zero-Cost Production Python & AI Reliability"
-VALID_CHANNELS = ("blogger", "patreon", "devto", "canonical_site", "pinterest")
+VALID_CHANNELS = ("blogger", "patreon", "nasio", "devto", "canonical_site", "pinterest")
 
 
 def compute_topic_fingerprint(pillar: str, normalized_key: str) -> str:

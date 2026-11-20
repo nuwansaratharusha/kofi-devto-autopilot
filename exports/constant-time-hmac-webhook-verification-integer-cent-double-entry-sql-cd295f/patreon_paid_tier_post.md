@@ -3,8 +3,8 @@
 Thank you for backing **30 Days of Zero-Cost Production Python & AI Reliability**! Attached to this post is the latest unit-tested `.zip` release (`production-agent-automation-kit.zip` — MIT Commercial License) covering today's **Idempotent Webhooks & Double-Entry Ledger Teardowns** teardown.
 
 **Attachment Checklist Before Clicking Publish in Patreon:**
-- Access Setting: **Paid members only** (or sell as a **$14 one-time Patreon Shop post**)
-- File Attachment: `/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip`
+- Access Setting: **Paid members only** (or sell as a **$14–$15 one-time Patreon Shop post**)
+- File Attachment: `products/dist/production-agent-automation-kit.zip` (or `products/dist/nasio-7day-ai-automation-challenge-pack.zip`)
 
 ---
 

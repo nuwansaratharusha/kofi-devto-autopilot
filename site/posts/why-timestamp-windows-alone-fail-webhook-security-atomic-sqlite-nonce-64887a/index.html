@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load) — Tharusha Nuwansara</title>
+  <meta name="description" content="Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables." />
+  <meta name="author" content="Tharusha Nuwansara" />
+  <link rel="canonical" href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/" />
+  <link rel="alternate" type="application/rss+xml" title="Tharusha Nuwansara — Verified Reliability RSS" href="../../feed.xml" />
+  <meta property="og:title" content="Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load) — Tharusha Nuwansara" />
+  <meta property="og:description" content="Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables." />
+  <meta property="og:url" content="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/" />
+  <meta property="og:type" content="article" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-link" href="../../index.html">Tharusha Nuwansara · Reliability Lab</a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
+          <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
+          <li><a class="nav-link btn-primary" href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Starter Kits &amp; Storefronts</a></li>
+          <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <div class="container article-shell">
+      <article class="h-entry">
+        <header class="article-header">
+          <div class="meta-row">
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (159.42 ms)</span>
+            <span class="badge">Friday Pillar</span>
+            <time class="dt-published tabular" datetime="2026-11-20T00:26:48Z">2026-11-20</time>
+            <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
+          </div>
+          <h1 class="p-name">Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)</h1>
+          <p class="p-summary article-subtitle">Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables.</p>
+          <div class="meta-row"><span class="badge">#security</span><span class="badge">#python</span><span class="badge">#api</span><span class="badge">#database</span></div>
+        </header>
+        <div class="e-content">
+<h2>Why Valid HMAC Signatures + 300-Second Timestamp Checks Still Allow Double-Fulfillment</h2>
+<p>Many webhook tutorials stop right after verifying <code>hmac.compare_digest(expected, v1)</code> and checking <code>abs(now - timestamp) &lt;= 300</code>. While those two checks block forged payloads and stale recordings from yesterday, they leave a glaring 5-minute replay window wide open against two very real scenarios:</p>
+<ol><li><strong>Aggressive Gateway &amp; Proxy Retries:</strong> If your HTTP ingress times out at the load balancer just as your app finishes processing a webhook—or if an upstream webhook sender retries on transient TCP resets—two identical, cryptographically valid signed requests hit your worker pool seconds (or microseconds) apart.</li><li><strong>Parallel Race Conditions on <code>SELECT</code> Before <code>INSERT</code>:</strong> Checking <code>if nonce not in db</code> in application memory or inside a deferred SQLite transaction allows 8 Gunicorn/Uvicorn threads receiving the same captured <code>curl</code> replay simultaneously to <em>all</em> read <code>None</code> before the first <code>INSERT</code> commits—granting 8 license keys or 8 account credits for a single payment.</li><li><strong>Unbounded Nonce Table Growth:</strong> Teams that do add a <code>seen_nonces</code> table often forget TTL pruning, letting millions of historical nonces bloat indexes even though any request older than <code>300s</code> is already rejected at the timestamp gate before touching disk.</li></ol>
+<p>In this Friday security teardown—<em>Blocking captured-payload replay attacks inside the 300-second tolerance window using atomic WAL nonce tables.</em> (stdlib reference: <a href="https://docs.python.org/3/library/sqlite3.html" rel="noopener">Python 3 Standard Library Docs</a>)—we fire 16 concurrent threads carrying the exact same valid signed webhook against an atomic SQLite WAL <code>INSERT OR IGNORE</code> nonce guard and verify bounded TTL pruning.</p>
+<h2>Replay Defense Layering</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Defense Layer</th><th scope="col">Attack / Bug Mitigated</th><th scope="col">What Still Slips Through Without Next Layer</th></tr></thead><tbody><tr><td><strong>1. Raw-Byte <code>hmac.compare_digest</code></strong></td><td>Payload tampering &amp; timing side-channel leaks</td><td>Any unmodified captured request replayed indefinitely</td></tr><tr><td><strong>2. Timestamp Window (<code>abs(now - ts) &lt;= 300</code>)</strong></td><td>Replays of old captured logs (<code>&gt; 5 min</code> old)</td><td>Intra-window replays and parallel retry storms inside the 300s window</td></tr><tr><td><strong>3. Atomic <code>BEGIN IMMEDIATE</code> Nonce <code>PRIMARY KEY</code></strong></td><td>Concurrent thread races &amp; intra-window replays</td><td>Table growth over months unless paired with TTL pruning</td></tr><tr><td><strong>4. Opportunistic <code>expires_at &lt;= now</code> Prune</strong></td><td>Unbounded index growth on disk</td><td>Bounded to <code>2 * window_sec</code> (10 minutes of active rows)</td></tr></tbody></table></div>
+<p>Need an idempotent scheduled runner and HTTP circuit breaker alongside your webhook handlers? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<h2>Runnable 16-Thread Parallel Webhook Replay Race Benchmark</h2>
+<p>The pure Python 3.11+ benchmark below launches 16 concurrent threads via <code>ThreadPoolExecutor</code> racing the exact same valid HMAC-signed payment webhook against a SQLite WAL database, then advances the clock past <code>2 * window_sec</code> (<code>702s</code>) to confirm expired nonces prune automatically:</p>
+<div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
+
+import concurrent.futures
+import hashlib
+import hmac
+import json
+import sqlite3
+import time
+from pathlib import Path
+
+
+def make_sig(secret: bytes, ts: int, nonce: str, body: bytes) -&gt; str:
+    mac = hmac.new(secret, f&quot;{ts}.{nonce}.&quot;.encode(&quot;utf-8&quot;) + body, hashlib.sha256).hexdigest()
+    return f&quot;t={ts},id={nonce},v1={mac}&quot;
+
+
+def init_nonce_store(db_path: Path) -&gt; None:
+    conn = sqlite3.connect(str(db_path), timeout=5.0, isolation_level=None)
+    conn.execute(&quot;PRAGMA journal_mode=WAL;&quot;)
+    conn.execute(&quot;PRAGMA synchronous=NORMAL;&quot;)
+    conn.execute(
+        &quot;&quot;&quot;
+        CREATE TABLE IF NOT EXISTS seen_nonces (
+            nonce TEXT PRIMARY KEY,
+            expires_at INTEGER NOT NULL
+        );
+        &quot;&quot;&quot;
+    )
+    conn.execute(&quot;CREATE INDEX IF NOT EXISTS idx_nonce_exp ON seen_nonces(expires_at);&quot;)
+    conn.close()
+
+
+def verify_atomic_nonce(db_path: Path, secret: bytes, header: str, body: bytes, now_ts: int, window_sec: int = 300) -&gt; str:
+    parts = dict(item.split(&quot;=&quot;, 1) for item in header.split(&quot;,&quot;) if &quot;=&quot; in item)
+    ts = int(parts[&quot;t&quot;])
+    nonce = parts[&quot;id&quot;]
+    sig = parts[&quot;v1&quot;]
+    if abs(now_ts - ts) &gt; window_sec:
+        return &quot;stale&quot;
+    expected = hmac.new(secret, f&quot;{ts}.{nonce}.&quot;.encode(&quot;utf-8&quot;) + body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        return &quot;bad_sig&quot;
+
+    conn = sqlite3.connect(str(db_path), timeout=10.0, isolation_level=None)
+    conn.execute(&quot;PRAGMA busy_timeout=10000;&quot;)
+    try:
+        conn.execute(&quot;BEGIN IMMEDIATE;&quot;)
+        conn.execute(&quot;DELETE FROM seen_nonces WHERE expires_at &lt;= ?&quot;, (now_ts,))
+        cur = conn.execute(
+            &quot;INSERT OR IGNORE INTO seen_nonces (nonce, expires_at) VALUES (?, ?)&quot;,
+            (nonce, now_ts + window_sec * 2),
+        )
+        conn.execute(&quot;COMMIT;&quot;)
+        return &quot;accepted&quot; if cur.rowcount == 1 else &quot;replay_blocked&quot;
+    except Exception:
+        conn.execute(&quot;ROLLBACK;&quot;)
+        raise
+    finally:
+        conn.close()
+
+
+def run_concurrent_replay_benchmark() -&gt; None:
+    t0 = time.perf_counter()
+    db_path = Path(&quot;nonce_race.db&quot;)
+    init_nonce_store(db_path)
+    secret = b&quot;whsec_concurrency_key_42&quot;
+    now_ts = 1_760_600_000
+    body = b&#x27;{&quot;sku&quot;:&quot;production-agent-automation-kit&quot;,&quot;amount_cents&quot;:1400}&#x27;
+    signed_hdr = make_sig(secret, now_ts - 3, &quot;evt_parallel_001&quot;, body)
+
+    # Fire 16 parallel threads racing the exact same valid signed webhook at once
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [
+            pool.submit(verify_atomic_nonce, db_path, secret, signed_hdr, body, now_ts)
+            for _ in range(16)
+        ]
+        results = [f.result() for f in futures]
+
+    # Advance clock past 2*window_sec and insert 1 fresh event to trigger bounded TTL pruning
+    fresh_hdr = make_sig(secret, now_ts + 700, &quot;evt_fresh_002&quot;, body)
+    post_prune = verify_atomic_nonce(db_path, secret, fresh_hdr, body, now_ts + 702)
+    conn = sqlite3.connect(str(db_path))
+    active_rows = int(conn.execute(&quot;SELECT COUNT(*) FROM seen_nonces&quot;).fetchone()[0])
+    conn.close()
+
+    report = {
+        &quot;parallel_attempts&quot;: len(results),
+        &quot;accepted_exactly_once&quot;: results.count(&quot;accepted&quot;),
+        &quot;replays_blocked&quot;: results.count(&quot;replay_blocked&quot;),
+        &quot;post_ttl_fresh_status&quot;: post_prune,
+        &quot;retained_nonce_rows_after_ttl&quot;: active_rows,
+        &quot;elapsed_ms&quot;: round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+    Path(&quot;nonce_race_report.json&quot;).write_text(json.dumps(report, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    run_concurrent_replay_benchmark()</code></pre></div>
+<p>Next, we assert that exactly <code>1</code> of the <code>16</code> parallel threads was accepted while all <code>15</code> concurrent replays were blocked and expired rows were pruned cleanly:</p>
+<div class="code-frame"><div class="code-toolbar"><span>BASH</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy BASH code snippet">Copy code</button></div><pre><code>python3 -I -c &#x27;
+import json
+n = json.load(open(&quot;nonce_race_report.json&quot;))
+assert n[&quot;accepted_exactly_once&quot;] == 1 and n[&quot;replays_blocked&quot;] == 15
+assert n[&quot;retained_nonce_rows_after_ttl&quot;] == 1
+print(f&quot;Verified parallel replay race: {n[&quot;accepted_exactly_once&quot;]}/16 accepted, {n[&quot;replays_blocked&quot;]} concurrent replays blocked, TTL table pruned to {n[&quot;retained_nonce_rows_after_ttl&quot;]} row.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both blocks above ran inside a clean isolated sandbox prior to staging. Here is the exact stdout captured from the run:</p>
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 117.8 ms)
+{
+  &quot;parallel_attempts&quot;: 16,
+  &quot;accepted_exactly_once&quot;: 1,
+  &quot;replays_blocked&quot;: 15,
+  &quot;post_ttl_fresh_status&quot;: &quot;accepted&quot;,
+  &quot;retained_nonce_rows_after_ttl&quot;: 1,
+  &quot;elapsed_ms&quot;: 35.75
+}
+
+# Block 2 (bash, exit=0, 41.6 ms)
+Verified parallel replay race: 1/16 accepted, 15 concurrent replays blocked, TTL table pruned to 1 row.</code></pre></div>
+<h2>Why <code>BEGIN IMMEDIATE</code> + <code>INSERT OR IGNORE</code> Wins Under Contention</h2>
+<p>Look at what happened across those 16 simultaneous threads in <code>nonce_race_report.json</code>:</p>
+<ul><li><strong>Zero Race Window (<code>1/16</code> Accepted, <code>15/16</code> Blocked):</strong> Because <code>BEGIN IMMEDIATE</code> acquires SQLite&#x27;s write lock before executing <code>INSERT OR IGNORE INTO seen_nonces</code>, SQLite serializes all 16 threads cleanly via <code>busy_timeout=10000</code>. Exactly one thread sees <code>cur.rowcount == 1</code>; the other 15 observe <code>cur.rowcount == 0</code> and return <code>replay_blocked</code> in milliseconds without raising unhandled <code>IntegrityError</code> tracebacks.</li><li><strong>Self-Pruning Storage Footprint:</strong> Rejecting <code>abs(now - ts) &gt; 300</code> <em>before</em> opening a write transaction means expired nonces can never pass the timestamp gate anyway. Pruning <code>WHERE expires_at &lt;= now</code> (<code>now + 600s</code> TTL) inside legitimate writes keeps <code>seen_nonces</code> tiny (<code>retained_nonce_rows_after_ttl == 1</code>) without needing a separate cleanup daemon.</li><li><strong>Strict Hex Validation Note:</strong> If you also verify HMAC headers in Node.js (<code>Buffer.from(sigHex, &quot;hex&quot;)</code>), always validate <code>/^[0-9a-f]64$/i.test(sigHex)</code> before decoding—Node&#x27;s hex decoder silently ignores trailing non-hex characters!</li></ul>
+<h3>Secret Rotation Without Dropping In-Flight Webhooks</h3>
+<p>During live webhook secret rotation, gateways such as Stripe and Polar temporarily sign outgoing deliveries with both the retiring key and the newly rolled key (<code>v1=&lt;sig_old&gt;,v1=&lt;sig_new&gt;</code>). Support zero-downtime key rotation by accepting an ordered tuple of active secrets <code>(current_secret, previous_secret)</code> during the 24-hour rotation window, computing <code>hmac.compare_digest</code> against each candidate before entering the <code>BEGIN IMMEDIATE</code> nonce transaction, and retiring <code>previous_secret</code> as soon as all upstream endpoints confirm cutover.</p>
+<h2>Get Both Python &amp; Node.js Hardened HMAC Guards ($14 Kit)</h2>
+<p>Skip subtle crypto and concurrency pitfalls: the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> includes hardened Python (<code>webhook_hmac.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code>) HMAC replay guards, portable SQLite/PostgreSQL double-entry ledgers, a transactional SQLite WAL job queue + CLI, and 4 GitHub Actions blueprints.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>Curated by <a href="https://www.patreon.com/NuwansaraT" rel="noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a> (Asia/Colombo). Every published Python &amp; shell snippet is verified inside an isolated <code>python3 -I</code> sandbox before release.</p>
+    </div>
+  </footer>
+  <script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('autopilot_theme'); } catch (e) {}
+  if (saved === 'dark' || saved === 'light') {
+    root.setAttribute('data-theme', saved);
+  }
+  var toggle = document.getElementById('theme-toggle');
+  function syncPressed() {
+    if (!toggle) return;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+  }
+  syncPressed();
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = current ? (current === 'dark' ? 'light' : 'dark') : (prefersDark ? 'light' : 'dark');
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('autopilot_theme', next); } catch (e) {}
+      syncPressed();
+    });
+  }
+  var announcer = document.getElementById('live-announcer');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy-code-btn');
+    if (!btn) return;
+    var frame = btn.closest('.code-frame');
+    var codeEl = frame ? frame.querySelector('pre code') : null;
+    if (!codeEl) return;
+    var text = codeEl.textContent || '';
+    function markCopied() {
+      var orig = btn.getAttribute('data-label') || 'Copy code';
+      btn.textContent = 'Copied!';
+      if (announcer) announcer.textContent = 'Code snippet copied to clipboard.';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(markCopied);
+    } else {
+      markCopied();
+    }
+  });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

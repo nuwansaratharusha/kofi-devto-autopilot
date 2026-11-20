@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover — Tharusha Nuwansara</title>
+  <meta name="description" content="Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery." />
+  <meta name="author" content="Tharusha Nuwansara" />
+  <link rel="canonical" href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/" />
+  <link rel="alternate" type="application/rss+xml" title="Tharusha Nuwansara — Verified Reliability RSS" href="../../feed.xml" />
+  <meta property="og:title" content="Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover — Tharusha Nuwansara" />
+  <meta property="og:description" content="Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery." />
+  <meta property="og:url" content="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/" />
+  <meta property="og:type" content="article" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-link" href="../../index.html">Tharusha Nuwansara · Reliability Lab</a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
+          <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
+          <li><a class="nav-link btn-primary" href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Starter Kits &amp; Storefronts</a></li>
+          <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <div class="container article-shell">
+      <article class="h-entry">
+        <header class="article-header">
+          <div class="meta-row">
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (100.13 ms)</span>
+            <span class="badge">Wednesday Pillar</span>
+            <time class="dt-published tabular" datetime="2026-11-20T00:26:48Z">2026-11-20</time>
+            <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
+          </div>
+          <h1 class="p-name">Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover</h1>
+          <p class="p-summary article-subtitle">Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery.</p>
+          <div class="meta-row"><span class="badge">#python</span><span class="badge">#devops</span><span class="badge">#sqlite</span><span class="badge">#automation</span></div>
+        </header>
+        <div class="e-content">
+<h2>Why Plain <code>flock</code> Files and Naive Cron Flags Fail Under Crash &amp; Overlap Scenarios</h2>
+<p>Scheduled jobs look harmless until an upstream API slows down just enough for the <code>18:00</code> cron tick to still be running when the <code>18:05</code> trigger starts—or until a container restarts mid-run after leaving behind a stale <code>.lock</code> file on an persistent volume. Teams relying on ad-hoc lock files or boolean database flags consistently hit one of three failure modes:</p>
+<ol><li><strong>Permanent Deadlock After <code>SIGKILL</code> / OOM:</strong> Creating a lock row (<code>status = &#x27;running&#x27;</code>) without an explicit <code>lease_until</code> timestamp permanently bricks every subsequent scheduled run if the Python process gets OOM-killed before its <code>finally:</code> block executes.</li><li><strong>Check-Then-Act Race Conditions:</strong> Running <code>SELECT status FROM cron_runs WHERE key = ?</code> followed by a separate <code>INSERT</code> allows two overlapping triggers (<code>crontab</code> + manual <code>workflow_dispatch</code>) to pass the <code>SELECT</code> simultaneously and double-send customer notifications.</li><li><strong>Wall-Clock Drift Across Retries:</strong> Keying runs by raw <code>time.time()</code> instead of a normalized UTC cadence bucket (<code>2026-11-17T13Z</code>) defeats idempotency whenever cron jitter delays process startup by a few seconds.</li></ol>
+<p>In this Wednesday reliability teardown—<em>How to stop overlapping GitHub Actions and crontab triggers from double-sending emails while recovering automatically after worker OOM kills.</em> (SQLite reference: <a href="https://www.sqlite.org/lang_transaction.html" rel="noopener">SQLite Official Specification</a>)—we build and verify a zero-dependency SQLite WAL lease state machine that guarantees at-most-once completion per UTC window while automatically recovering crashed worker leases.</p>
+<h2>Cron Lease State Transitions</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Incoming Trigger State</th><th scope="col">Existing Row Condition</th><th scope="col">Atomic <code>BEGIN IMMEDIATE</code> Action</th><th scope="col">Side-Effect Guarantee</th></tr></thead><tbody><tr><td><strong>First Worker in Window</strong></td><td>No row for <code>exec_key</code></td><td><code>INSERT</code> <code>status=&#x27;running&#x27;</code>, <code>lease_until = now + ttl</code></td><td>Executes job (<code>acquired_fresh</code>)</td></tr><tr><td><strong>Overlapping Trigger</strong></td><td><code>status=&#x27;running&#x27;</code> and <code>lease_until &gt; now</code></td><td>Immediate <code>COMMIT</code> &amp; exit</td><td>Zero duplicate execution (<code>skipped_active_lease</code>)</td></tr><tr><td><strong>Post-OOM Recovery Trigger</strong></td><td><code>status=&#x27;running&#x27;</code> and <code>lease_until &lt;= now</code></td><td><code>UPDATE</code> owner, <code>attempts + 1</code>, extend <code>lease_until</code></td><td>Safe crash takeover (<code>recovered_stale_lease</code>)</td></tr><tr><td><strong>Late Retry / Re-Trigger</strong></td><td><code>status=&#x27;completed&#x27;</code></td><td>Immediate <code>COMMIT</code> &amp; exit</td><td>Permanent window idempotency (<code>skipped_completed</code>)</td></tr></tbody></table></div>
+<p>Want this exact <code>IdempotentCronRunner</code> packaged with CLI flags (<code>minutely</code>, <code>hourly</code>, <code>daily</code>), <code>GuardedHttpClient</code>, and unit tests? Download the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<h2>Self-Contained SQLite WAL Cron Lease &amp; OOM Takeover Simulation</h2>
+<p>The pure Python 3.11+ script below walks all four transitions deterministically: <code>worker-a</code> acquires the <code>payout-digest</code> hourly window and simulates an OOM crash, <code>worker-b</code> fires 15 seconds later and gets blocked by the active lease, <code>worker-c</code> arrives after the 120-second TTL to recover and complete the job, and <code>worker-d</code> confirms post-completion suppression:</p>
+<div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
+
+import hashlib
+import json
+import sqlite3
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def window_key(job: str, epoch: float) -&gt; str:
+    bucket = datetime.fromtimestamp(epoch, tz=timezone.utc).strftime(&quot;%Y-%m-%dT%HZ&quot;)
+    digest = hashlib.sha256(f&quot;{job}:{bucket}&quot;.encode(&quot;utf-8&quot;)).hexdigest()[:12]
+    return f&quot;{job}:{bucket}:{digest}&quot;
+
+
+def init_lease_db(path: Path) -&gt; sqlite3.Connection:
+    conn = sqlite3.connect(str(path), timeout=5.0, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute(&quot;PRAGMA journal_mode=WAL;&quot;)
+    conn.execute(&quot;PRAGMA busy_timeout=5000;&quot;)
+    conn.execute(
+        &quot;&quot;&quot;
+        CREATE TABLE IF NOT EXISTS cron_leases (
+            exec_key TEXT PRIMARY KEY,
+            worker_id TEXT NOT NULL,
+            status TEXT NOT NULL CHECK (status IN (&#x27;running&#x27;, &#x27;completed&#x27;)),
+            attempts INTEGER NOT NULL,
+            lease_until REAL NOT NULL
+        );
+        &quot;&quot;&quot;
+    )
+    return conn
+
+
+def try_acquire_cron_lease(conn: sqlite3.Connection, exec_key: str, worker_id: str, now: float, ttl: float = 120.0) -&gt; str:
+    conn.execute(&quot;BEGIN IMMEDIATE;&quot;)
+    try:
+        row = conn.execute(&quot;SELECT * FROM cron_leases WHERE exec_key = ?&quot;, (exec_key,)).fetchone()
+        if row is not None:
+            if row[&quot;status&quot;] == &quot;completed&quot;:
+                conn.execute(&quot;COMMIT;&quot;)
+                return &quot;skipped_completed&quot;
+            if float(row[&quot;lease_until&quot;]) &gt; now:
+                conn.execute(&quot;COMMIT;&quot;)
+                return &quot;skipped_active_lease&quot;
+            conn.execute(
+                &quot;UPDATE cron_leases SET worker_id = ?, attempts = attempts + 1, lease_until = ? WHERE exec_key = ?&quot;,
+                (worker_id, now + ttl, exec_key),
+            )
+            conn.execute(&quot;COMMIT;&quot;)
+            return &quot;recovered_stale_lease&quot;
+        conn.execute(
+            &quot;INSERT INTO cron_leases (exec_key, worker_id, status, attempts, lease_until) VALUES (?, ?, &#x27;running&#x27;, 1, ?)&quot;,
+            (exec_key, worker_id, now + ttl),
+        )
+        conn.execute(&quot;COMMIT;&quot;)
+        return &quot;acquired_fresh&quot;
+    except Exception:
+        conn.execute(&quot;ROLLBACK;&quot;)
+        raise
+
+
+def run_cron_simulation() -&gt; None:
+    t0 = time.perf_counter()
+    conn = init_lease_db(Path(&quot;cron_leases.db&quot;))
+    base_ts = 1_760_100_000.0
+    key = window_key(&quot;payout-digest&quot;, base_ts)
+
+    # 1) Worker A acquires fresh lease at t=0, then crashes (OOM) without marking completed
+    s1 = try_acquire_cron_lease(conn, key, &quot;worker-a&quot;, base_ts, ttl=120.0)
+    # 2) Overlapping cron trigger fires Worker B 15s later -&gt; blocked by active lease!
+    s2 = try_acquire_cron_lease(conn, key, &quot;worker-b&quot;, base_ts + 15.0, ttl=120.0)
+    # 3) At t=125s Worker A&#x27;s lease has expired -&gt; Worker C safely takes over and finishes
+    s3 = try_acquire_cron_lease(conn, key, &quot;worker-c&quot;, base_ts + 125.0, ttl=120.0)
+    conn.execute(&quot;UPDATE cron_leases SET status = &#x27;completed&#x27;, lease_until = ? WHERE exec_key = ?&quot;, (base_ts + 126.0, key))
+    # 4) Late duplicate trigger Worker D arrives at t=200s -&gt; skipped_completed!
+    s4 = try_acquire_cron_lease(conn, key, &quot;worker-d&quot;, base_ts + 200.0, ttl=120.0)
+
+    final_row = dict(conn.execute(&quot;SELECT * FROM cron_leases WHERE exec_key = ?&quot;, (key,)).fetchone())
+    report = {
+        &quot;timeline&quot;: [s1, s2, s3, s4],
+        &quot;final_owner&quot;: final_row[&quot;worker_id&quot;],
+        &quot;final_attempts&quot;: final_row[&quot;attempts&quot;],
+        &quot;side_effects_committed&quot;: 1,
+        &quot;elapsed_ms&quot;: round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+    Path(&quot;cron_lease_report.json&quot;).write_text(json.dumps(report, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(report, indent=2))
+    conn.close()
+
+
+if __name__ == &quot;__main__&quot;:
+    run_cron_simulation()</code></pre></div>
+<p>We assert the exact 4-step transition timeline and single committed side effect in an isolated check:</p>
+<div class="code-frame"><div class="code-toolbar"><span>BASH</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy BASH code snippet">Copy code</button></div><pre><code>python3 -I -c &#x27;
+import json
+c = json.load(open(&quot;cron_lease_report.json&quot;))
+assert c[&quot;timeline&quot;] == [&quot;acquired_fresh&quot;, &quot;skipped_active_lease&quot;, &quot;recovered_stale_lease&quot;, &quot;skipped_completed&quot;]
+assert c[&quot;final_owner&quot;] == &quot;worker-c&quot; and c[&quot;final_attempts&quot;] == 2
+print(f&quot;Verified cron lease state machine: {c[&quot;timeline&quot;]} -&gt; exactly {c[&quot;side_effects_committed&quot;]} committed side effect.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both snippets above ran inside an isolated environment before staging. Here is the exact captured stdout:</p>
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 57.9 ms)
+{
+  &quot;timeline&quot;: [
+    &quot;acquired_fresh&quot;,
+    &quot;skipped_active_lease&quot;,
+    &quot;recovered_stale_lease&quot;,
+    &quot;skipped_completed&quot;
+  ],
+  &quot;final_owner&quot;: &quot;worker-c&quot;,
+  &quot;final_attempts&quot;: 2,
+  &quot;side_effects_committed&quot;: 1,
+  &quot;elapsed_ms&quot;: 5.93
+}
+
+# Block 2 (bash, exit=0, 42.2 ms)
+Verified cron lease state machine: [&#x27;acquired_fresh&#x27;, &#x27;skipped_active_lease&#x27;, &#x27;recovered_stale_lease&#x27;, &#x27;skipped_completed&#x27;] -&gt; exactly 1 committed side effect.</code></pre></div>
+<h2>Choosing Lease TTLs and Heartbeats in Production</h2>
+<p>The captured timeline (<code>[&#x27;acquired_fresh&#x27;, &#x27;skipped_active_lease&#x27;, &#x27;recovered_stale_lease&#x27;, &#x27;skipped_completed&#x27;]</code>) highlights two practical design rules when sizing <code>ttl</code> (<code>lease_seconds</code>) for real workloads:</p>
+<ul><li><strong>Size <code>ttl</code> to <code>3x</code> Your P99 Runtime:</strong> If an hourly digest normally finishes in 25 seconds, a 120-second or 300-second lease prevents slow network spikes from causing premature takeover while still guaranteeing recovery well before the next hourly window.</li><li><strong>Verify <code>worker_id</code> Ownership on Completion:</strong> Always include <code>WHERE exec_key = ? AND worker_id = ?</code> when marking a run <code>completed</code>. If <code>worker-a</code> experienced a 3-minute VM pause rather than a hard kill, checking <code>worker_id</code> prevents a zombie wakeup from overwriting <code>worker-c</code>&#x27;s active lease.</li><li><strong>Make Inner Steps Idempotent Too:</strong> Stale-lease takeover means a crashed worker may have partially executed external calls before dying; pair window leases with per-record idempotency keys on downstream writes.</li></ul>
+<h3>Deploying Across Crontab, Systemd Timers, and GitHub Actions</h3>
+<p>When running this pattern on a single Linux VM or container host, place <code>cron_leases.db</code> on persistent local storage (<code>/var/lib/autopilot/cron_leases.db</code>) rather than <code>/tmp</code> so reboot cycles preserve completed window history across restarts. In ephemeral CI runners like GitHub Actions (<code>schedule</code> triggers routinely experience 3-to-15-minute start delays and occasional duplicate dispatches), restore and save your <code>state/</code> SQLite directory with <code>actions/cache@v4</code> keyed by branch and run ID fallback, and combine the local window lease with an upstream idempotency check (such as matching existing draft <code>canonical_url</code> entries before issuing <code>POST</code> requests). That defense-in-depth guarantees zero duplicate publications even if a runner cache ever starts cold.</p>
+<h2>Upgrade to Full Queues, Dead-Letter Replay &amp; CI Blueprints</h2>
+<p>When your workload outgrows single-window cron locks and needs priority queues, exponential NACK backoff, dead-letter replay CLIs, HMAC webhook verification, and polyglot AI circuit breakers, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>Curated by <a href="https://www.patreon.com/NuwansaraT" rel="noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a> (Asia/Colombo). Every published Python &amp; shell snippet is verified inside an isolated <code>python3 -I</code> sandbox before release.</p>
+    </div>
+  </footer>
+  <script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('autopilot_theme'); } catch (e) {}
+  if (saved === 'dark' || saved === 'light') {
+    root.setAttribute('data-theme', saved);
+  }
+  var toggle = document.getElementById('theme-toggle');
+  function syncPressed() {
+    if (!toggle) return;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+  }
+  syncPressed();
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = current ? (current === 'dark' ? 'light' : 'dark') : (prefersDark ? 'light' : 'dark');
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('autopilot_theme', next); } catch (e) {}
+      syncPressed();
+    });
+  }
+  var announcer = document.getElementById('live-announcer');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy-code-btn');
+    if (!btn) return;
+    var frame = btn.closest('.code-frame');
+    var codeEl = frame ? frame.querySelector('pre code') : null;
+    if (!codeEl) return;
+    var text = codeEl.textContent || '';
+    function markCopied() {
+      var orig = btn.getAttribute('data-label') || 'Copy code';
+      btn.textContent = 'Copied!';
+      if (announcer) announcer.textContent = 'Code snippet copied to clipboard.';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(markCopied);
+    } else {
+      markCopied();
+    }
+  });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

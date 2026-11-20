@@ -61,13 +61,19 @@ class AppConfig:
     patreon_url: str = ""
     patreon_creator_access_token: str = ""
     patreon_campaign_id: str = ""
+    patreon_client_id: str = ""
+    patreon_client_secret: str = ""
+    patreon_creator_refresh_token: str = ""
+    nasio_store_url: str = ""
+    nasio_webhook_secret: str = ""
     experiment_start_date: str = "2026-11-18"
     experiment_end_date: str = "2026-12-18"
 
     @property
     def free_checkout_url(self) -> str:
         return (
-            self.gumroad_store_url
+            self.nasio_store_url
+            or self.gumroad_store_url
             or self.patreon_url
             or self.lemonsqueezy_store_url
             or self.primary_store_url
@@ -78,8 +84,9 @@ class AppConfig:
     @property
     def paid_checkout_url(self) -> str:
         return (
-            self.lemonsqueezy_store_url
+            self.nasio_store_url
             or self.patreon_url
+            or self.lemonsqueezy_store_url
             or self.gumroad_store_url
             or self.mirror_store_url
             or self.primary_store_url
@@ -117,15 +124,19 @@ class AppConfig:
             .rstrip("/")
             or "https://nuwansaratharusha.github.io/kofi-devto-autopilot"
         )
+        nasio_store = env_map.get("NASIO_STORE_URL", "").strip().rstrip("/")
+        patreon_store = env_map.get("PATREON_URL", "").strip().rstrip("/")
         kofi_profile = (
             env_map.get("KOFI_PROFILE_URL", "").strip().rstrip("/")
-            or env_map.get("PATREON_URL", "").strip().rstrip("/")
+            or patreon_store
+            or nasio_store
             or canonical_base
         )
         primary_store = (
             env_map.get("PRIMARY_STORE_URL", "").strip().rstrip("/")
+            or nasio_store
             or env_map.get("LEMONSQUEEZY_STORE_URL", "").strip().rstrip("/")
-            or env_map.get("PATREON_URL", "").strip().rstrip("/")
+            or patreon_store
             or env_map.get("GUMROAD_STORE_URL", "").strip().rstrip("/")
             or canonical_base
         )
@@ -159,9 +170,14 @@ class AppConfig:
             blogger_publish_mode=blogger_publish_mode,
             pinterest_access_token=env_map.get("PINTEREST_ACCESS_TOKEN", "").strip(),
             pinterest_board_id=env_map.get("PINTEREST_BOARD_ID", "").strip(),
-            patreon_url=env_map.get("PATREON_URL", "").strip().rstrip("/"),
+            patreon_url=patreon_store,
             patreon_creator_access_token=env_map.get("PATREON_CREATOR_ACCESS_TOKEN", "").strip(),
             patreon_campaign_id=env_map.get("PATREON_CAMPAIGN_ID", "").strip(),
+            patreon_client_id=env_map.get("PATREON_CLIENT_ID", "").strip(),
+            patreon_client_secret=env_map.get("PATREON_CLIENT_SECRET", "").strip(),
+            patreon_creator_refresh_token=env_map.get("PATREON_CREATOR_REFRESH_TOKEN", "").strip(),
+            nasio_store_url=nasio_store,
+            nasio_webhook_secret=env_map.get("NASIO_WEBHOOK_SECRET", "").strip(),
             experiment_start_date=env_map.get("EXPERIMENT_START_DATE", "2026-11-18").strip() or "2026-11-18",
             experiment_end_date=env_map.get("EXPERIMENT_END_DATE", "2026-12-18").strip() or "2026-12-18",
         )

@@ -29,6 +29,20 @@
       "file_count": 15,
       "python_tests_passed": true,
       "node_tests_passed": true
+    },
+    {
+      "slug": "nasio-7day-ai-automation-challenge-pack",
+      "title": "7-Day Fault-Tolerant Python & AI Agent Reliability Challenge Pack (7 Daily Labs + Workbook)",
+      "tier": "challenge_paid",
+      "price_usd": 15,
+      "suggested_price_usd": 15,
+      "zip_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/products/dist/nasio-7day-ai-automation-challenge-pack.zip",
+      "zip_filename": "nasio-7day-ai-automation-challenge-pack.zip",
+      "size_bytes": 23678,
+      "sha256": "ec8804dbbbe5e3fb08dc41da9556c57cd9e85ad77a5123e41c5e3724163ace03",
+      "file_count": 11,
+      "python_tests_passed": true,
+      "node_tests_passed": null
     }
   ]
 }

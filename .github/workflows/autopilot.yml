@@ -35,9 +35,14 @@ jobs:
     env:
       DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
       PUBLISH_MODE: ${{ inputs.publish_mode || vars.PUBLISH_MODE || 'draft' }}
-      PATREON_URL: ${{ vars.PATREON_URL || '' }}
+      NASIO_STORE_URL: ${{ vars.NASIO_STORE_URL || secrets.NASIO_STORE_URL || '' }}
+      NASIO_WEBHOOK_SECRET: ${{ secrets.NASIO_WEBHOOK_SECRET || '' }}
+      PATREON_URL: ${{ vars.PATREON_URL || secrets.PATREON_URL || '' }}
       PATREON_CREATOR_ACCESS_TOKEN: ${{ secrets.PATREON_CREATOR_ACCESS_TOKEN }}
       PATREON_CAMPAIGN_ID: ${{ vars.PATREON_CAMPAIGN_ID || secrets.PATREON_CAMPAIGN_ID || '' }}
+      PATREON_CLIENT_ID: ${{ vars.PATREON_CLIENT_ID || secrets.PATREON_CLIENT_ID || '' }}
+      PATREON_CLIENT_SECRET: ${{ secrets.PATREON_CLIENT_SECRET }}
+      PATREON_CREATOR_REFRESH_TOKEN: ${{ secrets.PATREON_CREATOR_REFRESH_TOKEN }}
       LEMONSQUEEZY_API_KEY: ${{ secrets.LEMONSQUEEZY_API_KEY }}
       LEMONSQUEEZY_STORE_ID: ${{ vars.LEMONSQUEEZY_STORE_ID || '' }}
       LEMONSQUEEZY_STORE_URL: ${{ vars.LEMONSQUEEZY_STORE_URL || '' }}

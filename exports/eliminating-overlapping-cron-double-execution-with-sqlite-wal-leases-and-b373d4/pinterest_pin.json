@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 5/30] Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock\u2026",
+  "description": "Day 5/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 100.13 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #devops #sqlite #automation",
+  "alt_text": "1000x1500 technical infographic for Day 5 of 30 (Zero-Cost Backend, SQLite WAL Queues & Cron Automation): Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover \u2014 verified in Python 3.11+ stdlib sandbox (795 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4.png",
+  "png_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/site/pins/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4.png",
+  "svg_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/pinterest_pin.svg",
+  "png_size_bytes": 11319,
+  "png_sha256": "5351a7f1ff3105ccd7a53c067b613d16566f32377b962c2889647c910a086da7",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 15092
+  }
+}

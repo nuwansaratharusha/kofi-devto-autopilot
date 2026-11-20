@@ -1,0 +1,14 @@
+Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter in Pure Python)
+
+Simulating 60 synchronized API workers hitting HTTP 429 at once—and proving why Retry-After-aware full jitter eliminates thundering-herd retry amplification in pure Python.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (102.82 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Monday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

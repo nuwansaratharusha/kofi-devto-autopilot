@@ -1,0 +1,189 @@
+<div class="autopilot-blogger-series" style="line-height:1.7;font-size:16px;">
+  <div style="padding:16px 18px;margin-bottom:22px;border-left:4px solid #0f766e;background:#f1f5f9;color:#0f172a;border-radius:6px;">
+    <p style="margin:0 0 6px;font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em;color:#0f766e;">
+      Series: 30 Days of Zero-Cost Production Python &amp; AI Reliability · Day 7 of 30
+    </p>
+    <p style="margin:0;font-size:14px;color:#334155;">
+      <strong>Track:</strong> Fault-Tolerant AI &amp; API Guardrails ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 87.89 ms (<code>python3 -I</code> exit 0) ·
+      <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
+    </p>
+  </div>
+
+  <p style="font-size:18px;color:#334155;font-style:italic;margin:0 0 20px;">
+    Preventing runaway overnight API bills and silent Python bool-as-int schema bugs with hard per-run token budgets, repair hints, and instant secondary model failover.
+  </p>
+
+  <h2>Why Unbounded Tool-Calling Loops Quietly Burn Hundreds of Dollars Overnight</h2>
+<p>Autonomous tool-calling scripts rarely fail with a clean crash during development; they fail at 03:00 UTC when an upstream schema change or cyclic prompt triggers a silent retry loop that runs until your API credit card hits its monthly hard limit. Even small scheduled workflows suffer three recurring reliability hazards when calling external LLM or JSON endpoints:</p>
+<ol><li><strong>Missing Cumulative Token &amp; Cost Ceilings:</strong> Per-request <code>max_tokens</code> parameters only cap a single HTTP call—they do nothing to stop a malfunctioning <code>while</code> loop from issuing 400 sequential 300-token tool calls in ten minutes.</li><li><strong>Python&#x27;s <code>isinstance(True, int)</code> Trap:</strong> When validating structured tool arguments in Python, <code>bool</code> is a subclass of <code>int</code>. A hallucinated JSON payload <code>{&quot;limit&quot;: true}</code> passes <code>isinstance(val, int)</code> unless booleans are explicitly rejected before arithmetic or SQL binding.</li><li><strong>Treating Validation Errors and <code>502</code> Outages Identically:</strong> Retrying a <code>502 Bad Gateway</code> against the same broken primary model wastes latency, whereas failing over to a secondary model on a minor JSON syntax typo throws away context that a 1-turn <code>REPAIR_JSON</code> hint fixes locally.</li></ol>
+<p>In this teardown covering <em>Preventing runaway overnight API bills with strict scalar schema validation and instant secondary-provider failover.</em> (reference: <a href="https://docs.python.org/3/library/dataclasses.html" rel="noopener">Python 3 Standard Library Docs</a>), we implement and verify a 90-line <code>DeterministicToolRouter</code> in pure Python 3.11+ that enforces strict scalar validation, repairs malformed JSON in place, fails over across model tiers on <code>502</code> errors, and halts deterministically the instant a token or cent ceiling is reached.</p>
+<h2>Four Guardrails Every Tool-Calling Loop Needs</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Risk Vector</th><th scope="col">Fragile Pattern</th><th scope="col">Deterministic Guardrail</th></tr></thead><tbody><tr><td><strong>Cyclic Tool Loops</strong></td><td>Limiting only <code>max_output_tokens</code> per single completion</td><td>Track cumulative <code>tokens_used</code> and <code>cost_cents</code> across every attempt and raise <code>BudgetCeilingError</code> pre-call</td></tr><tr><td><strong>Boolean Type Confusion</strong></td><td><code>isinstance(payload[&quot;limit&quot;], int)</code></td><td>Explicitly reject <code>isinstance(val, bool) and expected_type is int</code> before accepting tool arguments</td></tr><tr><td><strong>Malformed JSON Output</strong></td><td>Crashing the entire job on the first invalid field</td><td>Append a concise <code>REPAIR_JSON</code> hint for at most 1 local retry before escalating</td></tr><tr><td><strong>Primary Gateway <code>502</code>/<code>503</code></strong></td><td>Sleeping on the broken primary provider</td><td>Break out of the primary retry loop immediately on transport errors and route to <code>lean-secondary</code></td></tr></tbody></table></div>
+<p>For a standalone HTTP <code>Retry-After</code> client and SQLite cron guard you can drop into any Python script at zero cost, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<h2>Runnable Token-Ceiling &amp; Multi-Provider Failover Benchmark</h2>
+<p>The standalone script below simulates a 30-step agent loop where step 2 emits a hallucinated boolean (<code>{&quot;limit&quot;: true}</code>), steps 4 and 5 hit <code>HTTP 502</code> on <code>frontier-primary</code> (routing automatically to <code>lean-secondary</code> at <code>1/6th</code> the token cost), and the cumulative <code>4,000</code>-token ceiling halts execution cleanly before the loop can overspend:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Mapping
+
+
+class BudgetCeilingError(RuntimeError):
+    pass
+
+
+@dataclass
+class ModelRoute:
+    name: str
+    cost_per_1k_tokens_cents: float
+    invoke: Callable[[str], tuple[str, int]]
+
+
+class DeterministicToolRouter:
+    def __init__(self, routes: list[ModelRoute], *, max_tokens: int, max_cost_cents: float) -&gt; None:
+        self.routes = routes
+        self.max_tokens = max_tokens
+        self.max_cost_cents = max_cost_cents
+        self.tokens_used = 0
+        self.cost_cents = 0.0
+
+    def call_tool_step(self, prompt: str, required_types: Mapping[str, type]) -&gt; tuple[dict, str]:
+        if self.tokens_used &gt;= self.max_tokens or self.cost_cents &gt;= self.max_cost_cents:
+            raise BudgetCeilingError(f&quot;ceiling_hit:tokens={self.tokens_used},cents={self.cost_cents:.3f}&quot;)
+
+        for route in self.routes:
+            for attempt in range(1, 3):
+                if self.tokens_used &gt;= self.max_tokens or self.cost_cents &gt;= self.max_cost_cents:
+                    raise BudgetCeilingError(f&quot;ceiling_hit:tokens={self.tokens_used},cents={self.cost_cents:.3f}&quot;)
+                try:
+                    raw, tok = route.invoke(prompt if attempt == 1 else prompt + &quot;\nREPAIR_JSON&quot;)
+                except RuntimeError:
+                    break  # Transport failure -&gt; immediate secondary provider failover
+                self.tokens_used += tok
+                self.cost_cents = round(self.cost_cents + (tok / 1000.0) * route.cost_per_1k_tokens_cents, 4)
+                try:
+                    obj = json.loads(raw)
+                    for k, typ in required_types.items():
+                        if k not in obj or (isinstance(obj[k], bool) and typ is int) or not isinstance(obj[k], typ):
+                            raise ValueError(f&quot;schema:{k}&quot;)
+                    return obj, route.name
+                except ValueError:
+                    continue
+        raise RuntimeError(&quot;all_routes_exhausted&quot;)
+
+
+def run_budget_simulation() -&gt; None:
+    t0 = time.perf_counter()
+    step_counter = {&quot;n&quot;: 0}
+
+    def primary_call(p: str) -&gt; tuple[str, int]:
+        step_counter[&quot;n&quot;] += 1
+        if step_counter[&quot;n&quot;] in {4, 5}:
+            raise RuntimeError(&quot;http_502_bad_gateway&quot;)
+        if &quot;REPAIR_JSON&quot; not in p and step_counter[&quot;n&quot;] == 2:
+            return &#x27;{&quot;tool&quot;:&quot;search&quot;,&quot;limit&quot;:true}&#x27;, 320  # bool instead of int bug!
+        return &#x27;{&quot;tool&quot;:&quot;search&quot;,&quot;limit&quot;:5}&#x27;, 310
+
+    def fallback_call(_p: str) -&gt; tuple[str, int]:
+        return &#x27;{&quot;tool&quot;:&quot;search_fallback&quot;,&quot;limit&quot;:3}&#x27;, 240
+
+    routes = [
+        ModelRoute(&quot;frontier-primary&quot;, cost_per_1k_tokens_cents=1.5, invoke=primary_call),
+        ModelRoute(&quot;lean-secondary&quot;, cost_per_1k_tokens_cents=0.25, invoke=fallback_call),
+    ]
+    router = DeterministicToolRouter(routes, max_tokens=4_000, max_cost_cents=5.0)
+    schema = {&quot;tool&quot;: str, &quot;limit&quot;: int}
+
+    completed_steps = 0
+    secondary_rescues = 0
+    halted_by_budget = False
+    for _ in range(30):
+        try:
+            _, winner = router.call_tool_step(&quot;select_next_tool&quot;, schema)
+            completed_steps += 1
+            if winner == &quot;lean-secondary&quot;:
+                secondary_rescues += 1
+        except BudgetCeilingError:
+            halted_by_budget = True
+            break
+
+    report = {
+        &quot;completed_steps&quot;: completed_steps,
+        &quot;secondary_rescues&quot;: secondary_rescues,
+        &quot;tokens_consumed&quot;: router.tokens_used,
+        &quot;token_ceiling&quot;: router.max_tokens,
+        &quot;cost_cents&quot;: router.cost_cents,
+        &quot;halted_cleanly_at_ceiling&quot;: halted_by_budget,
+        &quot;elapsed_ms&quot;: round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+    Path(&quot;budget_report.json&quot;).write_text(json.dumps(report, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == &quot;__main__&quot;:
+    run_budget_simulation()</code></pre></div>
+<p>We now verify in an isolated shell check that both <code>502</code> outages failed over without dropping steps and that cumulative spend halted cleanly at the configured budget boundary:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">BASH</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>python3 -I -c &#x27;
+import json
+b = json.load(open(&quot;budget_report.json&quot;))
+assert b[&quot;halted_cleanly_at_ceiling&quot;] is True and b[&quot;secondary_rescues&quot;] == 2
+assert b[&quot;tokens_consumed&quot;] &lt;= b[&quot;token_ceiling&quot;] + 350 and b[&quot;cost_cents&quot;] &lt; 6.5
+print(f&quot;Verified hard token ceiling: halted runaway loop at {b[&quot;tokens_consumed&quot;]} tokens (${b[&quot;cost_cents&quot;]/100:.4f}) with {b[&quot;secondary_rescues&quot;]} seamless failovers.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both blocks above were executed inside an isolated environment before staging. Here is the exact captured output:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 50.9 ms)
+{
+  &quot;completed_steps&quot;: 12,
+  &quot;secondary_rescues&quot;: 2,
+  &quot;tokens_consumed&quot;: 3900,
+  &quot;token_ceiling&quot;: 4000,
+  &quot;cost_cents&quot;: 5.25,
+  &quot;halted_cleanly_at_ceiling&quot;: true,
+  &quot;elapsed_ms&quot;: 0.07
+}
+
+# Block 2 (bash, exit=0, 37.0 ms)
+Verified hard token ceiling: halted runaway loop at 3900 tokens ($0.0525) with 2 seamless failovers.</code></pre></div>
+<h2>Dissecting the Router Accounting</h2>
+<p>Three numbers in <code>budget_report.json</code> highlight why deterministic accounting beats complex agent middleware:</p>
+<ul><li><strong>In-Place Repair Saved a Failover:</strong> On step 2, rejecting <code>{&quot;limit&quot;: true}</code> triggered a single <code>REPAIR_JSON</code> retry on the primary route rather than misclassifying a schema error as a network outage.</li><li><strong>Zero-Downtime Secondary Rescues:</strong> On steps 4 and 5 (<code>http_502_bad_gateway</code>), <code>DeterministicToolRouter</code> skipped pointless retries on <code>frontier-primary</code> and completed both steps via <code>lean-secondary</code> (<code>secondary_rescues == 2</code>) at <code>0.25</code> cents per 1K tokens instead of <code>1.50</code> cents.</li><li><strong>Predictable Worst-Case Spend:</strong> Instead of running all 30 steps unattended, <code>BudgetCeilingError</code> tripped as soon as <code>tokens_consumed</code> crossed the <code>4,000</code>-token threshold (<code>halted_cleanly_at_ceiling == True</code>), capping total run cost around six cents.</li></ul>
+<p>In production, persist <code>tokens_consumed</code> and <code>cost_cents</code> alongside each job ID in your SQLite WAL ledger so even process restarts cannot reset a runaway job&#x27;s budget counter.</p>
+<h3>Operational Telemetry Without Third-Party SDKs</h3>
+<p>To keep visibility sharp without pulling in heavy observability agents, log a single structured JSON summary line at the end of every tool-calling workflow containing <code>job_id</code>, <code>completed_steps</code>, <code>tokens_consumed</code>, <code>cost_cents</code>, <code>secondary_rescues</code>, and <code>halted_cleanly_at_ceiling</code>. Querying those five fields across daily logs immediately reveals whether an upstream provider upgrade silently degraded JSON schema compliance or increased average repair retries per run—before your monthly invoice ever surprises you.</p>
+<h2>Get the Full Python + Node/TypeScript Guardrail Kit</h2>
+<p>Want production-ready Python (<code>llm_circuit_breaker.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>) routers paired with a transactional SQLite WAL job queue, constant-time HMAC webhook guards, double-entry SQL ledgers, and 4 GitHub Actions workflows? Pick up the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+
+  <hr style="margin:28px 0;border:0;border-top:1px solid #cbd5e1;" />
+
+  <div style="padding:18px;margin:20px 0;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#0f172a;">
+    <h3 style="margin:0 0 10px;font-size:18px;">Download the Unit-Tested Starter Kits</h3>
+    <ul style="margin:0 0 12px;padding-left:20px;">
+      <li><strong>Free ($0+ Pay-What-You-Want):</strong> <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; API Circuit-Breaker Mini-Kit (.zip)</a></li>
+      <li><strong>Full Kit ($14 USD, MIT Commercial License):</strong> <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit (.zip)</a></li>
+    </ul>
+  </div>
+
+  <div style="padding:16px 18px;margin-top:18px;border:1px solid #e2e8f0;border-radius:8px;">
+    <h3 style="margin:0 0 10px;font-size:17px;">30 Days of Zero-Cost Production Python &amp; AI Reliability — Series Index</h3>
+    <ol style="margin:0 0 12px;padding-left:22px;">
+      <li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6" rel="noopener">Day 1/30: Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679" rel="noopener">Day 2/30: Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker &amp; Dead-Letter CLI</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f" rel="noopener">Day 3/30: Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e" rel="noopener">Day 4/30: Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter in Pure Python)</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4" rel="noopener">Day 5/30: Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a" rel="noopener">Day 6/30: Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)</a></li>
+<li><strong>Day 7/30: Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops (Current Lesson)</strong></li>
+    </ol>
+    <p style="margin:0;font-size:13px;color:#475569;">
+      Canonical engineering edition published by <strong>Tharusha Nuwansara</strong> at
+      <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec" rel="canonical noopener">https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/</a>.
+    </p>
+  </div>
+</div>

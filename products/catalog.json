@@ -66,6 +66,38 @@
       ],
       "python_test_module": "test_pro_kit",
       "node_test_file": "test_guardrails.mjs"
+    },
+    {
+      "slug": "nasio-7day-ai-automation-challenge-pack",
+      "title": "7-Day Fault-Tolerant Python & AI Agent Reliability Challenge Pack (7 Daily Labs + Workbook)",
+      "tier": "challenge_paid",
+      "price_usd": 15,
+      "suggested_price_usd": 15,
+      "license": "MIT",
+      "source_dir": "products/toolkits/nasio_7day_challenge_kit",
+      "zip_filename": "nasio-7day-ai-automation-challenge-pack.zip",
+      "tagline": "Master production AI & Python reliability in 7 self-tested daily labs—zero pip packages, zero cloud bills.",
+      "summary": "A structured 7-day hands-on reliability challenge pack featuring 7 runnable, unit-tested Python 3.11+ labs (Retry-After full jitter, strict LLM JSON schema repair, SQLite WAL job queues, time-bucketed cron leases, dual-key HMAC webhook guards, token-budgeted model routers, and an end-to-end capstone pipeline) plus a step-by-step participant workbook.",
+      "highlights": [
+        "7 self-contained daily Python 3.11+ labs (`day01_retry_jitter.py` through `day07_end_to_end_agent_pipeline.py`) with interactive `--demo` telemetry",
+        "Eliminates thundering-herd 429 retries, `isinstance(True, int)` LLM JSON bugs, overlapping cron double-runs, and webhook replay vulnerabilities",
+        "Includes `CHALLENGE_WORKBOOK.md` with daily 45-minute failure-injection drills designed for Nas.io Cohort Challenges & Patreon builders",
+        "100% Python standard library (`0` third-party dependencies), deterministic `unittest` suite (`test_challenge_kit.py`), and MIT Commercial License"
+      ],
+      "required_files": [
+        "day01_retry_jitter.py",
+        "day02_llm_schema_validator.py",
+        "day03_sqlite_wal_queue.py",
+        "day04_idempotent_cron_lease.py",
+        "day05_hmac_webhook_guard.py",
+        "day06_token_budget_router.py",
+        "day07_end_to_end_agent_pipeline.py",
+        "test_challenge_kit.py",
+        "CHALLENGE_WORKBOOK.md",
+        "README.md",
+        "LICENSE"
+      ],
+      "python_test_module": "test_challenge_kit"
     }
   ]
 }

@@ -20,6 +20,9 @@ VERDICT_NOT_WORKING = "NOT WORKING — PAUSE & REALLOCATE"
 LEMONSQUEEZY_MIN_PAYOUT_CENTS = 5_000   # $50.00 USD Sri Lanka bank wire threshold
 GUMROAD_MIN_PAYOUT_CENTS = 10_000       # $100.00 USD Sri Lanka bank deposit threshold
 PATREON_MIN_PAYOUT_CENTS = 2_500        # $25.00 USD Patreon -> Payoneer payout threshold
+NASIO_TARGET_PAYOUT_CENTS = 5_000       # $50.00 USD Month-1 Nas.io Challenge & Store target
+NASIO_PAYONEER_MIN_CENTS = 1_000        # $10.00 USD Nas.io -> Payoneer USD payout unlock
+NASIO_LKR_WIRE_MIN_CENTS = 6_500        # $65.00 USD Nas.io -> Sri Lanka LKR bank wire threshold
 
 
 def colombo_today_iso() -> str:
@@ -44,6 +47,8 @@ def normalize_utm_channel(raw_source: str) -> str:
         return "blogger"
     if low in {"patreon", "patreon_post", "patreon_shop", "patreon_tier"}:
         return "patreon"
+    if low in {"nasio", "nas.io", "nas_io", "nasio_challenge", "nasio_community", "nasio_dm", "magic_reach"}:
+        return "nasio"
     if low in {"pinterest", "pin", "pinterest_rss"}:
         return "pinterest"
     if low in {"devto", "dev.to", "forem"}:
@@ -70,7 +75,7 @@ def evaluate_verdict(
     if views >= 100 or clicks >= 10 or free_downloads >= 1:
         return (
             VERDICT_BOTTLENECK,
-            f"Top-of-funnel reach confirmed ({views} views, {clicks} clicks, {free_downloads} free downloads) with $0 paid checkout — keep publishing and tighten above-the-fold $14 Kit CTA.",
+            f"Top-of-funnel reach confirmed ({views} views, {clicks} clicks, {free_downloads} free downloads) with $0 paid checkout — keep publishing and tighten above-the-fold $15 Challenge / $14 Kit CTA.",
         )
     return (
         VERDICT_NOT_WORKING,
@@ -161,6 +166,17 @@ def build_experiment_report(
         threshold_cents=PATREON_MIN_PAYOUT_CENTS,
         store_url=config.patreon_url or "https://www.patreon.com",
     )
+    nasio_meter = _storefront_meter(
+        all_orders,
+        storefront_key="nasio",
+        label="Nas.io ($10 Payoneer USD / $65 LKR Wire)",
+        threshold_cents=NASIO_TARGET_PAYOUT_CENTS,
+        store_url=config.nasio_store_url or config.patreon_url or config.paid_checkout_url,
+    )
+    nasio_meter["payoneer_min_usd"] = round(NASIO_PAYONEER_MIN_CENTS / 100.0, 2)
+    nasio_meter["payoneer_unlocked"] = nasio_meter["net_cents"] >= NASIO_PAYONEER_MIN_CENTS
+    nasio_meter["lkr_wire_min_usd"] = round(NASIO_LKR_WIRE_MIN_CENTS / 100.0, 2)
+    nasio_meter["lkr_wire_unlocked"] = nasio_meter["net_cents"] >= NASIO_LKR_WIRE_MIN_CENTS
 
     active_orders = [o for o in all_orders if not o.refunded]
     refunded_orders = [o for o in all_orders if o.refunded]
@@ -187,6 +203,13 @@ def build_experiment_report(
                 or (config.exports_dir / a.slug / "patreon_public_post.md").is_file()
             )
             live_remote = sum(1 for a in articles if a.patreon_post_id)
+        elif ch == "nasio":
+            posts_count = sum(
+                1
+                for a in articles
+                if (config.exports_dir / a.slug / "nasio_daily_pack.md").is_file()
+            )
+            live_remote = sum(1 for o in active_orders if o.storefront.lower() == "nasio")
         elif ch == "pinterest":
             posts_count = sum(
                 1 for a in articles if (config.site_dir / "pins" / f"{a.slug}.png").is_file() or a.pinterest_pin_id
@@ -312,9 +335,10 @@ def build_experiment_report(
             "winning_channels": winning_channels,
         },
         "storefronts": {
+            "nasio": nasio_meter,
+            "patreon": pt_meter,
             "lemonsqueezy": ls_meter,
             "gumroad": gr_meter,
-            "patreon": pt_meter,
         },
         "channels": channel_kpis,
         "pillars": pillar_kpis,
@@ -327,6 +351,19 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
     ls = report["storefronts"]["lemonsqueezy"]
     gr = report["storefronts"]["gumroad"]
     pt = report["storefronts"]["patreon"]
+    ns = report["storefronts"].get("nasio") or {
+        "net_usd": 0.0,
+        "threshold_usd": 50.0,
+        "unlock_progress_pct": 0.0,
+        "remaining_to_unlock_usd": 50.0,
+        "unlocked": False,
+        "payoneer_unlocked": False,
+    }
+    ns_status = (
+        "TARGET HIT ($50+)"
+        if ns["unlocked"]
+        else ("PAYONEER $10 UNLOCKED" if ns.get("payoneer_unlocked") else "ACCUMULATING")
+    )
 
     ch_rows = "\n".join(
         f"| `{ch}` | {d['posts_prepared']} | {d['views']} | {d['clicks']} | {d['ctr_pct']}% | "
@@ -340,7 +377,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
     )
 
     unattr_note = (
-        f"\n\n> *Direct / Other Referrer Orders (`unattributed` to 4 primary channels): "
+        f"\n\n> *Direct / Other Referrer Orders (`unattributed` to primary channels): "
         f"`{t.get('unattributed_orders', 0)}` orders (`${t.get('unattributed_net_usd', 0.0):.2f}` net USD).*"
         if t.get("unattributed_orders", 0) > 0
         else ""
@@ -358,6 +395,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 
 | Storefront | Net Settled | Payout Unlock Minimum | Progress | Remaining | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Nas.io** | `${ns['net_usd']:.2f}` | `${ns['threshold_usd']:.2f}` ($10 Payoneer / $65 LKR Wire) | `{ns['unlock_progress_pct']}%` | `${ns['remaining_to_unlock_usd']:.2f}` | `{ns_status}` |
 | **Patreon** | `${pt['net_usd']:.2f}` | `${pt['threshold_usd']:.2f}` (Payoneer) | `{pt['unlock_progress_pct']}%` | `${pt['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if pt["unlocked"] else "ACCUMULATING"}` |
 | **Lemon Squeezy** | `${ls['net_usd']:.2f}` | `${ls['threshold_usd']:.2f}` (Bank Wire) | `{ls['unlock_progress_pct']}%` | `${ls['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if ls["unlocked"] else "ACCUMULATING"}` |
 | **Gumroad** | `${gr['net_usd']:.2f}` | `${gr['threshold_usd']:.2f}` (Local Bank) | `{gr['unlock_progress_pct']}%` | `${gr['remaining_to_unlock_usd']:.2f}` | `{"UNLOCKED" if gr["unlocked"] else "ACCUMULATING"}` |
@@ -366,7 +404,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 
 ## 2. Channel Attribution & Deterministic Month-2 Verdicts
 
-| Channel | Assets Ready | Views | Clicks | CTR | Free Kits | Paid ($14) | Net USD | Verdict |
+| Channel | Assets Ready | Views | Clicks | CTR | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 {ch_rows}{unattr_note}
 
@@ -374,7 +412,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 
 ## 3. Content Pillar Performance Breakdown
 
-| Pillar Track | Verified Posts | Views | Clicks | Free Kits | Paid ($14) | Net USD | Verdict |
+| Pillar Track | Verified Posts | Views | Clicks | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 {pillar_rows}
 """
