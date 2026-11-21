@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-11-20T20:57:18Z",
+  "generated_at": "2026-11-21T19:57:23Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
     "end_date": "2026-12-18",
-    "as_of_date": "2026-11-21",
+    "as_of_date": "2026-11-22",
     "timezone": "Asia/Colombo",
-    "days_elapsed": 4,
-    "days_remaining": 27,
+    "days_elapsed": 5,
+    "days_remaining": 26,
     "target_daily_articles": 30,
     "verified_articles_built": 7
   },
