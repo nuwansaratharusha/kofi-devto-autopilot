@@ -1,0 +1,14 @@
+Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead-Letter Replay in SQLite
+
+How to prevent two malformed high-priority webhooks from starving 150 healthy background jobs—and replay quarantined dead-letter payloads cleanly after deploying a hotfix.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (197.02 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Wednesday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

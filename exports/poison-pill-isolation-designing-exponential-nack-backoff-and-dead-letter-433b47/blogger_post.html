@@ -1,0 +1,205 @@
+<div class="autopilot-blogger-series" style="line-height:1.7;font-size:16px;">
+  <div style="padding:16px 18px;margin-bottom:22px;border-left:4px solid #0f766e;background:#f1f5f9;color:#0f172a;border-radius:6px;">
+    <p style="margin:0 0 6px;font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:0.04em;color:#0f766e;">
+      Series: 30 Days of Zero-Cost Production Python &amp; AI Reliability · Day 8 of 30
+    </p>
+    <p style="margin:0;font-size:14px;color:#334155;">
+      <strong>Track:</strong> Zero-Cost Backend, SQLite WAL Queues &amp; Cron Automation ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 197.02 ms (<code>python3 -I</code> exit 0) ·
+      <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
+    </p>
+  </div>
+
+  <p style="font-size:18px;color:#334155;font-style:italic;margin:0 0 20px;">
+    How to prevent two malformed high-priority webhooks from starving 150 healthy background jobs—and replay quarantined dead-letter payloads cleanly after deploying a hotfix.
+  </p>
+
+  <h2>Head-of-Line Blocking: How 2 Bad Payloads Paralyze Naive Background Workers</h2>
+<p>Priority queues harbor a classic production trap. Suppose VIP webhook events carry <code>priority = 1</code> while standard background tasks carry <code>priority = 10</code> or <code>50</code>. If an upstream partner ships an unexpected payload shape on two <code>priority = 1</code> events and your worker releases failed tasks back to <code>&#x27;queued&#x27;</code> with <code>available_at = now</code>, your worker pool enters a tight crash loop—re-claiming those exact two <code>priority = 1</code> poison pills thousands of times per minute while 150 healthy customer jobs sit completely starved behind them.</p>
+<p>Eliminating head-of-line poison-pill starvation in SQLite requires three coordinated mechanisms:</p>
+<ol><li><strong>Per-Attempt Exponential <code>available_at</code> Pushback:</strong> Every <code>NACK</code> must push <code>available_at = now + base * 2^(attempts - 1)</code> into the future so lower-priority healthy rows (<code>available_at &lt;= now</code>) immediately leapfrog the failing item.</li><li><strong>Bounded <code>max_attempts</code> Quarantine (<code>dead_letter</code>):</strong> Once <code>attempts &gt;= max_attempts</code>, the row transitions out of <code>&#x27;queued&#x27;</code> permanently into <code>&#x27;dead_letter&#x27;</code> alongside a truncated <code>last_error</code> diagnostic string.</li><li><strong>Zero-Data-Loss Replay (<code>requeue-dlq</code>):</strong> Because SQLite retains the original JSON payload on disk inside the same table, shipping a parser hotfix and replaying quarantined jobs is a single atomic <code>UPDATE</code> resetting <code>status = &#x27;queued&#x27;</code> and <code>attempts = 0</code>.</li></ol>
+<p>In this teardown exploring <em>Isolating malformed background payloads so 1 failing webhook never stalls 10,000 healthy jobs.</em> (SQLite reference: <a href="https://www.sqlite.org/pragma.html" rel="noopener">SQLite Official Specification</a>), we benchmark 150 healthy tasks running alongside 2 <code>priority = 1</code> poison pills and prove zero head-of-line starvation followed by <code>100%</code> post-hotfix recovery.</p>
+<h2>Poison-Pill Defense Architecture</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Queue Stage</th><th scope="col">Naive Queue Behavior</th><th scope="col">Priority + Backoff + DLQ Behavior</th></tr></thead><tbody><tr><td><strong>Attempt 1 Fails (<code>priority=1</code>)</strong></td><td>Immediately eligible again at <code>priority=1</code>; blocks all <code>priority=10</code> work</td><td><code>available_at</code> pushed <code>+4s</code>; worker immediately drains ready <code>priority=10</code> and <code>50</code> tasks</td></tr><tr><td><strong>Attempt 2 Fails (<code>priority=1</code>)</strong></td><td>Continues tight retry loop</td><td><code>available_at</code> pushed <code>+8s</code>; healthy throughput remains completely unaffected</td></tr><tr><td><strong>Attempt 3 Reaches <code>max_attempts</code></strong></td><td>Retries forever or drops row on <code>DELETE</code></td><td>Moved to <code>status=&#x27;dead_letter&#x27;</code> with <code>last_error=&#x27;malformed_upstream_schema&#x27;</code></td></tr><tr><td><strong>Operator Deploys Fix</strong></td><td>Lost payload must be reconstructed from raw HTTP logs</td><td>Atomic <code>UPDATE ... WHERE status=&#x27;dead_letter&#x27;</code> replays all quarantined payloads cleanly</td></tr></tbody></table></div>
+<p>Need a lightweight idempotent cron lock and HTTP retry guard first? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to protect scheduled scripts in 30 seconds.</p>
+<h2>Runnable Priority Backoff, Quarantine &amp; Hotfix Replay Benchmark</h2>
+<p>The self-contained Python 3.11+ script below enqueues 2 <code>priority = 1</code> poison jobs ahead of 150 healthy jobs (<code>priority = 10</code> and <code>50</code>), verifies that all 150 healthy jobs finish while the poison jobs back off into <code>dead_letter</code>, then simulates a hotfix deployment and replays the dead-letter queue to <code>152/152</code> completion:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
+
+import json
+import sqlite3
+import time
+from pathlib import Path
+
+
+def open_priority_queue(path: Path) -&gt; sqlite3.Connection:
+    conn = sqlite3.connect(str(path), timeout=5.0, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute(&quot;PRAGMA journal_mode=WAL;&quot;)
+    conn.execute(
+        &quot;&quot;&quot;
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            priority INTEGER NOT NULL,
+            status TEXT NOT NULL CHECK (status IN (&#x27;queued&#x27;, &#x27;leased&#x27;, &#x27;completed&#x27;, &#x27;dead_letter&#x27;)),
+            attempts INTEGER NOT NULL DEFAULT 0,
+            max_attempts INTEGER NOT NULL DEFAULT 3,
+            available_at REAL NOT NULL,
+            last_error TEXT
+        );
+        &quot;&quot;&quot;
+    )
+    return conn
+
+
+def claim_priority_task(conn: sqlite3.Connection, now: float) -&gt; sqlite3.Row | None:
+    conn.execute(&quot;BEGIN IMMEDIATE;&quot;)
+    try:
+        row = conn.execute(
+            &quot;&quot;&quot;
+            SELECT id FROM tasks
+             WHERE status = &#x27;queued&#x27; AND available_at &lt;= ?
+             ORDER BY priority ASC, available_at ASC
+             LIMIT 1
+            &quot;&quot;&quot;,
+            (now,),
+        ).fetchone()
+        if row is None:
+            conn.execute(&quot;COMMIT;&quot;)
+            return None
+        conn.execute(&quot;UPDATE tasks SET status = &#x27;leased&#x27;, attempts = attempts + 1 WHERE id = ?&quot;, (row[&quot;id&quot;],))
+        claimed = conn.execute(&quot;SELECT * FROM tasks WHERE id = ?&quot;, (row[&quot;id&quot;],)).fetchone()
+        conn.execute(&quot;COMMIT;&quot;)
+        return claimed
+    except Exception:
+        conn.execute(&quot;ROLLBACK;&quot;)
+        raise
+
+
+def nack_with_backoff(conn: sqlite3.Connection, task_id: str, now: float, err: str, base_sec: float = 4.0) -&gt; str:
+    conn.execute(&quot;BEGIN IMMEDIATE;&quot;)
+    try:
+        row = conn.execute(&quot;SELECT attempts, max_attempts FROM tasks WHERE id = ?&quot;, (task_id,)).fetchone()
+        if int(row[&quot;attempts&quot;]) &gt;= int(row[&quot;max_attempts&quot;]):
+            conn.execute(&quot;UPDATE tasks SET status = &#x27;dead_letter&#x27;, last_error = ? WHERE id = ?&quot;, (err, task_id))
+            conn.execute(&quot;COMMIT;&quot;)
+            return &quot;dead_letter&quot;
+        delay = base_sec * (2 ** (int(row[&quot;attempts&quot;]) - 1))
+        conn.execute(
+            &quot;UPDATE tasks SET status = &#x27;queued&#x27;, available_at = ?, last_error = ? WHERE id = ?&quot;,
+            (now + delay, err, task_id),
+        )
+        conn.execute(&quot;COMMIT;&quot;)
+        return f&quot;backoff_{int(delay)}s&quot;
+    except Exception:
+        conn.execute(&quot;ROLLBACK;&quot;)
+        raise
+
+
+def run_dlq_simulation() -&gt; None:
+    t0 = time.perf_counter()
+    conn = open_priority_queue(Path(&quot;dlq_sim.db&quot;))
+    now = 1_760_200_000.0
+
+    # Insert 2 poison payloads at highest priority (priority=1) + 150 healthy tasks
+    for idx in range(152):
+        prio = 1 if idx &lt; 2 else (10 if idx % 2 == 0 else 50)
+        conn.execute(&quot;INSERT INTO tasks (id, priority, status, available_at) VALUES (?, ?, &#x27;queued&#x27;, ?)&quot;, (f&quot;t_{idx}&quot;, prio, now))
+
+    poison_fixed = False
+    healthy_done_before_poison_dlq = 0
+    for _tick in range(400):
+        item = claim_priority_task(conn, now)
+        if item is None:
+            now += 5.0
+            if conn.execute(&quot;SELECT COUNT(*) FROM tasks WHERE status IN (&#x27;queued&#x27;,&#x27;leased&#x27;)&quot;).fetchone()[0] == 0:
+                break
+            continue
+        if item[&quot;id&quot;] in {&quot;t_0&quot;, &quot;t_1&quot;} and not poison_fixed:
+            outcome = nack_with_backoff(conn, item[&quot;id&quot;], now, &quot;malformed_upstream_schema&quot;)
+            if outcome == &quot;dead_letter&quot;:
+                healthy_done_before_poison_dlq = int(conn.execute(&quot;SELECT COUNT(*) FROM tasks WHERE status = &#x27;completed&#x27;&quot;).fetchone()[0])
+        else:
+            conn.execute(&quot;UPDATE tasks SET status = &#x27;completed&#x27; WHERE id = ?&quot;, (item[&quot;id&quot;],))
+
+    dlq_before_replay = int(conn.execute(&quot;SELECT COUNT(*) FROM tasks WHERE status = &#x27;dead_letter&#x27;&quot;).fetchone()[0])
+    # Deploy hotfix and replay dead_letter tasks cleanly
+    poison_fixed = True
+    requeued = conn.execute(&quot;UPDATE tasks SET status = &#x27;queued&#x27;, attempts = 0, available_at = ? WHERE status = &#x27;dead_letter&#x27;&quot;, (now,)).rowcount
+    while (item := claim_priority_task(conn, now)) is not None:
+        conn.execute(&quot;UPDATE tasks SET status = &#x27;completed&#x27; WHERE id = ?&quot;, (item[&quot;id&quot;],))
+
+    total_completed = int(conn.execute(&quot;SELECT COUNT(*) FROM tasks WHERE status = &#x27;completed&#x27;&quot;).fetchone()[0])
+    report = {
+        &quot;healthy_completed_while_poison_backed_off&quot;: healthy_done_before_poison_dlq,
+        &quot;quarantined_in_dlq&quot;: dlq_before_replay,
+        &quot;requeued_after_hotfix&quot;: int(requeued),
+        &quot;total_completed_final&quot;: total_completed,
+        &quot;elapsed_ms&quot;: round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+    Path(&quot;dlq_report.json&quot;).write_text(json.dumps(report, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(report, indent=2))
+    conn.close()
+
+
+if __name__ == &quot;__main__&quot;:
+    run_dlq_simulation()</code></pre></div>
+<p>Next, we run an isolated assertion script verifying zero head-of-line blocking and exact conservation across replay:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">BASH</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>python3 -I -c &#x27;
+import json
+d = json.load(open(&quot;dlq_report.json&quot;))
+assert d[&quot;quarantined_in_dlq&quot;] == 2 and d[&quot;requeued_after_hotfix&quot;] == 2 and d[&quot;total_completed_final&quot;] == 152
+assert d[&quot;healthy_completed_while_poison_backed_off&quot;] == 150, &quot;Healthy tasks were blocked by poison pills!&quot;
+print(f&quot;Verified zero head-of-line blocking: all {d[&quot;healthy_completed_while_poison_backed_off&quot;]} healthy jobs finished while 2 poison jobs backed off to DLQ, then replayed to {d[&quot;total_completed_final&quot;]}/152.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both blocks above executed cleanly inside an isolated sandbox before staging. Here is the captured output:</p>
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 175.9 ms)
+{
+  &quot;healthy_completed_while_poison_backed_off&quot;: 150,
+  &quot;quarantined_in_dlq&quot;: 2,
+  &quot;requeued_after_hotfix&quot;: 2,
+  &quot;total_completed_final&quot;: 152,
+  &quot;elapsed_ms&quot;: 146.01
+}
+
+# Block 2 (bash, exit=0, 21.1 ms)
+Verified zero head-of-line blocking: all 150 healthy jobs finished while 2 poison jobs backed off to DLQ, then replayed to 152/152.</code></pre></div>
+<h2>Operational Lessons From the Replay Benchmark</h2>
+<p>Examine the four counters in <code>dlq_report.json</code>:</p>
+<ul><li><strong>Healthy Work Never Waited on Failing VIP Jobs:</strong> Even though <code>t_0</code> and <code>t_1</code> held the highest priority (<code>1</code>), pushing <code>available_at</code> forward on their first NACK let the worker drain all <code>150</code> healthy jobs (<code>healthy_completed_while_poison_backed_off == 150</code>) before the poison jobs ever reached their third and final attempt.</li><li><strong>Diagnostic Context Survives on Disk:</strong> Recording <code>last_error</code> directly on the <code>dead_letter</code> row lets an operator or scheduled canary check (<code>SELECT COUNT(*), last_error FROM tasks WHERE status = &#x27;dead_letter&#x27; GROUP BY last_error</code>) pinpoint schema regressions instantly without paid APM log ingestion.</li><li><strong>One-Statement Replay:</strong> Resetting <code>status = &#x27;queued&#x27;, attempts = 0</code> recovered both quarantined jobs (<code>requeued_after_hotfix == 2</code>, <code>total_completed_final == 152</code>) with zero external broker tooling.</li></ul>
+<h3>Designing Safe Dead-Letter Alerting and Partial Batch Replay</h3>
+<p>Before running an unfiltered <code>UPDATE</code> across thousands of dead-letter rows in production, always inspect a small canary slice first (<code>LIMIT 5</code>) to confirm your parser hotfix handles every failure variant recorded in <code>last_error</code>. Adding a composite index on <code>(status, priority, available_at)</code> ensures both your hot-path worker <code>claim</code> query and your scheduled dead-letter healthcheck (<code>SELECT COUNT(*) FROM tasks WHERE status = &#x27;dead_letter&#x27;</code>) execute in sub-millisecond index scans without touching completed historical rows. Once replayed tasks transition to <code>completed</code>, archive rows older than 14 days in small <code>DELETE ... LIMIT 1000</code> batches so WAL checkpoints stay fast.</p>
+<h2>Download the Complete SQLite WAL Queue CLI &amp; Starter Kit</h2>
+<p>The full <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> ships <code>wal_queue.py</code> (with <code>enqueue</code>, <code>stats</code>, and <code>requeue-dlq</code> CLI subcommands), Python + Node/TypeScript LLM circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 GitHub Actions workflows including an automated dead-letter canary audit.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+
+  <hr style="margin:28px 0;border:0;border-top:1px solid #cbd5e1;" />
+
+  <div style="padding:18px;margin:20px 0;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;color:#0f172a;">
+    <h3 style="margin:0 0 10px;font-size:18px;">Download the Unit-Tested Starter Kits</h3>
+    <ul style="margin:0 0 12px;padding-left:20px;">
+      <li><strong>Free ($0+ Pay-What-You-Want):</strong> <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; API Circuit-Breaker Mini-Kit (.zip)</a></li>
+      <li><strong>Full Kit ($14 USD, MIT Commercial License):</strong> <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit (.zip)</a></li>
+    </ul>
+  </div>
+
+  <div style="padding:16px 18px;margin-top:18px;border:1px solid #e2e8f0;border-radius:8px;">
+    <h3 style="margin:0 0 10px;font-size:17px;">30 Days of Zero-Cost Production Python &amp; AI Reliability — Series Index</h3>
+    <ol style="margin:0 0 12px;padding-left:22px;">
+      <li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-dependency-python-circuit-breakers-self-repairing-json-routers-for-04a7e6" rel="noopener">Day 1/30: Zero-Dependency Python Circuit Breakers &amp; Self-Repairing JSON Routers for Unreliable LLM APIs</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679" rel="noopener">Day 2/30: Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker &amp; Dead-Letter CLI</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f" rel="noopener">Day 3/30: Constant-Time HMAC Webhook Verification &amp; Integer-Cent Double-Entry SQL Ledgers in Python</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e" rel="noopener">Day 4/30: Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter in Pure Python)</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4" rel="noopener">Day 5/30: Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a" rel="noopener">Day 6/30: Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)</a></li>
+<li><a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec" rel="noopener">Day 7/30: Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops</a></li>
+<li><strong>Day 8/30: Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead-Letter Replay in SQLite (Current Lesson)</strong></li>
+    </ol>
+    <p style="margin:0;font-size:13px;color:#475569;">
+      Canonical engineering edition published by <strong>Tharusha Nuwansara</strong> at
+      <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47" rel="canonical noopener">https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/</a>.
+    </p>
+  </div>
+</div>

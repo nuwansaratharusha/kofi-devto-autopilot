@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 8/30] Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead-Letter Replay in\u2026",
+  "description": "Day 8/30 of 30 Days of Zero-Cost Production Python & AI Reliability: How to prevent two malformed high-priority webhooks from starving 150 healthy background jobs\u2014and replay quarantined dead-letter payloads cleanly after deploying a hotfix. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 197.02 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #sqlite #architecture #devops",
+  "alt_text": "1000x1500 technical infographic for Day 8 of 30 (Zero-Cost Backend, SQLite WAL Queues & Cron Automation): Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead-Letter Replay in SQLite \u2014 verified in Python 3.11+ stdlib sandbox (804 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47.png",
+  "png_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/site/pins/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47.png",
+  "svg_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/pinterest_pin.svg",
+  "png_size_bytes": 10934,
+  "png_sha256": "012c863f4b9828e257c4342bf4ae1853bd21ffc7ef99664552d815bec3dbda8f",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14580
+  }
+}

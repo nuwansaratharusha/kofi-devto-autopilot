@@ -1,7 +1,7 @@
 # 30-Day Omnichannel Experiment Report (`2026-11-18` → `2026-12-18`)
 
-- **As-Of Date (`Asia/Colombo`):** `2026-11-24` (Day `7` / `30` · `24` days remaining)
-- **Verified Series Articles Built:** `7 / 30`
+- **As-Of Date (`Asia/Colombo`):** `2026-11-25` (Day `8` / `30` · `23` days remaining)
+- **Verified Series Articles Built:** `8 / 30`
 - **Total Net Revenue (Refunds Excluded):** `$0.00 USD` (`0` paid orders, `0` free leads, `0` refunded excluded)
 
 ---
@@ -21,12 +21,12 @@
 
 | Channel | Assets Ready | Views | Clicks | CTR | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `whop` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `patreon` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `blogger` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `devto` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `canonical_site` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `pinterest` | 7 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `whop` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `patreon` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `blogger` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `devto` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `canonical_site` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `pinterest` | 8 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 
 ---
 
@@ -35,5 +35,5 @@
 | Pillar Track | Verified Posts | Views | Clicks | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `pillar_a` (Fault-Tolerant AI & API Guardrails) | 3 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `pillar_b` (Zero-Cost Backend, SQLite WAL Queues & Cron Automation) | 2 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `pillar_b` (Zero-Cost Backend, SQLite WAL Queues & Cron Automation) | 3 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `pillar_c` (Idempotent Webhooks & Double-Entry Ledger Teardowns) | 2 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |

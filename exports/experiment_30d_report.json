@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-11-24T00:37:11Z",
+  "generated_at": "2026-11-24T22:55:44Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
     "end_date": "2026-12-18",
-    "as_of_date": "2026-11-24",
+    "as_of_date": "2026-11-25",
     "timezone": "Asia/Colombo",
-    "days_elapsed": 7,
-    "days_remaining": 24,
+    "days_elapsed": 8,
+    "days_remaining": 23,
     "target_daily_articles": 30,
-    "verified_articles_built": 7
+    "verified_articles_built": 8
   },
   "totals": {
     "paid_orders": 0,
@@ -119,7 +119,7 @@
   "channels": {
     "whop": {
       "channel": "whop",
-      "posts_prepared": 7,
+      "posts_prepared": 8,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -134,7 +134,7 @@
     },
     "patreon": {
       "channel": "patreon",
-      "posts_prepared": 7,
+      "posts_prepared": 8,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -149,7 +149,7 @@
     },
     "blogger": {
       "channel": "blogger",
-      "posts_prepared": 7,
+      "posts_prepared": 8,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -164,7 +164,7 @@
     },
     "devto": {
       "channel": "devto",
-      "posts_prepared": 7,
+      "posts_prepared": 8,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -179,8 +179,8 @@
     },
     "canonical_site": {
       "channel": "canonical_site",
-      "posts_prepared": 7,
-      "posts_remote_id_logged": 7,
+      "posts_prepared": 8,
+      "posts_remote_id_logged": 8,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -194,7 +194,7 @@
     },
     "pinterest": {
       "channel": "pinterest",
-      "posts_prepared": 7,
+      "posts_prepared": 8,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -226,7 +226,7 @@
     "pillar_b": {
       "pillar": "pillar_b",
       "label": "Zero-Cost Backend, SQLite WAL Queues & Cron Automation",
-      "articles_verified": 2,
+      "articles_verified": 3,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
