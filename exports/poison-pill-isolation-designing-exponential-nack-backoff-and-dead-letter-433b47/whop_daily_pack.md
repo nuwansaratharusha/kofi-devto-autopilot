@@ -22,7 +22,7 @@ Today's lab tackles How to prevent two malformed high-priority webhooks from sta
 
 What we verified inside an isolated `python3 -I` sandbox (197.02 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
-- How to eliminate the failure mode using 100% Python standard library primitives (8/30 lessons live)
+- How to eliminate the failure mode using 100% Python standard library primitives (9/30 lessons live)
 
 Read today's full runnable benchmark free:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/

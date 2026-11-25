@@ -1,0 +1,14 @@
+Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings
+
+Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (101.97 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Friday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

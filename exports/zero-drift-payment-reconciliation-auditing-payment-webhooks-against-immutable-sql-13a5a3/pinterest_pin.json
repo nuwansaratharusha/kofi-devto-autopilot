@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 9/30] Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL\u2026",
+  "description": "Day 9/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 101.97 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #sql #python #fintech #architecture",
+  "alt_text": "1000x1500 technical infographic for Day 9 of 30 (Idempotent Webhooks & Double-Entry Ledger Teardowns): Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings \u2014 verified in Python 3.11+ stdlib sandbox (835 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3.png",
+  "png_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/site/pins/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3.png",
+  "svg_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/pinterest_pin.svg",
+  "png_size_bytes": 10725,
+  "png_sha256": "de3860f5aea8af59233968a8e261485730b3babc48d45156ace7a1012b667580",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14300
+  }
+}

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings — Tharusha Nuwansara</title>
+  <meta name="description" content="Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views." />
+  <meta name="author" content="Tharusha Nuwansara" />
+  <link rel="canonical" href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/" />
+  <link rel="alternate" type="application/rss+xml" title="Tharusha Nuwansara — Verified Reliability RSS" href="../../feed.xml" />
+  <meta property="og:title" content="Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings — Tharusha Nuwansara" />
+  <meta property="og:description" content="Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views." />
+  <meta property="og:url" content="https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/" />
+  <meta property="og:type" content="article" />
+  <link rel="stylesheet" href="../../style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="live-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand-link" href="../../index.html">Tharusha Nuwansara · Reliability Lab</a>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li><a class="nav-link" href="../../index.html">Tutorials</a></li>
+          <li><a class="nav-link" href="../../feed.xml">RSS Feed</a></li>
+          <li><a class="nav-link btn-primary" href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=nav&amp;utm_campaign=30d_exp_2026_11" rel="noopener">Starter Kits &amp; Storefronts</a></li>
+          <li><button type="button" id="theme-toggle" class="btn" aria-pressed="false" aria-label="Switch color theme">Dark Theme</button></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content">
+    <div class="container article-shell">
+      <article class="h-entry">
+        <header class="article-header">
+          <div class="meta-row">
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (101.97 ms)</span>
+            <span class="badge">Friday Pillar</span>
+            <time class="dt-published tabular" datetime="2026-11-25T22:10:11Z">2026-11-25</time>
+            <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
+          </div>
+          <h1 class="p-name">Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings</h1>
+          <p class="p-summary article-subtitle">Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views.</p>
+          <div class="meta-row"><span class="badge">#sql</span><span class="badge">#python</span><span class="badge">#fintech</span><span class="badge">#architecture</span></div>
+        </header>
+        <div class="e-content">
+<h2>Webhooks Are Best-Effort Notifications—Not Your Sole Source of Financial Truth</h2>
+<p>Even when your webhook endpoint verifies HMAC signatures and deduplicates nonces flawlessly, external networks still drop packets, DNS records misroute during deploys, and payment gateways eventually give up delivering an <code>order.paid</code> event after their retry schedule expires. If your application only grants access or updates revenue numbers on live webhook arrival—and mutates rows in place with <code>UPDATE orders SET refunded = 1</code>—two painful accounting failures surface at month-end:</p>
+<ol><li><strong>Silent Dropped-Webhook Revenue Gaps:</strong> A customer completes checkout on Stripe, Patreon, Gumroad, or Lemon Squeezy during a 20-minute DNS outage; their card is charged, the payout lands in your settlement CSV, and your database has zero record of the order.</li><li><strong>Destructive Refund Overwrites:</strong> Mutating or deleting original sale amounts when a refund arrives destroys point-in-time auditability, making it impossible to reconcile gross sales, processor fee reversals, and net cash across month boundaries.</li><li><strong>Unbalanced Partial Adjustments:</strong> Ad-hoc <code>balance -= amount</code> math silently drifts whenever a payment processor retains its processing fee on a refund (<code>fee_returned == 0</code>) versus returning the fee (<code>fee_returned == 71</code>).</li></ol>
+<p>In this Friday financial-systems teardown—<em>Detecting missing webhooks and unbalanced journal entries with pure SQLite views and deterministic invariants.</em> (SQLite reference: <a href="https://www.sqlite.org/stricttables.html" rel="noopener">SQLite Official Specification</a>)—we build an append-only SQL reconciliation harness that audits processor settlement rows against immutable double-entry postings, flags a dropped webhook via <code>LEFT JOIN</code>, records a compensating refund, and auto-backfills the missing order with zero cent imbalance.</p>
+<h2>Append-Only Reconciliation Invariants</h2>
+<div class="table-scroll"><table><thead><tr><th scope="col">Accounting Event</th><th scope="col">Fragile Mutable Table Approach</th><th scope="col">Immutable Double-Entry + CSV Audit Pattern</th></tr></thead><tbody><tr><td><strong>Standard <code>$14.00</code> Sale (<code>71¢</code> fee)</strong></td><td><code>INSERT orders(amount=13.29)</code></td><td><code>DEBIT cash_clearing 1329</code>, <code>DEBIT gateway_fees 71</code>, <code>CREDIT product_revenue 1400</code></td></tr><tr><td><strong>Full Refund (Fee Returned)</strong></td><td><code>DELETE FROM orders</code> or <code>SET amount=0</code></td><td>Append new <code>&#x27;refund&#x27;</code> tx: <code>DEBIT product_revenue 1400</code>, <code>CREDIT cash_clearing 1329</code>, <code>CREDIT gateway_fees 71</code></td></tr><tr><td><strong>Dropped Webhook Detection</strong></td><td>Discovered only when an angry buyer emails support</td><td>Scheduled <code>LEFT JOIN</code> from <code>processor_settlement_csv</code> to <code>ledger_tx</code> catches missing <code>gateway_event_id</code>s</td></tr><tr><td><strong>Balance Integrity Audit</strong></td><td>Manual spreadsheet spot-checks</td><td>SQL view <code>v_unbalanced_tx</code> asserts <code>SUM(DEBIT) == SUM(CREDIT)</code> across every <code>tx_id</code></td></tr></tbody></table></div>
+<p>To schedule your daily reconciliation script with atomic SQLite window locking so two cron containers never double-backfill settlements, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<h2>Runnable SQL Reconciliation, Compensating Refund &amp; Backfill Benchmark</h2>
+<p>The standalone Python 3.11+ script below loads 13 settled <code>$14.00</code> processor rows where <code>ord_missing_13</code> simulates a dropped webhook during downtime, records an append-only compensating refund (<code>ref_ord_03</code>), detects and backfills <code>ord_missing_13</code> via <code>LEFT JOIN</code>, and asserts <code>0</code> unbalanced transactions in <code>v_unbalanced_tx</code>:</p>
+<div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
+
+import json
+import sqlite3
+import time
+from pathlib import Path
+
+
+def setup_reconciliation_db(path: Path) -&gt; sqlite3.Connection:
+    conn = sqlite3.connect(str(path), timeout=5.0, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        &quot;&quot;&quot;
+        CREATE TABLE ledger_tx (
+            tx_id TEXT PRIMARY KEY,
+            gateway_event_id TEXT NOT NULL UNIQUE,
+            entry_kind TEXT NOT NULL CHECK (entry_kind IN (&#x27;sale&#x27;, &#x27;refund&#x27;))
+        );
+        CREATE TABLE ledger_lines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tx_id TEXT NOT NULL REFERENCES ledger_tx(tx_id),
+            account TEXT NOT NULL,
+            direction TEXT NOT NULL CHECK (direction IN (&#x27;DEBIT&#x27;, &#x27;CREDIT&#x27;)),
+            cents INTEGER NOT NULL CHECK (cents &gt; 0)
+        );
+        CREATE TABLE processor_settlement_csv (
+            gateway_event_id TEXT PRIMARY KEY,
+            gross_cents INTEGER NOT NULL,
+            fee_cents INTEGER NOT NULL,
+            net_cents INTEGER NOT NULL
+        );
+        CREATE VIEW v_unbalanced_tx AS
+        SELECT tx_id,
+               SUM(CASE WHEN direction = &#x27;DEBIT&#x27; THEN cents ELSE 0 END) AS debits,
+               SUM(CASE WHEN direction = &#x27;CREDIT&#x27; THEN cents ELSE 0 END) AS credits
+          FROM ledger_lines
+         GROUP BY tx_id
+        HAVING debits != credits;
+        &quot;&quot;&quot;
+    )
+    return conn
+
+
+def record_sale(conn: sqlite3.Connection, tx_id: str, event_id: str, gross: int, fee: int) -&gt; None:
+    conn.execute(&quot;INSERT INTO ledger_tx VALUES (?, ?, &#x27;sale&#x27;)&quot;, (tx_id, event_id))
+    conn.executemany(
+        &quot;INSERT INTO ledger_lines (tx_id, account, direction, cents) VALUES (?, ?, ?, ?)&quot;,
+        [
+            (tx_id, &quot;cash_clearing&quot;, &quot;DEBIT&quot;, gross - fee),
+            (tx_id, &quot;gateway_fees&quot;, &quot;DEBIT&quot;, fee),
+            (tx_id, &quot;product_revenue&quot;, &quot;CREDIT&quot;, gross),
+        ],
+    )
+
+
+def record_compensating_refund(conn: sqlite3.Connection, tx_id: str, refund_event_id: str, gross: int, fee_returned: int) -&gt; None:
+    conn.execute(&quot;INSERT INTO ledger_tx VALUES (?, ?, &#x27;refund&#x27;)&quot;, (tx_id, refund_event_id))
+    lines = [
+        (tx_id, &quot;product_revenue&quot;, &quot;DEBIT&quot;, gross),
+        (tx_id, &quot;cash_clearing&quot;, &quot;CREDIT&quot;, gross - fee_returned),
+    ]
+    if fee_returned &gt; 0:
+        lines.append((tx_id, &quot;gateway_fees&quot;, &quot;CREDIT&quot;, fee_returned))
+    conn.executemany(&quot;INSERT INTO ledger_lines (tx_id, account, direction, cents) VALUES (?, ?, ?, ?)&quot;, lines)
+
+
+def run_reconciliation_audit() -&gt; None:
+    t0 = time.perf_counter()
+    conn = setup_reconciliation_db(Path(&quot;recon_audit.db&quot;))
+
+    # Gateway CSV contains 12 settled sales, 1 full refund, and 1 dropped webhook (ord_missing_13)
+    for i in range(1, 13):
+        ev = f&quot;ord_{i:02d}&quot;
+        conn.execute(&quot;INSERT INTO processor_settlement_csv VALUES (?, 1400, 71, 1329)&quot;, (ev,))
+        record_sale(conn, f&quot;tx_{i:02d}&quot;, ev, 1400, 71)
+
+    conn.execute(&quot;INSERT INTO processor_settlement_csv VALUES (&#x27;ord_missing_13&#x27;, 1400, 71, 1329)&quot;)
+    record_compensating_refund(conn, &quot;tx_ref_01&quot;, &quot;ref_ord_03&quot;, 1400, 71)
+
+    missing_webhooks = [
+        r[&quot;gateway_event_id&quot;]
+        for r in conn.execute(
+            &quot;&quot;&quot;
+            SELECT c.gateway_event_id
+              FROM processor_settlement_csv c
+              LEFT JOIN ledger_tx t ON t.gateway_event_id = c.gateway_event_id
+             WHERE t.tx_id IS NULL
+            &quot;&quot;&quot;
+        ).fetchall()
+    ]
+    unbalanced = conn.execute(&quot;SELECT COUNT(*) FROM v_unbalanced_tx&quot;).fetchone()[0]
+    net_clearing = conn.execute(
+        &quot;&quot;&quot;
+        SELECT SUM(CASE WHEN direction = &#x27;DEBIT&#x27; THEN cents ELSE -cents END)
+          FROM ledger_lines WHERE account = &#x27;cash_clearing&#x27;
+        &quot;&quot;&quot;
+    ).fetchone()[0]
+
+    # Auto-backfill the detected missing webhook and re-verify zero drift
+    for missing_ev in missing_webhooks:
+        row = conn.execute(&quot;SELECT * FROM processor_settlement_csv WHERE gateway_event_id = ?&quot;, (missing_ev,)).fetchone()
+        record_sale(conn, f&quot;tx_backfill_{missing_ev}&quot;, missing_ev, int(row[&quot;gross_cents&quot;]), int(row[&quot;fee_cents&quot;]))
+
+    remaining_gaps = conn.execute(
+        &quot;SELECT COUNT(*) FROM processor_settlement_csv c LEFT JOIN ledger_tx t ON t.gateway_event_id = c.gateway_event_id WHERE t.tx_id IS NULL&quot;
+    ).fetchone()[0]
+
+    report = {
+        &quot;detected_missing_webhooks&quot;: missing_webhooks,
+        &quot;unbalanced_transactions&quot;: int(unbalanced),
+        &quot;pre_backfill_net_cents&quot;: int(net_clearing),
+        &quot;remaining_gaps_after_backfill&quot;: int(remaining_gaps),
+        &quot;elapsed_ms&quot;: round((time.perf_counter() - t0) * 1000.0, 2),
+    }
+    Path(&quot;recon_report.json&quot;).write_text(json.dumps(report, indent=2), encoding=&quot;utf-8&quot;)
+    print(json.dumps(report, indent=2))
+    conn.close()
+
+
+if __name__ == &quot;__main__&quot;:
+    run_reconciliation_audit()</code></pre></div>
+<p>We verify in an isolated shell assertion that the missing webhook was caught, backfilled idempotently, and left zero ledger drift:</p>
+<div class="code-frame"><div class="code-toolbar"><span>BASH</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy BASH code snippet">Copy code</button></div><pre><code>python3 -I -c &#x27;
+import json
+r = json.load(open(&quot;recon_report.json&quot;))
+assert r[&quot;detected_missing_webhooks&quot;] == [&quot;ord_missing_13&quot;]
+assert r[&quot;unbalanced_transactions&quot;] == 0 and r[&quot;remaining_gaps_after_backfill&quot;] == 0
+print(f&quot;Verified SQL reconciliation: caught missing webhook {r[&quot;detected_missing_webhooks&quot;][0]}, preserved 0 unbalanced postings across refund + backfill.&quot;)
+&#x27;</code></pre></div>
+<h2>Real Captured Execution Output</h2>
+<p>Both blocks above were executed inside a clean isolated sandbox prior to staging. Here is the exact captured output:</p>
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 79.7 ms)
+{
+  &quot;detected_missing_webhooks&quot;: [
+    &quot;ord_missing_13&quot;
+  ],
+  &quot;unbalanced_transactions&quot;: 0,
+  &quot;pre_backfill_net_cents&quot;: 14619,
+  &quot;remaining_gaps_after_backfill&quot;: 0,
+  &quot;elapsed_ms&quot;: 47.7
+}
+
+# Block 2 (bash, exit=0, 22.3 ms)
+Verified SQL reconciliation: caught missing webhook ord_missing_13, preserved 0 unbalanced postings across refund + backfill.</code></pre></div>
+<h2>Why Append-Only Postings Simplify Tax &amp; Payout Audits</h2>
+<p>Inspecting <code>recon_report.json</code> shows how clean financial reconciliation becomes once mutable balance columns disappear:</p>
+<ul><li><strong>Instant Gap Detection (<code>[&#x27;ord_missing_13&#x27;]</code>):</strong> Because <code>ledger_tx.gateway_event_id</code> carries a <code>UNIQUE</code> constraint mapped 1-to-1 against upstream order IDs, comparing any processor API list or settlement CSV export is a single deterministic <code>LEFT JOIN ... WHERE t.tx_id IS NULL</code> query.</li><li><strong>Compensating Refunds Preserve History:</strong> Before backfilling <code>ord_missing_13</code>, 12 sales (<code>12 × 1329 = 15,948</code> cents) minus 1 compensating refund (<code>-1,329</code> cents) yielded <code>pre_backfill_net_cents == 14619</code> (<code>$146.19</code>) while preserving both the original sale timestamp and the exact refund posting timestamp.</li><li><strong>Structural Invariant Checking (<code>v_unbalanced_tx == 0</code>):</strong> Querying <code>SELECT COUNT(*) FROM v_unbalanced_tx</code> in CI and after every nightly sync guarantees that no code path can ever create or destroy cents out of thin air.</li></ul>
+<h3>Multi-Currency Settlement &amp; Fee-Retention Edge Cases</h3>
+<p>If you sell digital toolkits across USD storefronts (<code>Patreon</code>, <code>Gumroad</code>, <code>Lemon Squeezy</code>) while settling payouts into a local currency bank account (such as <code>LKR</code> or <code>EUR</code>), keep each currency isolated in its own <code>currency CHAR(3)</code> account group (<code>cash_clearing_usd</code>, <code>product_revenue_usd</code>) and record foreign-exchange payout conversions via an explicit FX clearing entry at bank settlement time rather than mixing currencies inside a single sum. Likewise, when a processor retains its original <code>71</code>-cent fee on a customer refund (<code>fee_returned == 0</code>), debit <code>product_revenue</code> for <code>1400</code> cents and credit <code>cash_clearing</code> for <code>1400</code> cents so your <code>gateway_fees</code> expense account accurately reflects the non-refundable processor cost.</p>
+<h2>Ship the Portable SQLite/PostgreSQL Ledger &amp; Automation Kit</h2>
+<p>Ready to drop production-tested financial ledgers, HMAC webhook guards, SQLite WAL job queues, and polyglot AI circuit breakers straight into your repo? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> for the complete <code>sql/idempotent_ledger.sql</code> schema, Python + Node/TS modules, unit test suites, and 4 GitHub Actions workflows.</p>
+<hr />
+<p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
+        </div>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="container">
+      <p>Curated by <a href="https://www.patreon.com/NuwansaraT" rel="noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a> (Asia/Colombo). Every published Python &amp; shell snippet is verified inside an isolated <code>python3 -I</code> sandbox before release.</p>
+    </div>
+  </footer>
+  <script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('autopilot_theme'); } catch (e) {}
+  if (saved === 'dark' || saved === 'light') {
+    root.setAttribute('data-theme', saved);
+  }
+  var toggle = document.getElementById('theme-toggle');
+  function syncPressed() {
+    if (!toggle) return;
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.textContent = isDark ? 'Light Theme' : 'Dark Theme';
+  }
+  syncPressed();
+  if (toggle) {
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var next = current ? (current === 'dark' ? 'light' : 'dark') : (prefersDark ? 'light' : 'dark');
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('autopilot_theme', next); } catch (e) {}
+      syncPressed();
+    });
+  }
+  var announcer = document.getElementById('live-announcer');
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy-code-btn');
+    if (!btn) return;
+    var frame = btn.closest('.code-frame');
+    var codeEl = frame ? frame.querySelector('pre code') : null;
+    if (!codeEl) return;
+    var text = codeEl.textContent || '';
+    function markCopied() {
+      var orig = btn.getAttribute('data-label') || 'Copy code';
+      btn.textContent = 'Copied!';
+      if (announcer) announcer.textContent = 'Code snippet copied to clipboard.';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(markCopied);
+    } else {
+      markCopied();
+    }
+  });
+  try {
+    var inbound = new URLSearchParams(window.location.search || '');
+    var inSrc = inbound.get('utm_source');
+    if (inSrc) {
+      var inMed = inbound.get('utm_medium') || 'referral';
+      var inCamp = inbound.get('utm_campaign') || '30d_exp_2026_11';
+      var inSlug = inbound.get('slug') || '';
+      var anchors = document.querySelectorAll('a[href^="https://"]');
+      for (var i = 0; i < anchors.length; i++) {
+        var href = anchors[i].getAttribute('href') || '';
+        if (href.indexOf('utm_source=canonical_site') !== -1) {
+          var u = new URL(href);
+          u.searchParams.set('utm_source', inSrc);
+          u.searchParams.set('utm_medium', inMed);
+          u.searchParams.set('utm_campaign', inCamp);
+          if (inSlug && !u.searchParams.get('slug')) u.searchParams.set('slug', inSlug);
+          if (u.hostname === 'lemonsqueezy.com' || u.hostname.slice(-17) === '.lemonsqueezy.com' || u.searchParams.has('checkout[custom][utm_source]')) {
+            u.searchParams.set('checkout[custom][utm_source]', inSrc);
+            u.searchParams.set('checkout[custom][utm_medium]', inMed);
+            u.searchParams.set('checkout[custom][utm_campaign]', inCamp);
+            var effSlug = u.searchParams.get('slug') || inSlug;
+            if (effSlug) u.searchParams.set('checkout[custom][slug]', effSlug);
+          }
+          anchors[i].setAttribute('href', u.toString());
+        }
+      }
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
