@@ -1,0 +1,14 @@
+Idle-Chunk Watchdogs & Partial JSON Recovery for Stalled SSE LLM Streams in Python
+
+Detecting mid-stream SSE socket stalls in 1.5 seconds instead of hanging worker threads for two minutes—and recovering valid partial payloads cleanly.
+
+3 takeaways from running the isolated Python 3.11+ benchmark (48.26 ms verification runtime):
+1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
+2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
+3. Every snippet in our Monday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.
+
+Read the full benchmark + runnable code here:
+https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07/
+
+Free $0+ Mini-Kit & MIT Starter Kit in my shop:
+https://www.patreon.com/NuwansaraT

@@ -22,7 +22,7 @@ Today's lab tackles Proving why 5-minute HMAC timestamp checks still allow paral
 
 What we verified inside an isolated `python3 -I` sandbox (159.42 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
-- How to eliminate the failure mode using 100% Python standard library primitives (9/30 lessons live)
+- How to eliminate the failure mode using 100% Python standard library primitives (10/30 lessons live)
 
 Read today's full runnable benchmark free:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/

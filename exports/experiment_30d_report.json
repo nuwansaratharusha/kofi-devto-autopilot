@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-11-25T22:10:11Z",
+  "generated_at": "2026-11-26T22:09:00Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
     "end_date": "2026-12-18",
-    "as_of_date": "2026-11-26",
+    "as_of_date": "2026-11-27",
     "timezone": "Asia/Colombo",
-    "days_elapsed": 9,
-    "days_remaining": 22,
+    "days_elapsed": 10,
+    "days_remaining": 21,
     "target_daily_articles": 30,
-    "verified_articles_built": 9
+    "verified_articles_built": 10
   },
   "totals": {
     "paid_orders": 0,
@@ -119,7 +119,7 @@
   "channels": {
     "whop": {
       "channel": "whop",
-      "posts_prepared": 9,
+      "posts_prepared": 10,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -134,7 +134,7 @@
     },
     "patreon": {
       "channel": "patreon",
-      "posts_prepared": 9,
+      "posts_prepared": 10,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -149,7 +149,7 @@
     },
     "blogger": {
       "channel": "blogger",
-      "posts_prepared": 9,
+      "posts_prepared": 10,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -164,7 +164,7 @@
     },
     "devto": {
       "channel": "devto",
-      "posts_prepared": 9,
+      "posts_prepared": 10,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -179,8 +179,8 @@
     },
     "canonical_site": {
       "channel": "canonical_site",
-      "posts_prepared": 9,
-      "posts_remote_id_logged": 9,
+      "posts_prepared": 10,
+      "posts_remote_id_logged": 10,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -194,7 +194,7 @@
     },
     "pinterest": {
       "channel": "pinterest",
-      "posts_prepared": 9,
+      "posts_prepared": 10,
       "posts_remote_id_logged": 0,
       "views": 0,
       "clicks": 0,
@@ -212,7 +212,7 @@
     "pillar_a": {
       "pillar": "pillar_a",
       "label": "Fault-Tolerant AI & API Guardrails",
-      "articles_verified": 3,
+      "articles_verified": 4,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,

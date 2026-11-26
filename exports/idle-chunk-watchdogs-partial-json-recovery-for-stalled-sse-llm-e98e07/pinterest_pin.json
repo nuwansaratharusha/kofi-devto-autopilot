@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 10/30] Idle-Chunk Watchdogs & Partial JSON Recovery for Stalled SSE LLM Streams in Python",
+  "description": "Day 10/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Detecting mid-stream SSE socket stalls in 1.5 seconds instead of hanging worker threads for two minutes\u2014and recovering valid partial payloads cleanly. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 48.26 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #ai #reliability #backend",
+  "alt_text": "1000x1500 technical infographic for Day 10 of 30 (Fault-Tolerant AI & API Guardrails): Idle-Chunk Watchdogs & Partial JSON Recovery for Stalled SSE LLM Streams in Python \u2014 verified in Python 3.11+ stdlib sandbox (877 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07.png",
+  "png_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/site/pins/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07.png",
+  "svg_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07/pinterest_pin.svg",
+  "png_size_bytes": 10712,
+  "png_sha256": "eed5ffde5979a9579a63354ae33941f14144ef68eeaa75df43a3ae3178a19e05",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14284
+  }
+}
