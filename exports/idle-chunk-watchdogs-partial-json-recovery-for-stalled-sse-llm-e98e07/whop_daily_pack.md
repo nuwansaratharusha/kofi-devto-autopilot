@@ -22,7 +22,7 @@ Today's lab tackles Detecting mid-stream SSE socket stalls in 1.5 seconds instea
 
 What we verified inside an isolated `python3 -I` sandbox (48.26 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
-- How to eliminate the failure mode using 100% Python standard library primitives (10/30 lessons live)
+- How to eliminate the failure mode using 100% Python standard library primitives (11/30 lessons live)
 
 Read today's full runnable benchmark free:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07/

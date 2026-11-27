@@ -1,0 +1,23 @@
+{
+  "board_id": "<set PINTEREST_BOARD_ID in .env>",
+  "pinterest_pin_id": null,
+  "pinterest_url": null,
+  "title": "[Day 11/30] Atomic Token-Bucket API Rate Limiting in SQLite WAL Without Redis Lua Scripts",
+  "description": "Day 11/30 of 30 Days of Zero-Cost Production Python & AI Reliability: Enforcing exact burst-and-refill API rate limits across multi-worker Python processes using a 40-line SQLite WAL token bucket instead of Redis. Every Python 3.11+ & shell benchmark block passed isolated python3 -I sandbox verification (2 blocks, 90.79 ms, 0 third-party dependencies). Includes free $0+ Idempotent Cron Mini-Kit & MIT Production Starter Kit. #python #sqlite #backend #api",
+  "alt_text": "1000x1500 technical infographic for Day 11 of 30 (Zero-Cost Backend, SQLite WAL Queues & Cron Automation): Atomic Token-Bucket API Rate Limiting in SQLite WAL Without Redis Lua Scripts \u2014 verified in Python 3.11+ stdlib sandbox (801 words).",
+  "link": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/?utm_source=pinterest&utm_medium=pin&utm_campaign=30d_exp_2026_11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea",
+  "public_image_url": "https://nuwansaratharusha.github.io/kofi-devto-autopilot/pins/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea.png",
+  "png_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/site/pins/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea.png",
+  "svg_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/pinterest_pin.svg",
+  "png_size_bytes": 10627,
+  "png_sha256": "5412f27017e878c78cd1bd188cbf4a6a91e6e3e51ee02dbfd4b86b6fb663dcef",
+  "dimensions": {
+    "width": 1000,
+    "height": 1500
+  },
+  "media_source": {
+    "source_type": "image_base64",
+    "content_type": "image/png",
+    "base64_length": 14172
+  }
+}

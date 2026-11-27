@@ -1,0 +1,22 @@
+{
+  "series_day": 11,
+  "slug": "atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea",
+  "public_title": "[Day 11/30] Atomic Token-Bucket API Rate Limiting in SQLite WAL Without Redis Lua Scripts",
+  "paid_title": "[Members & Shop \u00b7 Day 11/30] Runnable Kit + Full Benchmark: Atomic Token-Bucket API Rate Limiting in SQLite WAL Without Redis Lua Scripts",
+  "patreon_url": "https://www.patreon.com/NuwansaraT",
+  "patreon_post_id": null,
+  "published_post_url": null,
+  "tags": [
+    "python",
+    "sqlite",
+    "backend",
+    "api"
+  ],
+  "free_kit_zip": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/free-idempotent-cron-mini-kit.zip",
+  "paid_kit_zip": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/production-agent-automation-kit.zip",
+  "challenge_kit_zip": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/products/dist/nasio-7day-ai-automation-challenge-pack.zip",
+  "utm_free_checkout_url": "https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=public_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit",
+  "utm_paid_checkout_url": "https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=tier_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit",
+  "public_markdown_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/patreon_public_post.md",
+  "paid_markdown_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/patreon_paid_tier_post.md"
+}
