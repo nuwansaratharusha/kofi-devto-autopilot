@@ -35,7 +35,7 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (197.02 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (166.06 ms)</span>
             <span class="badge">Wednesday Pillar</span>
             <time class="dt-published tabular" datetime="2026-11-24T22:55:43Z">2026-11-24</time>
             <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
@@ -52,7 +52,7 @@
 <p>In this teardown exploring <em>Isolating malformed background payloads so 1 failing webhook never stalls 10,000 healthy jobs.</em> (SQLite reference: <a href="https://www.sqlite.org/pragma.html" rel="noopener">SQLite Official Specification</a>), we benchmark 150 healthy tasks running alongside 2 <code>priority = 1</code> poison pills and prove zero head-of-line starvation followed by <code>100%</code> post-hotfix recovery.</p>
 <h2>Poison-Pill Defense Architecture</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Queue Stage</th><th scope="col">Naive Queue Behavior</th><th scope="col">Priority + Backoff + DLQ Behavior</th></tr></thead><tbody><tr><td><strong>Attempt 1 Fails (<code>priority=1</code>)</strong></td><td>Immediately eligible again at <code>priority=1</code>; blocks all <code>priority=10</code> work</td><td><code>available_at</code> pushed <code>+4s</code>; worker immediately drains ready <code>priority=10</code> and <code>50</code> tasks</td></tr><tr><td><strong>Attempt 2 Fails (<code>priority=1</code>)</strong></td><td>Continues tight retry loop</td><td><code>available_at</code> pushed <code>+8s</code>; healthy throughput remains completely unaffected</td></tr><tr><td><strong>Attempt 3 Reaches <code>max_attempts</code></strong></td><td>Retries forever or drops row on <code>DELETE</code></td><td>Moved to <code>status=&#x27;dead_letter&#x27;</code> with <code>last_error=&#x27;malformed_upstream_schema&#x27;</code></td></tr><tr><td><strong>Operator Deploys Fix</strong></td><td>Lost payload must be reconstructed from raw HTTP logs</td><td>Atomic <code>UPDATE ... WHERE status=&#x27;dead_letter&#x27;</code> replays all quarantined payloads cleanly</td></tr></tbody></table></div>
-<p>Need a lightweight idempotent cron lock and HTTP retry guard first? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to protect scheduled scripts in 30 seconds.</p>
+<p>Need a lightweight idempotent cron lock and HTTP retry guard first? Grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> to protect scheduled scripts in 30 seconds.</p>
 <h2>Runnable Priority Backoff, Quarantine &amp; Hotfix Replay Benchmark</h2>
 <p>The self-contained Python 3.11+ script below enqueues 2 <code>priority = 1</code> poison jobs ahead of 150 healthy jobs (<code>priority = 10</code> and <code>50</code>), verifies that all 150 healthy jobs finish while the poison jobs back off into <code>dead_letter</code>, then simulates a hotfix deployment and replays the dead-letter queue to <code>152/152</code> completion:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -185,16 +185,16 @@ print(f&quot;Verified zero head-of-line blocking: all {d[&quot;healthy_completed
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both blocks above executed cleanly inside an isolated sandbox before staging. Here is the captured output:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 175.9 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 118.3 ms)
 {
   &quot;healthy_completed_while_poison_backed_off&quot;: 150,
   &quot;quarantined_in_dlq&quot;: 2,
   &quot;requeued_after_hotfix&quot;: 2,
   &quot;total_completed_final&quot;: 152,
-  &quot;elapsed_ms&quot;: 146.01
+  &quot;elapsed_ms&quot;: 65.33
 }
 
-# Block 2 (bash, exit=0, 21.1 ms)
+# Block 2 (bash, exit=0, 47.8 ms)
 Verified zero head-of-line blocking: all 150 healthy jobs finished while 2 poison jobs backed off to DLQ, then replayed to 152/152.</code></pre></div>
 <h2>Operational Lessons From the Replay Benchmark</h2>
 <p>Examine the four counters in <code>dlq_report.json</code>:</p>
@@ -202,7 +202,7 @@ Verified zero head-of-line blocking: all 150 healthy jobs finished while 2 poiso
 <h3>Designing Safe Dead-Letter Alerting and Partial Batch Replay</h3>
 <p>Before running an unfiltered <code>UPDATE</code> across thousands of dead-letter rows in production, always inspect a small canary slice first (<code>LIMIT 5</code>) to confirm your parser hotfix handles every failure variant recorded in <code>last_error</code>. Adding a composite index on <code>(status, priority, available_at)</code> ensures both your hot-path worker <code>claim</code> query and your scheduled dead-letter healthcheck (<code>SELECT COUNT(*) FROM tasks WHERE status = &#x27;dead_letter&#x27;</code>) execute in sub-millisecond index scans without touching completed historical rows. Once replayed tasks transition to <code>completed</code>, archive rows older than 14 days in small <code>DELETE ... LIMIT 1000</code> batches so WAL checkpoints stay fast.</p>
 <h2>Download the Complete SQLite WAL Queue CLI &amp; Starter Kit</h2>
-<p>The full <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> ships <code>wal_queue.py</code> (with <code>enqueue</code>, <code>stats</code>, and <code>requeue-dlq</code> CLI subcommands), Python + Node/TypeScript LLM circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 GitHub Actions workflows including an automated dead-letter canary audit.</p>
+<p>The full <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> ships <code>wal_queue.py</code> (with <code>enqueue</code>, <code>stats</code>, and <code>requeue-dlq</code> CLI subcommands), Python + Node/TypeScript LLM circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 GitHub Actions workflows including an automated dead-letter canary audit.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>

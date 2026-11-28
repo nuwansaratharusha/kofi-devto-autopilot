@@ -35,7 +35,7 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (87.89 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (106.84 ms)</span>
             <span class="badge">Monday Pillar</span>
             <time class="dt-published tabular" datetime="2026-11-20T00:26:48Z">2026-11-20</time>
             <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
@@ -51,7 +51,7 @@
 <p>In this teardown covering <em>Preventing runaway overnight API bills with strict scalar schema validation and instant secondary-provider failover.</em> (reference: <a href="https://docs.python.org/3/library/dataclasses.html" rel="noopener">Python 3 Standard Library Docs</a>), we implement and verify a 90-line <code>DeterministicToolRouter</code> in pure Python 3.11+ that enforces strict scalar validation, repairs malformed JSON in place, fails over across model tiers on <code>502</code> errors, and halts deterministically the instant a token or cent ceiling is reached.</p>
 <h2>Four Guardrails Every Tool-Calling Loop Needs</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Risk Vector</th><th scope="col">Fragile Pattern</th><th scope="col">Deterministic Guardrail</th></tr></thead><tbody><tr><td><strong>Cyclic Tool Loops</strong></td><td>Limiting only <code>max_output_tokens</code> per single completion</td><td>Track cumulative <code>tokens_used</code> and <code>cost_cents</code> across every attempt and raise <code>BudgetCeilingError</code> pre-call</td></tr><tr><td><strong>Boolean Type Confusion</strong></td><td><code>isinstance(payload[&quot;limit&quot;], int)</code></td><td>Explicitly reject <code>isinstance(val, bool) and expected_type is int</code> before accepting tool arguments</td></tr><tr><td><strong>Malformed JSON Output</strong></td><td>Crashing the entire job on the first invalid field</td><td>Append a concise <code>REPAIR_JSON</code> hint for at most 1 local retry before escalating</td></tr><tr><td><strong>Primary Gateway <code>502</code>/<code>503</code></strong></td><td>Sleeping on the broken primary provider</td><td>Break out of the primary retry loop immediately on transport errors and route to <code>lean-secondary</code></td></tr></tbody></table></div>
-<p>For a standalone HTTP <code>Retry-After</code> client and SQLite cron guard you can drop into any Python script at zero cost, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<p>For a standalone HTTP <code>Retry-After</code> client and SQLite cron guard you can drop into any Python script at zero cost, grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
 <h2>Runnable Token-Ceiling &amp; Multi-Provider Failover Benchmark</h2>
 <p>The standalone script below simulates a 30-step agent loop where step 2 emits a hallucinated boolean (<code>{&quot;limit&quot;: true}</code>), steps 4 and 5 hit <code>HTTP 502</code> on <code>frontier-primary</code> (routing automatically to <code>lean-secondary</code> at <code>1/6th</code> the token cost), and the cumulative <code>4,000</code>-token ceiling halts execution cleanly before the loop can overspend:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -167,7 +167,7 @@ print(f&quot;Verified hard token ceiling: halted runaway loop at {b[&quot;tokens
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both blocks above were executed inside an isolated environment before staging. Here is the exact captured output:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 50.9 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 59.7 ms)
 {
   &quot;completed_steps&quot;: 12,
   &quot;secondary_rescues&quot;: 2,
@@ -175,10 +175,10 @@ print(f&quot;Verified hard token ceiling: halted runaway loop at {b[&quot;tokens
   &quot;token_ceiling&quot;: 4000,
   &quot;cost_cents&quot;: 5.25,
   &quot;halted_cleanly_at_ceiling&quot;: true,
-  &quot;elapsed_ms&quot;: 0.07
+  &quot;elapsed_ms&quot;: 0.1
 }
 
-# Block 2 (bash, exit=0, 37.0 ms)
+# Block 2 (bash, exit=0, 47.2 ms)
 Verified hard token ceiling: halted runaway loop at 3900 tokens ($0.0525) with 2 seamless failovers.</code></pre></div>
 <h2>Dissecting the Router Accounting</h2>
 <p>Three numbers in <code>budget_report.json</code> highlight why deterministic accounting beats complex agent middleware:</p>
@@ -187,7 +187,7 @@ Verified hard token ceiling: halted runaway loop at 3900 tokens ($0.0525) with 2
 <h3>Operational Telemetry Without Third-Party SDKs</h3>
 <p>To keep visibility sharp without pulling in heavy observability agents, log a single structured JSON summary line at the end of every tool-calling workflow containing <code>job_id</code>, <code>completed_steps</code>, <code>tokens_consumed</code>, <code>cost_cents</code>, <code>secondary_rescues</code>, and <code>halted_cleanly_at_ceiling</code>. Querying those five fields across daily logs immediately reveals whether an upstream provider upgrade silently degraded JSON schema compliance or increased average repair retries per run—before your monthly invoice ever surprises you.</p>
 <h2>Get the Full Python + Node/TypeScript Guardrail Kit</h2>
-<p>Want production-ready Python (<code>llm_circuit_breaker.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>) routers paired with a transactional SQLite WAL job queue, constant-time HMAC webhook guards, double-entry SQL ledgers, and 4 GitHub Actions workflows? Pick up the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
+<p>Want production-ready Python (<code>llm_circuit_breaker.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code> + <code>.d.ts</code>) routers paired with a transactional SQLite WAL job queue, constant-time HMAC webhook guards, double-entry SQL ledgers, and 4 GitHub Actions workflows? Pick up the <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>

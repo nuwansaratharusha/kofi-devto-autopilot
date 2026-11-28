@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-28T09:11:37Z",
+  "generated_at": "2026-11-28T09:53:16Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -177,7 +177,7 @@
     "devto": {
       "channel": "devto",
       "posts_prepared": 11,
-      "posts_remote_id_logged": 0,
+      "posts_remote_id_logged": 1,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -188,11 +188,9 @@
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
       "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
-      "readiness": "UNCONFIGURED_DRY_RUN",
-      "missing_env_keys": [
-        "DEVTO_API_KEY"
-      ],
-      "diagnostic_note": "Running in dry_run mode (missing DEVTO_API_KEY)."
+      "readiness": "LIVE_ACTIVE",
+      "missing_env_keys": [],
+      "diagnostic_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
     "canonical_site": {
       "channel": "canonical_site",
@@ -282,11 +280,11 @@
     "unconfigured_channels": [
       "patreon",
       "blogger",
-      "devto",
       "pinterest"
     ],
     "live_zero_conversion_channels": [
       "whop",
+      "devto",
       "canonical_site"
     ],
     "channel_readiness": {
@@ -325,15 +323,13 @@
       },
       "devto": {
         "channel": "devto",
-        "readiness": "UNCONFIGURED_DRY_RUN",
-        "missing_env_keys": [
-          "DEVTO_API_KEY"
-        ],
+        "readiness": "LIVE_ACTIVE",
+        "missing_env_keys": [],
         "posts_prepared": 11,
-        "posts_remote_id_logged": 0,
+        "posts_remote_id_logged": 1,
         "views": 0,
         "clicks": 0,
-        "diagnostic_note": "Running in dry_run mode (missing DEVTO_API_KEY)."
+        "diagnostic_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
       },
       "canonical_site": {
         "channel": "canonical_site",
@@ -360,7 +356,7 @@
       }
     },
     "recommended_actions": [
-      "Add DEVTO_API_KEY (PUBLISH_MODE=live) so Mon/Wed/Fri articles publish to DEV.to and sync real page_views_count into channel_metrics."
+      "Run python3 autopilot.py sync-analytics && python3 autopilot.py sync-stores daily to ingest Whop Forum views, DEV.to views, and checkout conversions."
     ]
   }
 }

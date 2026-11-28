@@ -35,7 +35,7 @@
       <article class="h-entry">
         <header class="article-header">
           <div class="meta-row">
-            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (48.26 ms)</span>
+            <span class="badge badge-verified">SANDBOX VERIFIED · 2 BLOCKS (92.67 ms)</span>
             <span class="badge">Monday Pillar</span>
             <time class="dt-published tabular" datetime="2026-11-26T22:09:00Z">2026-11-26</time>
             <span>by <a class="p-author h-card" href="https://www.patreon.com/NuwansaraT" rel="author noopener" style="color:var(--accent);font-weight:600;">Tharusha Nuwansara</a></span>
@@ -53,7 +53,7 @@
 <h2>Architecture &amp; Invariant Trade-Off Matrix</h2>
 <p>Before writing implementation code, compare how naive shortcuts behave under failure against the deterministic pattern verified below:</p>
 <div class="table-scroll"><table><thead><tr><th scope="col">Approach</th><th scope="col">Failure Behavior Under Load / Crash</th><th scope="col">Production Guarantee</th></tr></thead><tbody><tr><td><strong>Mid-Stream TCP Freeze</strong></td><td>Waits full 120s read timeout per worker</td><td>Enforces monotonic <code>max_idle_gap_sec = 1.5</code> between consecutive SSE frames</td></tr><tr><td><strong>Half-Written JSON Frame</strong></td><td>Passes truncated string straight to parser</td><td>Buffers <code>data:</code> frames until <code>[DONE]</code> and validates balanced object schema</td></tr><tr><td><strong>Stalled Primary Endpoint</strong></td><td>Retries sluggish primary 3 times in a row</td><td>Fails over immediately to secondary non-streaming route on watchdog abort</td></tr></tbody></table></div>
-<p>If you want drop-in scheduling locks (<code>IdempotentCronRunner</code>) and HTTP <code>Retry-After</code> circuit breakers ready to protect your existing scripts today at zero cost, download the <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this lesson.</p>
+<p>If you want drop-in scheduling locks (<code>IdempotentCronRunner</code>) and HTTP <code>Retry-After</code> circuit breakers ready to protect your existing scripts today at zero cost, download the <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this lesson.</p>
 <h2>Self-Contained Python 3.11+ Implementation &amp; Fault-Injection Benchmark</h2>
 <p>Every module in this 30-day series uses zero third-party packages (<code>pip install</code> count = <code>0</code>) so the exact code below runs cleanly on stock Python 3.11+ across Linux VMs, macOS workstations, and GitHub Actions runners:</p>
 <div class="code-frame"><div class="code-toolbar"><span>PYTHON</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy PYTHON code snippet">Copy code</button></div><pre><code>from __future__ import annotations
@@ -138,16 +138,16 @@ print(f&quot;Verified SSE watchdog: {r[&quot;watchdog_aborts&quot;]} stalled str
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Every Python and shell block in this article was executed inside a clean isolated sandbox prior to publication. Here is the exact stdout captured from the run above:</p>
-<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 27.3 ms)
+<div class="code-frame"><div class="code-toolbar"><span>TEXT</span><button type="button" class="copy-code-btn" data-label="Copy code" aria-label="Copy TEXT code snippet">Copy code</button></div><pre><code># Block 1 (python, exit=0, 46.3 ms)
 {
   &quot;streams_processed&quot;: 40,
   &quot;watchdog_aborts&quot;: 8,
   &quot;backup_rescues&quot;: 8,
   &quot;worker_seconds_saved&quot;: 948.0,
-  &quot;elapsed_ms&quot;: 0.43
+  &quot;elapsed_ms&quot;: 0.32
 }
 
-# Block 2 (bash, exit=0, 20.9 ms)
+# Block 2 (bash, exit=0, 46.4 ms)
 Verified SSE watchdog: 8 stalled streams aborted early, saving 948.0s with 100% backup recovery.</code></pre></div>
 <h2>Dissecting the Empirical Benchmark Results</h2>
 <p>Inspecting the captured metrics above highlights three engineering properties that hold consistently in live deployments:</p>
@@ -157,7 +157,7 @@ Verified SSE watchdog: 8 stalled streams aborted early, saving 948.0s with 100% 
 <p>In live <code>http.client</code> or <code>urllib.request</code> readers, pair a <code>3.0s</code> initial time-to-first-byte timeout with a tighter <code>1.5s</code> per-chunk socket timeout via <code>resp.fp.raw._sock.settimeout(1.5)</code> once headers arrive. Always cap total stream duration (<code>max_wall_sec = 25.0</code>) as well so an upstream server trickling 1-byte keepalive comments every second cannot hold workers open indefinitely.</p>
 <p>When integrating this pattern into a larger service, keep failure boundaries explicit: validate untrusted inputs before opening write transactions, bound memory and disk growth with deterministic TTL or rollup windows, and emit structured JSON summaries per run so scheduled health checks can alert on anomalies without paid log-ingestion agents. Pairing deterministic local SQLite state with explicit timeout budgets ensures that neither upstream latency spikes nor sudden restarts can leave background workers wedged in partial states or silently drop customer records across deployment rollouts.</p>
 <h2>Ship the Complete Zero-Cost Reliability Stack</h2>
-<p>Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete <a href="https://www.patreon.com/NuwansaraT?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> bundles the transactional SQLite WAL job queue + dead-letter CLI (<code>wal_queue.py</code>), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
+<p>Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete <a href="https://whop.com/tharusha-nuwansara?utm_source=canonical_site&amp;utm_medium=article&amp;utm_campaign=30d_exp_2026_11&amp;slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> bundles the transactional SQLite WAL job queue + dead-letter CLI (<code>wal_queue.py</code>), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
         </div>
