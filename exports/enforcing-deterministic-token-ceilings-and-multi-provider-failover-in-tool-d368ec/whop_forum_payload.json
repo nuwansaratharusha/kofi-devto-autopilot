@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 7/30] Enforcing Deterministic Token Ceilings and Multi-Provider Failover...",
+  "content": "**[Day 7/30] Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops**\n\nPreventing runaway overnight API bills and silent Python bool-as-int schema bugs with hard per-run token budgets, repair hints, and instant secondary model failover.\n\nVerified inside an isolated `python3 -I` sandbox (106.84 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day07&slug=enforcing-deterministic-token-ceilings-and-multi-provider-failover-in-tool-d368ec&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

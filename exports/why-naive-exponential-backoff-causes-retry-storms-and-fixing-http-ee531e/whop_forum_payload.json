@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 4/30] Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP...",
+  "content": "**[Day 4/30] Why Naive Exponential Backoff Causes Retry Storms (And Fixing HTTP 429 With Full Jitter in Pure Python)**\n\nSimulating 60 synchronized API workers hitting HTTP 429 at once\u2014and proving why Retry-After-aware full jitter eliminates thundering-herd retry amplification in pure Python.\n\nVerified inside an isolated `python3 -I` sandbox (97.21 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day04&slug=why-naive-exponential-backoff-causes-retry-storms-and-fixing-http-ee531e&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

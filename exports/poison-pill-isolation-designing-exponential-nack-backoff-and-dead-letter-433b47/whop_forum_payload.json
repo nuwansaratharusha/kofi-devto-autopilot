@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 8/30] Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead...",
+  "content": "**[Day 8/30] Poison-Pill Isolation: Designing Exponential NACK Backoff and Dead-Letter Replay in SQLite**\n\nHow to prevent two malformed high-priority webhooks from starving 150 healthy background jobs\u2014and replay quarantined dead-letter payloads cleanly after deploying a hotfix.\n\nVerified inside an isolated `python3 -I` sandbox (166.06 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day08&slug=poison-pill-isolation-designing-exponential-nack-backoff-and-dead-letter-433b47&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

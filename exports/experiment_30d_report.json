@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-28T10:31:16Z",
+  "generated_at": "2026-11-28T10:37:50Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -120,8 +120,8 @@
     "whop": {
       "channel": "whop",
       "posts_prepared": 11,
-      "posts_remote_id_logged": 2,
-      "views": 0,
+      "posts_remote_id_logged": 11,
+      "views": 2,
       "clicks": 0,
       "ctr_pct": 0.0,
       "free_downloads": 0,
@@ -130,10 +130,10 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "action_note": "Low reach & zero conversions (2 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
       "readiness": "LIVE_ACTIVE",
       "missing_env_keys": [],
-      "diagnostic_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "diagnostic_note": "Low reach & zero conversions (2 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
     "patreon": {
       "channel": "patreon",
@@ -237,7 +237,7 @@
       "pillar": "pillar_a",
       "label": "Fault-Tolerant AI & API Guardrails",
       "articles_verified": 4,
-      "views": 0,
+      "views": 1,
       "clicks": 0,
       "ctr_pct": 0.0,
       "free_downloads": 0,
@@ -245,13 +245,13 @@
       "net_cents": 0,
       "net_usd": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (1 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
     "pillar_b": {
       "pillar": "pillar_b",
       "label": "Zero-Cost Backend, SQLite WAL Queues & Cron Automation",
       "articles_verified": 4,
-      "views": 10,
+      "views": 11,
       "clicks": 0,
       "ctr_pct": 0.0,
       "free_downloads": 0,
@@ -259,7 +259,7 @@
       "net_cents": 0,
       "net_usd": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (10 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (11 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     },
     "pillar_c": {
       "pillar": "pillar_c",
@@ -293,10 +293,10 @@
         "readiness": "LIVE_ACTIVE",
         "missing_env_keys": [],
         "posts_prepared": 11,
-        "posts_remote_id_logged": 2,
-        "views": 0,
+        "posts_remote_id_logged": 11,
+        "views": 2,
         "clicks": 0,
-        "diagnostic_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+        "diagnostic_note": "Low reach & zero conversions (2 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
       },
       "patreon": {
         "channel": "patreon",

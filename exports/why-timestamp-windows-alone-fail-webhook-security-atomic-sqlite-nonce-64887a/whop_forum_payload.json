@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 6/30] Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite N...",
+  "content": "**[Day 6/30] Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)**\n\nProving why 5-minute HMAC timestamp checks still allow parallel replay double-spends\u2014and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables.\n\nVerified inside an isolated `python3 -I` sandbox (164.85 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day06&slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

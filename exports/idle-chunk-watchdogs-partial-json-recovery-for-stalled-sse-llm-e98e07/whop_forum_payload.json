@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 10/30] Idle-Chunk Watchdogs & Partial JSON Recovery for Stalled SSE LLM...",
+  "content": "**[Day 10/30] Idle-Chunk Watchdogs & Partial JSON Recovery for Stalled SSE LLM Streams in Python**\n\nDetecting mid-stream SSE socket stalls in 1.5 seconds instead of hanging worker threads for two minutes\u2014and recovering valid partial payloads cleanly.\n\nVerified inside an isolated `python3 -I` sandbox (92.67 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day10&slug=idle-chunk-watchdogs-partial-json-recovery-for-stalled-sse-llm-e98e07&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

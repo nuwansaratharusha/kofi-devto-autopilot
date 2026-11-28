@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 3/30] Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entr...",
+  "content": "**[Day 3/30] Constant-Time HMAC Webhook Verification & Integer-Cent Double-Entry SQL Ledgers in Python**\n\nHow to verify raw webhook bytes in constant time, block intra-window replay attacks with SQLite WAL nonces, and record zero-drift integer-cent journal postings.\n\nVerified inside an isolated `python3 -I` sandbox (91.08 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day03&slug=constant-time-hmac-webhook-verification-integer-cent-double-entry-sql-cd295f&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 9/30] Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Again...",
+  "content": "**[Day 9/30] Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings**\n\nDetecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views.\n\nVerified inside an isolated `python3 -I` sandbox (135.55 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

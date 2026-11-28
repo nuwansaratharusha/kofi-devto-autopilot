@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 2/30] Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job...",
+  "content": "**[Day 2/30] Replacing Redis Queue With a 180-Line Transactional SQLite WAL Job Broker & Dead-Letter CLI**\n\nBenchmarking atomic BEGIN IMMEDIATE visibility leases, duplicate webhook suppression, and poison-pill dead-letter isolation on a single SQLite WAL file.\n\nVerified inside an isolated `python3 -I` sandbox (152.91 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day02&slug=replacing-redis-queue-with-a-180-line-transactional-sqlite-wal-48c679&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}

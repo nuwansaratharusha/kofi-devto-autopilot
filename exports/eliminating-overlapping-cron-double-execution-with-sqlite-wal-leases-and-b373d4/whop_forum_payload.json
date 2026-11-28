@@ -1,0 +1,7 @@
+{
+  "experience_id": "exp_PZIkF3VfAuEVXy",
+  "title": "[Day 5/30] Eliminating Overlapping Cron Double-Execution With SQLite WAL Leas...",
+  "content": "**[Day 5/30] Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover**\n\nEliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery.\n\nVerified inside an isolated `python3 -I` sandbox (104.36 ms across 2 executable blocks, 100% Python 3.11+ standard library):\n- Full runnable benchmark & code teardown: https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4/\n- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD \u00b7 MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=forum_post&utm_campaign=30d_day05&slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&sku=nasio-7day-ai-automation-challenge-pack\n",
+  "pinned": false,
+  "is_mention": false
+}
