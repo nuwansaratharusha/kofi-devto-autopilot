@@ -1,6 +1,6 @@
 {
   "status": "provisioned",
-  "synced_at": "2026-11-28T09:07:06Z",
+  "synced_at": "2026-11-28T09:11:35Z",
   "company_id": "biz_Af4z3lgivbct7t",
   "forum_experience_id": "exp_vnkaw8jVVwdlhz",
   "chat_experience_id": "exp_9vBHP5tAgRVzDk",
@@ -39,5 +39,5 @@
       "zip_filename": "nasio-7day-ai-automation-challenge-pack.zip"
     }
   ],
-  "manifest_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
+  "manifest_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
 }
