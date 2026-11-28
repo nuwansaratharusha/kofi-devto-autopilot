@@ -44,7 +44,7 @@
 
 | Channel | Integration Mode | Live Remote / Staged | Missing Credentials | Root-Cause Diagnostic |
 | :--- | :--- | :--- | :--- | :--- |
-| `whop` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `WHOP_API_KEY` | Running in dry_run mode (missing WHOP_API_KEY). |
+| `whop` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (0 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
 | `patreon` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | None | Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet. |
 | `blogger` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `BLOGGER_BLOG_ID`, `BLOGGER_REFRESH_TOKEN` | Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN). |
 | `devto` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `DEVTO_API_KEY` | Running in dry_run mode (missing DEVTO_API_KEY). |
@@ -52,5 +52,4 @@
 | `pinterest` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `PINTEREST_ACCESS_TOKEN`, `PINTEREST_BOARD_ID` | Running in dry_run mode (missing PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID). |
 
 ### Recommended Activation Steps
-- Connect WHOP_API_KEY and WHOP_STORE_URL for biz_Af4z3lgivbct7t, then run python3 autopilot.py setup-whop to provision the 3 SKUs and enable daily Whop Forum publishing + analytics.
 - Add DEVTO_API_KEY (PUBLISH_MODE=live) so Mon/Wed/Fri articles publish to DEV.to and sync real page_views_count into channel_metrics.

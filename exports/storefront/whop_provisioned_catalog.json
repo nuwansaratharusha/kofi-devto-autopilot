@@ -1,8 +1,43 @@
 {
-  "status": "dry_run",
+  "status": "provisioned",
+  "synced_at": "2026-11-28T09:07:06Z",
   "company_id": "biz_Af4z3lgivbct7t",
-  "reason": "WHOP_API_KEY not configured; exported provisioning blueprint locally.",
-  "products_provisioned": [],
-  "catalog_count": 3,
-  "manifest_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
+  "forum_experience_id": "exp_vnkaw8jVVwdlhz",
+  "chat_experience_id": "exp_9vBHP5tAgRVzDk",
+  "products_provisioned": [
+    {
+      "sku": "free-idempotent-cron-mini-kit",
+      "title": "Free Idempotent Cron & API Circuit-Breaker Mini-Kit (Python 3.11+ Zero-Dep)",
+      "price_usd": 0,
+      "product_id": "prod_fEsWrzt3p4GWs",
+      "product_operation": "reused",
+      "plan_id": "plan_rNDWoO6bujfMk",
+      "plan_operation": "reused",
+      "checkout_url": "https://whop.com/checkout/plan_rNDWoO6bujfMk",
+      "zip_filename": "free-idempotent-cron-mini-kit.zip"
+    },
+    {
+      "sku": "production-agent-automation-kit",
+      "title": "Production AI Agent & Zero-Cost Backend Reliability Starter Kit (Python + Node/TS + SQL + CI)",
+      "price_usd": 14,
+      "product_id": "prod_jRcG7iKX2SBRa",
+      "product_operation": "reused",
+      "plan_id": "plan_yDFlhL3QaqB9D",
+      "plan_operation": "reused",
+      "checkout_url": "https://whop.com/checkout/plan_yDFlhL3QaqB9D",
+      "zip_filename": "production-agent-automation-kit.zip"
+    },
+    {
+      "sku": "nasio-7day-ai-automation-challenge-pack",
+      "title": "7-Day Fault-Tolerant Python & AI Agent Reliability Challenge Pack (7 Daily Labs + Workbook)",
+      "price_usd": 15,
+      "product_id": "prod_hpZcLGRbpJVOw",
+      "product_operation": "reused",
+      "plan_id": "plan_mDecvQopACUdc",
+      "plan_operation": "reused",
+      "checkout_url": "https://whop.com/checkout/plan_mDecvQopACUdc",
+      "zip_filename": "nasio-7day-ai-automation-challenge-pack.zip"
+    }
+  ],
+  "manifest_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
 }

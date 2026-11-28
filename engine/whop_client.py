@@ -1049,18 +1049,20 @@ class WhopClient:
                 idempotency_key=idempotency_key,
             )
 
-        candidates = (
-            ["company_id", "account_id"]
+        candidates: list[Optional[str]] = (
+            ["company_id", "account_id", None]
             if self._company_body_param == "company_id"
-            else ["account_id", "company_id"]
+            else ["account_id", "company_id", None]
         )
         last_err: Optional[WhopApiError] = None
         for idx, field_name in enumerate(candidates):
-            payload = {**dict(body), field_name: self.company_id}
-            ikey = f"{idempotency_key}-{field_name}" if (idempotency_key and idx > 0) else idempotency_key
+            payload = {**dict(body), field_name: self.company_id} if field_name else dict(body)
+            suffix = field_name or "bare"
+            ikey = f"{idempotency_key}-{suffix}" if (idempotency_key and idx > 0) else idempotency_key
             try:
                 res = self._request_json(method, path, json_body=payload, idempotency_key=ikey)
-                self._company_body_param = field_name
+                if field_name:
+                    self._company_body_param = field_name
                 return res
             except WhopApiError as exc:
                 last_err = exc
@@ -1529,19 +1531,28 @@ class WhopClient:
         description: str = "",
         visibility: str = "visible",
     ) -> dict[str, Any]:
-        """Idempotently find or create a Whop product (`POST /api/v1/products`) by SKU/slug/title."""
+        """Idempotently find or create a Whop product (`POST /api/v1/products`, `<= 80` char title) by SKU/slug/title."""
         norm_slug = slug.strip().lower()
+        base_title = re.sub(r"\s*\([^)]*\)\s*$", "", title.strip()).strip()
+        safe_title = (title.strip() if len(title.strip()) <= 80 else base_title)[:80].strip()
         norm_title = title.strip().lower()
+        norm_base = base_title.lower()
+
         for existing in self.list_products():
             meta = existing.get("metadata") if isinstance(existing.get("metadata"), Mapping) else {}
             ex_sku = str(meta.get("sku") or existing.get("route") or existing.get("slug") or "").strip().lower()
             ex_title = str(existing.get("title") or existing.get("name") or "").strip().lower()
-            if (norm_slug and ex_sku == norm_slug) or (norm_title and ex_title == norm_title):
+            ex_base = re.sub(r"\s*\([^)]*\)\s*$", "", ex_title).strip()
+            if (
+                (norm_slug and ex_sku == norm_slug)
+                or (norm_title and ex_title == norm_title)
+                or (norm_base and len(norm_base) >= 16 and (ex_title == norm_base or ex_base == norm_base))
+            ):
                 return {"operation": "reused", "product": existing}
 
         route_slug = re.sub(r"[^a-z0-9-]+", "-", norm_slug).strip("-")[:48] or "reliability-kit"
         body: dict[str, Any] = {
-            "title": title.strip(),
+            "title": safe_title,
             "route": route_slug,
             "visibility": visibility,
             "metadata": {"sku": slug.strip()},
@@ -1860,9 +1871,11 @@ class WhopClient:
             configured_ls_url=self.config.lemonsqueezy_store_url,
         )
 
-        post_title = f"[Day {day_num}/30] {article.title}"
+        raw_post_title = f"[Day {day_num}/30] {article.title}"
+        post_title = raw_post_title if len(raw_post_title) <= 80 else (raw_post_title[:77].rstrip() + "...")
         # Strictly <= 2 outbound links (1 canonical tutorial + 1 internal UTM-tagged Challenge link)
         post_content = (
+            f"**{raw_post_title}**\n\n"
             f"{article.subtitle}\n\n"
             f"Verified inside an isolated `python3 -I` sandbox ({dur_ms} ms across {blocks_n} executable blocks, "
             f"100% Python 3.11+ standard library):\n"
@@ -1876,7 +1889,6 @@ class WhopClient:
             "content": post_content,
             "pinned": False,
             "is_mention": False,
-            "paywall_amount": 0,
         }
         payload_path = self.config.exports_dir / article.slug / "whop_forum_payload.json"
         payload_path.parent.mkdir(parents=True, exist_ok=True)
