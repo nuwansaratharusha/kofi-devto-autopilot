@@ -3,7 +3,7 @@
 - **Article:** `Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings` (`835` words · `2` blocks verified in `101.97 ms`)
 - **Pillar Track:** Idempotent Webhooks & Double-Entry Ledger Teardowns (Friday)
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company `biz_Af4z3lgivbct7t`)
-- **Target Checkout Hub:** `https://www.patreon.com/NuwansaraT` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
+- **Target Checkout Hub:** `https://whop.com/tharusha-nuwansara` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
 
 ---
 
@@ -28,8 +28,8 @@ Read today's full runnable benchmark free:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/
 
 Ready to ship all 7 production guardrails hands-on with unit tests?
-1. Free Starter Kit ($0 Files App): https://www.patreon.com/NuwansaraT?utm_source=whop&utm_medium=announcements&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=free-idempotent-cron-mini-kit
-2. Unlock the 7-Day Python & AI Reliability Challenge ($15 USD · 7 Runnable Labs + Forum Review + MIT License): https://www.patreon.com/NuwansaraT?utm_source=whop&utm_medium=announcements&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
+1. Free Starter Kit ($0 Files App): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=announcements&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=free-idempotent-cron-mini-kit
+2. Unlock the 7-Day Python & AI Reliability Challenge ($15 USD · 7 Runnable Labs + Forum Review + MIT License): https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=announcements&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
 ```
 
 ---
@@ -53,7 +53,7 @@ Full runnable teardown & benchmark output:
 https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3/
 
 7-Day Hands-On Python & AI Reliability Challenge ($15 on Whop · MIT License):
-https://www.patreon.com/NuwansaraT?utm_source=whop&utm_medium=value_hook&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
+https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=value_hook&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
 ```
 
 ---
@@ -66,5 +66,5 @@ https://www.patreon.com/NuwansaraT?utm_source=whop&utm_medium=value_hook&utm_cam
 ```text
 Hey {first_name} — welcome into the Reliability Lab on Whop and glad you grabbed the free Python cron & circuit-breaker kit! Quick question so I point you to the highest-impact module first: are you currently tackling flaky LLM/API retries or background queue/webhook idempotency?
 
-Whenever you want all 7 self-tested stdlib labs + the failure-injection workbook (`test_challenge_kit.py` under MIT commercial license), you can unlock the $15 7-Day Challenge right inside our Whop hub here: https://www.patreon.com/NuwansaraT?utm_source=whop&utm_medium=warm_welcome&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
+Whenever you want all 7 self-tested stdlib labs + the failure-injection workbook (`test_challenge_kit.py` under MIT commercial license), you can unlock the $15 7-Day Challenge right inside our Whop hub here: https://whop.com/tharusha-nuwansara?utm_source=whop&utm_medium=warm_welcome&utm_campaign=30d_day09&slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&sku=nasio-7day-ai-automation-challenge-pack
 ```

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-28T08:26:35Z",
+  "generated_at": "2026-11-28T09:00:46Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -27,7 +27,7 @@
     "whop": {
       "storefront": "whop",
       "label": "Storefront #1: Whop ($10 Min Payout \u00b7 Built-in Marketplace)",
-      "store_url": "https://www.patreon.com/NuwansaraT",
+      "store_url": "https://whop.com/tharusha-nuwansara",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,
@@ -63,7 +63,7 @@
     "lemonsqueezy": {
       "storefront": "lemonsqueezy",
       "label": "Lemon Squeezy ($50 Sri Lanka Bank Wire)",
-      "store_url": "https://www.patreon.com/NuwansaraT",
+      "store_url": "https://whop.com/tharusha-nuwansara",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,
@@ -80,7 +80,7 @@
     "gumroad": {
       "storefront": "gumroad",
       "label": "Gumroad ($100 Sri Lanka Bank Deposit)",
-      "store_url": "https://www.patreon.com/NuwansaraT",
+      "store_url": "https://whop.com/tharusha-nuwansara",
       "paid_orders": 0,
       "free_downloads": 0,
       "refunded_orders": 0,
@@ -133,10 +133,9 @@
       "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
       "readiness": "UNCONFIGURED_DRY_RUN",
       "missing_env_keys": [
-        "WHOP_API_KEY",
-        "WHOP_STORE_URL"
+        "WHOP_API_KEY"
       ],
-      "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY, WHOP_STORE_URL)."
+      "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY)."
     },
     "patreon": {
       "channel": "patreon",
@@ -297,14 +296,13 @@
         "channel": "whop",
         "readiness": "UNCONFIGURED_DRY_RUN",
         "missing_env_keys": [
-          "WHOP_API_KEY",
-          "WHOP_STORE_URL"
+          "WHOP_API_KEY"
         ],
         "posts_prepared": 11,
         "posts_remote_id_logged": 0,
         "views": 0,
         "clicks": 0,
-        "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY, WHOP_STORE_URL)."
+        "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY)."
       },
       "patreon": {
         "channel": "patreon",

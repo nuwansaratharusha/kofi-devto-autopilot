@@ -14,8 +14,8 @@ Welcome to **Day 11 of 30** in *30 Days of Zero-Cost Production Python & AI Reli
 ---
 
 ## Download Today's Runnable Kits
-1. **Free Starter Sample ($0+):** [Free Idempotent Cron & API Circuit-Breaker Mini-Kit](https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=public_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit)
-2. **Full 15-File Production Kit ($14 Shop / Paid Members):** [Production AI Agent & Backend Reliability Starter Kit](https://www.patreon.com/NuwansaraT?utm_source=patreon&utm_medium=tier_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit)
+1. **Free Starter Sample ($0+):** [Free Idempotent Cron & API Circuit-Breaker Mini-Kit](https://whop.com/tharusha-nuwansara?utm_source=patreon&utm_medium=public_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit)
+2. **Full 15-File Production Kit ($14 Shop / Paid Members):** [Production AI Agent & Backend Reliability Starter Kit](https://whop.com/tharusha-nuwansara?utm_source=patreon&utm_medium=tier_post&utm_campaign=30d_day11&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit)
    *(Paid Patreon members can also download `production-agent-automation-kit.zip` directly from today's member attachment post on [https://www.patreon.com/NuwansaraT](https://www.patreon.com/NuwansaraT)!)*
 
 ### Recent 30 Days of Zero-Cost Production Python & AI Reliability Drops

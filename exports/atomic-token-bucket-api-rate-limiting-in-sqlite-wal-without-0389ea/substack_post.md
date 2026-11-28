@@ -165,5 +165,5 @@ Building autonomous Python or TypeScript workflows, webhook processors, or SaaS 
 ---
 
 ### Grab the Tested `.zip` Toolkits
-- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://www.patreon.com/NuwansaraT?utm_source=substack&utm_medium=syndication&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit)
-- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://www.patreon.com/NuwansaraT?utm_source=substack&utm_medium=syndication&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit)
+- **Free ($0+ PWYW):** [Idempotent Cron & API Circuit-Breaker Mini-Kit](https://whop.com/tharusha-nuwansara?utm_source=substack&utm_medium=syndication&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit)
+- **Full Starter Kit ($14 USD, MIT Commercial License):** [Production AI Agent & Zero-Cost Backend Reliability Starter Kit](https://whop.com/tharusha-nuwansara?utm_source=substack&utm_medium=syndication&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit)

@@ -2,7 +2,7 @@
 
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company ID: `biz_Af4z3lgivbct7t`)
 - **Whop Developer & API Keys Portal:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/developer/`
-- **Public Whop Storefront (`WHOP_STORE_URL`):** `https://whop.com/<your-store-slug> (Dashboard: https://whop.com/dashboard/biz_Af4z3lgivbct7t/)`
+- **Public Whop Storefront (`WHOP_STORE_URL`):** `https://whop.com/tharusha-nuwansara`
 - **Paired Patreon Hub (`PATREON_URL`):** `https://www.patreon.com/NuwansaraT` (`$25 USD` Payoneer payout)
 - **Month-1 Net Target:** `$50.00+ USD` net (`$0/mo` upfront subscription · `$10 USD` Whop minimum payout · `1 hour/day` execution)
 

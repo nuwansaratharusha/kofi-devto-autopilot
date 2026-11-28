@@ -44,7 +44,7 @@
 
 | Channel | Integration Mode | Live Remote / Staged | Missing Credentials | Root-Cause Diagnostic |
 | :--- | :--- | :--- | :--- | :--- |
-| `whop` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `WHOP_API_KEY`, `WHOP_STORE_URL` | Running in dry_run mode (missing WHOP_API_KEY, WHOP_STORE_URL). |
+| `whop` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `WHOP_API_KEY` | Running in dry_run mode (missing WHOP_API_KEY). |
 | `patreon` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | None | Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet. |
 | `blogger` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `BLOGGER_BLOG_ID`, `BLOGGER_REFRESH_TOKEN` | Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN). |
 | `devto` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `DEVTO_API_KEY` | Running in dry_run mode (missing DEVTO_API_KEY). |
