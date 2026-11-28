@@ -5,7 +5,7 @@
     </p>
     <p style="margin:0;font-size:14px;color:#334155;">
       <strong>Track:</strong> Zero-Cost Backend, SQLite WAL Queues &amp; Cron Automation ·
-      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 100.13 ms (<code>python3 -I</code> exit 0) ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 104.36 ms (<code>python3 -I</code> exit 0) ·
       <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
     </p>
   </div>
@@ -20,7 +20,7 @@
 <p>In this Wednesday reliability teardown—<em>How to stop overlapping GitHub Actions and crontab triggers from double-sending emails while recovering automatically after worker OOM kills.</em> (SQLite reference: <a href="https://www.sqlite.org/lang_transaction.html" rel="noopener">SQLite Official Specification</a>)—we build and verify a zero-dependency SQLite WAL lease state machine that guarantees at-most-once completion per UTC window while automatically recovering crashed worker leases.</p>
 <h2>Cron Lease State Transitions</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Incoming Trigger State</th><th scope="col">Existing Row Condition</th><th scope="col">Atomic <code>BEGIN IMMEDIATE</code> Action</th><th scope="col">Side-Effect Guarantee</th></tr></thead><tbody><tr><td><strong>First Worker in Window</strong></td><td>No row for <code>exec_key</code></td><td><code>INSERT</code> <code>status=&#x27;running&#x27;</code>, <code>lease_until = now + ttl</code></td><td>Executes job (<code>acquired_fresh</code>)</td></tr><tr><td><strong>Overlapping Trigger</strong></td><td><code>status=&#x27;running&#x27;</code> and <code>lease_until &gt; now</code></td><td>Immediate <code>COMMIT</code> &amp; exit</td><td>Zero duplicate execution (<code>skipped_active_lease</code>)</td></tr><tr><td><strong>Post-OOM Recovery Trigger</strong></td><td><code>status=&#x27;running&#x27;</code> and <code>lease_until &lt;= now</code></td><td><code>UPDATE</code> owner, <code>attempts + 1</code>, extend <code>lease_until</code></td><td>Safe crash takeover (<code>recovered_stale_lease</code>)</td></tr><tr><td><strong>Late Retry / Re-Trigger</strong></td><td><code>status=&#x27;completed&#x27;</code></td><td>Immediate <code>COMMIT</code> &amp; exit</td><td>Permanent window idempotency (<code>skipped_completed</code>)</td></tr></tbody></table></div>
-<p>Want this exact <code>IdempotentCronRunner</code> packaged with CLI flags (<code>minutely</code>, <code>hourly</code>, <code>daily</code>), <code>GuardedHttpClient</code>, and unit tests? Download the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<p>Want this exact <code>IdempotentCronRunner</code> packaged with CLI flags (<code>minutely</code>, <code>hourly</code>, <code>daily</code>), <code>GuardedHttpClient</code>, and unit tests? Download the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
 <h2>Self-Contained SQLite WAL Cron Lease &amp; OOM Takeover Simulation</h2>
 <p>The pure Python 3.11+ script below walks all four transitions deterministically: <code>worker-a</code> acquires the <code>payout-digest</code> hourly window and simulates an OOM crash, <code>worker-b</code> fires 15 seconds later and gets blocked by the active lease, <code>worker-c</code> arrives after the 120-second TTL to recover and complete the job, and <code>worker-d</code> confirms post-completion suppression:</p>
 <div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
@@ -127,7 +127,7 @@ print(f&quot;Verified cron lease state machine: {c[&quot;timeline&quot;]} -&gt; 
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both snippets above ran inside an isolated environment before staging. Here is the exact captured stdout:</p>
-<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 57.9 ms)
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 56.8 ms)
 {
   &quot;timeline&quot;: [
     &quot;acquired_fresh&quot;,
@@ -138,10 +138,10 @@ print(f&quot;Verified cron lease state machine: {c[&quot;timeline&quot;]} -&gt; 
   &quot;final_owner&quot;: &quot;worker-c&quot;,
   &quot;final_attempts&quot;: 2,
   &quot;side_effects_committed&quot;: 1,
-  &quot;elapsed_ms&quot;: 5.93
+  &quot;elapsed_ms&quot;: 2.66
 }
 
-# Block 2 (bash, exit=0, 42.2 ms)
+# Block 2 (bash, exit=0, 47.5 ms)
 Verified cron lease state machine: [&#x27;acquired_fresh&#x27;, &#x27;skipped_active_lease&#x27;, &#x27;recovered_stale_lease&#x27;, &#x27;skipped_completed&#x27;] -&gt; exactly 1 committed side effect.</code></pre></div>
 <h2>Choosing Lease TTLs and Heartbeats in Production</h2>
 <p>The captured timeline (<code>[&#x27;acquired_fresh&#x27;, &#x27;skipped_active_lease&#x27;, &#x27;recovered_stale_lease&#x27;, &#x27;skipped_completed&#x27;]</code>) highlights two practical design rules when sizing <code>ttl</code> (<code>lease_seconds</code>) for real workloads:</p>
@@ -149,7 +149,7 @@ Verified cron lease state machine: [&#x27;acquired_fresh&#x27;, &#x27;skipped_ac
 <h3>Deploying Across Crontab, Systemd Timers, and GitHub Actions</h3>
 <p>When running this pattern on a single Linux VM or container host, place <code>cron_leases.db</code> on persistent local storage (<code>/var/lib/autopilot/cron_leases.db</code>) rather than <code>/tmp</code> so reboot cycles preserve completed window history across restarts. In ephemeral CI runners like GitHub Actions (<code>schedule</code> triggers routinely experience 3-to-15-minute start delays and occasional duplicate dispatches), restore and save your <code>state/</code> SQLite directory with <code>actions/cache@v4</code> keyed by branch and run ID fallback, and combine the local window lease with an upstream idempotency check (such as matching existing draft <code>canonical_url</code> entries before issuing <code>POST</code> requests). That defense-in-depth guarantees zero duplicate publications even if a runner cache ever starts cold.</p>
 <h2>Upgrade to Full Queues, Dead-Letter Replay &amp; CI Blueprints</h2>
-<p>When your workload outgrows single-window cron locks and needs priority queues, exponential NACK backoff, dead-letter replay CLIs, HMAC webhook verification, and polyglot AI circuit breakers, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
+<p>When your workload outgrows single-window cron locks and needs priority queues, exponential NACK backoff, dead-letter replay CLIs, HMAC webhook verification, and polyglot AI circuit breakers, grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=eliminating-overlapping-cron-double-execution-with-sqlite-wal-leases-and-b373d4&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a>.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
 

@@ -1,6 +1,6 @@
 # Daily 60-Minute Whop Execution Pack — Day 7/30
 
-- **Article:** `Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops` (`831` words · `2` blocks verified in `87.89 ms`)
+- **Article:** `Enforcing Deterministic Token Ceilings and Multi-Provider Failover in Tool-Calling Loops` (`829` words · `2` blocks verified in `106.84 ms`)
 - **Pillar Track:** Fault-Tolerant AI & API Guardrails (Monday)
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company `biz_Af4z3lgivbct7t`)
 - **Target Checkout Hub:** `https://whop.com/tharusha-nuwansara` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
@@ -20,7 +20,7 @@ Hey builders — welcome to Day 7/30 of 30 Days of Zero-Cost Production Python &
 
 Today's lab tackles Preventing runaway overnight API bills and silent Python bool-as-int schema bugs with hard per-run token budgets, repair hints, and instant secondary model failover.
 
-What we verified inside an isolated `python3 -I` sandbox (87.89 ms runtime across 2 executable blocks):
+What we verified inside an isolated `python3 -I` sandbox (106.84 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
 - How to eliminate the failure mode using 100% Python standard library primitives (11/30 lessons live)
 
@@ -44,7 +44,7 @@ Ready to ship all 7 production guardrails hands-on with unit tests?
 
 Preventing runaway overnight API bills and silent Python bool-as-int schema bugs with hard per-run token budgets, repair hints, and instant secondary model failover.
 
-We ran 2 isolated Python 3.11+ benchmark blocks (87.89 ms total verification time, zero third-party packages) to test what actually breaks under production load:
+We ran 2 isolated Python 3.11+ benchmark blocks (106.84 ms total verification time, zero third-party packages) to test what actually breaks under production load:
 - Retries without jitter + Retry-After parsing amplify upstream 429 outages
 - Unvalidated LLM JSON (`isinstance(True, int)`) silently corrupts downstream state
 - SQLite WAL + BEGIN IMMEDIATE leases replace external queue infrastructure on single-node deployments

@@ -1,6 +1,6 @@
 # Daily 60-Minute Whop Execution Pack — Day 9/30
 
-- **Article:** `Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings` (`835` words · `2` blocks verified in `101.97 ms`)
+- **Article:** `Zero-Drift Payment Reconciliation: Auditing Payment Webhooks Against Immutable SQL Postings` (`833` words · `2` blocks verified in `135.55 ms`)
 - **Pillar Track:** Idempotent Webhooks & Double-Entry Ledger Teardowns (Friday)
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company `biz_Af4z3lgivbct7t`)
 - **Target Checkout Hub:** `https://whop.com/tharusha-nuwansara` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
@@ -20,7 +20,7 @@ Hey builders — welcome to Day 9/30 of 30 Days of Zero-Cost Production Python &
 
 Today's lab tackles Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views.
 
-What we verified inside an isolated `python3 -I` sandbox (101.97 ms runtime across 2 executable blocks):
+What we verified inside an isolated `python3 -I` sandbox (135.55 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
 - How to eliminate the failure mode using 100% Python standard library primitives (11/30 lessons live)
 
@@ -44,7 +44,7 @@ Ready to ship all 7 production guardrails hands-on with unit tests?
 
 Detecting dropped payment webhooks, recording append-only compensating refunds, and proving zero-cent balance invariants with pure SQL views.
 
-We ran 2 isolated Python 3.11+ benchmark blocks (101.97 ms total verification time, zero third-party packages) to test what actually breaks under production load:
+We ran 2 isolated Python 3.11+ benchmark blocks (135.55 ms total verification time, zero third-party packages) to test what actually breaks under production load:
 - Retries without jitter + Retry-After parsing amplify upstream 429 outages
 - Unvalidated LLM JSON (`isinstance(True, int)`) silently corrupts downstream state
 - SQLite WAL + BEGIN IMMEDIATE leases replace external queue infrastructure on single-node deployments

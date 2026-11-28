@@ -2,13 +2,13 @@
 
 **Enforcing exact burst-and-refill API rate limits across multi-worker Python processes using a 40-line SQLite WAL token bucket instead of Redis.**
 
-Welcome to **Day 11 of 30** in *30 Days of Zero-Cost Production Python & AI Reliability* (Zero-Cost Backend, SQLite WAL Queues & Cron Automation). Every code snippet in today's drop was executed inside an isolated `python3 -I` sandbox (`2` blocks verified in `90.79 ms` with `returncode == 0`).
+Welcome to **Day 11 of 30** in *30 Days of Zero-Cost Production Python & AI Reliability* (Zero-Cost Backend, SQLite WAL Queues & Cron Automation). Every code snippet in today's drop was executed inside an isolated `python3 -I` sandbox (`2` blocks verified in `106.47 ms` with `returncode == 0`).
 
 ---
 
 ## Why This Matters in Production
 - **Track:** Zero-Cost Backend, SQLite WAL Queues & Cron Automation (Wednesday Pillar)
-- **Empirical Verification:** `2` runnable blocks (`801` words total)
+- **Empirical Verification:** `2` runnable blocks (`799` words total)
 - **Full Benchmark & Runnable Code:** [https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/](https://nuwansaratharusha.github.io/kofi-devto-autopilot/posts/atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea/)
 
 ---

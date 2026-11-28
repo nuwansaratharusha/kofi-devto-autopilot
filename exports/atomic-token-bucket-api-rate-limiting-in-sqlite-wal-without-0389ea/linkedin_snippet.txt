@@ -2,7 +2,7 @@ Atomic Token-Bucket API Rate Limiting in SQLite WAL Without Redis Lua Scripts
 
 Enforcing exact burst-and-refill API rate limits across multi-worker Python processes using a 40-line SQLite WAL token bucket instead of Redis.
 
-3 takeaways from running the isolated Python 3.11+ benchmark (90.79 ms verification runtime):
+3 takeaways from running the isolated Python 3.11+ benchmark (106.47 ms verification runtime):
 1. Production reliability bugs almost always hide in retry storms, lock-upgrade deadlocks, or stateless replay windows—not the happy path.
 2. You do not need Redis or heavyweight third-party frameworks for deterministic state machines, SQLite WAL visibility leases, or constant-time HMAC guards.
 3. Every snippet in our Wednesday teardown runs solely on Python's standard library and passes automated sandbox assertions before staging.

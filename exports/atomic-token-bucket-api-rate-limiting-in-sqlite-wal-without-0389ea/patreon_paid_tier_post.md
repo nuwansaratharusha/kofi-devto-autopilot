@@ -30,7 +30,7 @@ Before writing implementation code, compare how naive shortcuts behave under fai
 | **Fixed Minute Counter Table** | Simple `COUNT(*)`, allows 2x boundary bursts | Spiky downstream load |
 | **Continuous SQLite WAL Token Bucket** | Exact time-proportional refill (`min(cap, tok + dt*rate)`) | Shared, atomic, smooth rate control |
 
-If you want drop-in scheduling locks (`IdempotentCronRunner`) and HTTP `Retry-After` circuit breakers ready to protect your existing scripts today at zero cost, download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://www.patreon.com/NuwansaraT?utm_source=devto&utm_medium=tutorial&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit) and run its unit tests locally alongside this lesson.
+If you want drop-in scheduling locks (`IdempotentCronRunner`) and HTTP `Retry-After` circuit breakers ready to protect your existing scripts today at zero cost, download the [Free Idempotent Cron & Circuit-Breaker Mini-Kit ($0+ PWYW)](https://whop.com/tharusha-nuwansara?utm_source=devto&utm_medium=tutorial&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=free-idempotent-cron-mini-kit) and run its unit tests locally alongside this lesson.
 
 ## Self-Contained Python 3.11+ Implementation & Fault-Injection Benchmark
 
@@ -126,16 +126,16 @@ Every Python and shell block in this article was executed inside a clean isolate
 
 <!-- EMPIRICAL_OUTPUT_START -->
 ```text
-# Block 1 (python, exit=0, 76.9 ms)
+# Block 1 (python, exit=0, 58.6 ms)
 {
   "initial_burst_allowed": 10,
   "initial_burst_blocked": 15,
   "after_2_5s_refill_allowed": 5,
   "computed_retry_after_sec": 0.5,
-  "elapsed_ms": 57.7
+  "elapsed_ms": 10.21
 }
 
-# Block 2 (bash, exit=0, 13.9 ms)
+# Block 2 (bash, exit=0, 47.9 ms)
 Verified SQLite token bucket: 10/25 burst admitted, +5 after 2.5s, Retry-After=0.5s.
 ```
 <!-- EMPIRICAL_OUTPUT_END -->
@@ -158,7 +158,7 @@ When integrating this pattern into a larger service, keep failure boundaries exp
 
 ## Ship the Complete Zero-Cost Reliability Stack
 
-Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://www.patreon.com/NuwansaraT?utm_source=devto&utm_medium=tutorial&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit) bundles the transactional SQLite WAL job queue + dead-letter CLI (`wal_queue.py`), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.
+Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete [Production AI Agent & Zero-Cost Backend Reliability Starter Kit ($14, MIT License)](https://whop.com/tharusha-nuwansara?utm_source=devto&utm_medium=tutorial&utm_campaign=atomic-token-bucket-api-rate-limiting-in-sqlite-&slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&sku=production-agent-automation-kit) bundles the transactional SQLite WAL job queue + dead-letter CLI (`wal_queue.py`), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.
 
 ---
 

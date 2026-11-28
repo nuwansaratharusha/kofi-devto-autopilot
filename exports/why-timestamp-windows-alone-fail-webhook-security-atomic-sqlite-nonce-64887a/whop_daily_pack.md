@@ -1,6 +1,6 @@
 # Daily 60-Minute Whop Execution Pack — Day 6/30
 
-- **Article:** `Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)` (`837` words · `2` blocks verified in `159.42 ms`)
+- **Article:** `Why Timestamp Windows Alone Fail Webhook Security (Atomic SQLite Nonce Deduplication Under Load)` (`835` words · `2` blocks verified in `164.85 ms`)
 - **Pillar Track:** Idempotent Webhooks & Double-Entry Ledger Teardowns (Friday)
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company `biz_Af4z3lgivbct7t`)
 - **Target Checkout Hub:** `https://whop.com/tharusha-nuwansara` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
@@ -20,7 +20,7 @@ Hey builders — welcome to Day 6/30 of 30 Days of Zero-Cost Production Python &
 
 Today's lab tackles Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables.
 
-What we verified inside an isolated `python3 -I` sandbox (159.42 ms runtime across 2 executable blocks):
+What we verified inside an isolated `python3 -I` sandbox (164.85 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
 - How to eliminate the failure mode using 100% Python standard library primitives (11/30 lessons live)
 
@@ -44,7 +44,7 @@ Ready to ship all 7 production guardrails hands-on with unit tests?
 
 Proving why 5-minute HMAC timestamp checks still allow parallel replay double-spends—and blocking 15 concurrent replay threads atomically with bounded SQLite WAL nonce tables.
 
-We ran 2 isolated Python 3.11+ benchmark blocks (159.42 ms total verification time, zero third-party packages) to test what actually breaks under production load:
+We ran 2 isolated Python 3.11+ benchmark blocks (164.85 ms total verification time, zero third-party packages) to test what actually breaks under production load:
 - Retries without jitter + Retry-After parsing amplify upstream 429 outages
 - Unvalidated LLM JSON (`isinstance(True, int)`) silently corrupts downstream state
 - SQLite WAL + BEGIN IMMEDIATE leases replace external queue infrastructure on single-node deployments

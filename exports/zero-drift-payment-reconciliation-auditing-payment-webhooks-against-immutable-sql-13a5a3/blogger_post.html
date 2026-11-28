@@ -5,7 +5,7 @@
     </p>
     <p style="margin:0;font-size:14px;color:#334155;">
       <strong>Track:</strong> Idempotent Webhooks &amp; Double-Entry Ledger Teardowns ·
-      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 101.97 ms (<code>python3 -I</code> exit 0) ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 135.55 ms (<code>python3 -I</code> exit 0) ·
       <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
     </p>
   </div>
@@ -20,7 +20,7 @@
 <p>In this Friday financial-systems teardown—<em>Detecting missing webhooks and unbalanced journal entries with pure SQLite views and deterministic invariants.</em> (SQLite reference: <a href="https://www.sqlite.org/stricttables.html" rel="noopener">SQLite Official Specification</a>)—we build an append-only SQL reconciliation harness that audits processor settlement rows against immutable double-entry postings, flags a dropped webhook via <code>LEFT JOIN</code>, records a compensating refund, and auto-backfills the missing order with zero cent imbalance.</p>
 <h2>Append-Only Reconciliation Invariants</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Accounting Event</th><th scope="col">Fragile Mutable Table Approach</th><th scope="col">Immutable Double-Entry + CSV Audit Pattern</th></tr></thead><tbody><tr><td><strong>Standard <code>$14.00</code> Sale (<code>71¢</code> fee)</strong></td><td><code>INSERT orders(amount=13.29)</code></td><td><code>DEBIT cash_clearing 1329</code>, <code>DEBIT gateway_fees 71</code>, <code>CREDIT product_revenue 1400</code></td></tr><tr><td><strong>Full Refund (Fee Returned)</strong></td><td><code>DELETE FROM orders</code> or <code>SET amount=0</code></td><td>Append new <code>&#x27;refund&#x27;</code> tx: <code>DEBIT product_revenue 1400</code>, <code>CREDIT cash_clearing 1329</code>, <code>CREDIT gateway_fees 71</code></td></tr><tr><td><strong>Dropped Webhook Detection</strong></td><td>Discovered only when an angry buyer emails support</td><td>Scheduled <code>LEFT JOIN</code> from <code>processor_settlement_csv</code> to <code>ledger_tx</code> catches missing <code>gateway_event_id</code>s</td></tr><tr><td><strong>Balance Integrity Audit</strong></td><td>Manual spreadsheet spot-checks</td><td>SQL view <code>v_unbalanced_tx</code> asserts <code>SUM(DEBIT) == SUM(CREDIT)</code> across every <code>tx_id</code></td></tr></tbody></table></div>
-<p>To schedule your daily reconciliation script with atomic SQLite window locking so two cron containers never double-backfill settlements, grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<p>To schedule your daily reconciliation script with atomic SQLite window locking so two cron containers never double-backfill settlements, grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
 <h2>Runnable SQL Reconciliation, Compensating Refund &amp; Backfill Benchmark</h2>
 <p>The standalone Python 3.11+ script below loads 13 settled <code>$14.00</code> processor rows where <code>ord_missing_13</code> simulates a dropped webhook during downtime, records an append-only compensating refund (<code>ref_ord_03</code>), detects and backfills <code>ord_missing_13</code> via <code>LEFT JOIN</code>, and asserts <code>0</code> unbalanced transactions in <code>v_unbalanced_tx</code>:</p>
 <div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
@@ -154,7 +154,7 @@ print(f&quot;Verified SQL reconciliation: caught missing webhook {r[&quot;detect
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both blocks above were executed inside a clean isolated sandbox prior to staging. Here is the exact captured output:</p>
-<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 79.7 ms)
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 88.7 ms)
 {
   &quot;detected_missing_webhooks&quot;: [
     &quot;ord_missing_13&quot;
@@ -162,10 +162,10 @@ print(f&quot;Verified SQL reconciliation: caught missing webhook {r[&quot;detect
   &quot;unbalanced_transactions&quot;: 0,
   &quot;pre_backfill_net_cents&quot;: 14619,
   &quot;remaining_gaps_after_backfill&quot;: 0,
-  &quot;elapsed_ms&quot;: 47.7
+  &quot;elapsed_ms&quot;: 38.64
 }
 
-# Block 2 (bash, exit=0, 22.3 ms)
+# Block 2 (bash, exit=0, 46.8 ms)
 Verified SQL reconciliation: caught missing webhook ord_missing_13, preserved 0 unbalanced postings across refund + backfill.</code></pre></div>
 <h2>Why Append-Only Postings Simplify Tax &amp; Payout Audits</h2>
 <p>Inspecting <code>recon_report.json</code> shows how clean financial reconciliation becomes once mutable balance columns disappear:</p>
@@ -173,7 +173,7 @@ Verified SQL reconciliation: caught missing webhook ord_missing_13, preserved 0 
 <h3>Multi-Currency Settlement &amp; Fee-Retention Edge Cases</h3>
 <p>If you sell digital toolkits across USD storefronts (<code>Patreon</code>, <code>Gumroad</code>, <code>Lemon Squeezy</code>) while settling payouts into a local currency bank account (such as <code>LKR</code> or <code>EUR</code>), keep each currency isolated in its own <code>currency CHAR(3)</code> account group (<code>cash_clearing_usd</code>, <code>product_revenue_usd</code>) and record foreign-exchange payout conversions via an explicit FX clearing entry at bank settlement time rather than mixing currencies inside a single sum. Likewise, when a processor retains its original <code>71</code>-cent fee on a customer refund (<code>fee_returned == 0</code>), debit <code>product_revenue</code> for <code>1400</code> cents and credit <code>cash_clearing</code> for <code>1400</code> cents so your <code>gateway_fees</code> expense account accurately reflects the non-refundable processor cost.</p>
 <h2>Ship the Portable SQLite/PostgreSQL Ledger &amp; Automation Kit</h2>
-<p>Ready to drop production-tested financial ledgers, HMAC webhook guards, SQLite WAL job queues, and polyglot AI circuit breakers straight into your repo? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> for the complete <code>sql/idempotent_ledger.sql</code> schema, Python + Node/TS modules, unit test suites, and 4 GitHub Actions workflows.</p>
+<p>Ready to drop production-tested financial ledgers, HMAC webhook guards, SQLite WAL job queues, and polyglot AI circuit breakers straight into your repo? Grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=zero-drift-payment-reconciliation-auditing-payment-webhooks-against-immutable-sql-13a5a3&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> for the complete <code>sql/idempotent_ledger.sql</code> schema, Python + Node/TS modules, unit test suites, and 4 GitHub Actions workflows.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
 

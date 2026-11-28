@@ -5,7 +5,7 @@
     </p>
     <p style="margin:0;font-size:14px;color:#334155;">
       <strong>Track:</strong> Zero-Cost Backend, SQLite WAL Queues &amp; Cron Automation ·
-      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 90.79 ms (<code>python3 -I</code> exit 0) ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 106.47 ms (<code>python3 -I</code> exit 0) ·
       <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
     </p>
   </div>
@@ -22,7 +22,7 @@
 <h2>Architecture &amp; Invariant Trade-Off Matrix</h2>
 <p>Before writing implementation code, compare how naive shortcuts behave under failure against the deterministic pattern verified below:</p>
 <div class="table-scroll"><table><thead><tr><th scope="col">Approach</th><th scope="col">Failure Behavior Under Load / Crash</th><th scope="col">Production Guarantee</th></tr></thead><tbody><tr><td><strong>In-Memory Dict per Worker</strong></td><td>Zero shared state across OS processes</td><td>Limit leaks by <code>N × workers</code></td></tr><tr><td><strong>Fixed Minute Counter Table</strong></td><td>Simple <code>COUNT(*)</code>, allows 2x boundary bursts</td><td>Spiky downstream load</td></tr><tr><td><strong>Continuous SQLite WAL Token Bucket</strong></td><td>Exact time-proportional refill (<code>min(cap, tok + dt*rate)</code>)</td><td>Shared, atomic, smooth rate control</td></tr></tbody></table></div>
-<p>If you want drop-in scheduling locks (<code>IdempotentCronRunner</code>) and HTTP <code>Retry-After</code> circuit breakers ready to protect your existing scripts today at zero cost, download the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this lesson.</p>
+<p>If you want drop-in scheduling locks (<code>IdempotentCronRunner</code>) and HTTP <code>Retry-After</code> circuit breakers ready to protect your existing scripts today at zero cost, download the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a> and run its unit tests locally alongside this lesson.</p>
 <h2>Self-Contained Python 3.11+ Implementation &amp; Fault-Injection Benchmark</h2>
 <p>Every module in this 30-day series uses zero third-party packages (<code>pip install</code> count = <code>0</code>) so the exact code below runs cleanly on stock Python 3.11+ across Linux VMs, macOS workstations, and GitHub Actions runners:</p>
 <div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
@@ -104,16 +104,16 @@ print(f&quot;Verified SQLite token bucket: {r[&quot;initial_burst_allowed&quot;]
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Every Python and shell block in this article was executed inside a clean isolated sandbox prior to publication. Here is the exact stdout captured from the run above:</p>
-<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 76.9 ms)
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 58.6 ms)
 {
   &quot;initial_burst_allowed&quot;: 10,
   &quot;initial_burst_blocked&quot;: 15,
   &quot;after_2_5s_refill_allowed&quot;: 5,
   &quot;computed_retry_after_sec&quot;: 0.5,
-  &quot;elapsed_ms&quot;: 57.7
+  &quot;elapsed_ms&quot;: 10.21
 }
 
-# Block 2 (bash, exit=0, 13.9 ms)
+# Block 2 (bash, exit=0, 47.9 ms)
 Verified SQLite token bucket: 10/25 burst admitted, +5 after 2.5s, Retry-After=0.5s.</code></pre></div>
 <h2>Dissecting the Empirical Benchmark Results</h2>
 <p>Inspecting the captured metrics above highlights three engineering properties that hold consistently in live deployments:</p>
@@ -123,7 +123,7 @@ Verified SQLite token bucket: 10/25 burst admitted, +5 after 2.5s, Retry-After=0
 <p>Any bucket untouched for longer than <code>capacity / refill_per_sec</code> seconds is already guaranteed to be at <code>100%</code> capacity on next arrival. Deleting rows <code>WHERE updated_at &lt; now - 300</code> once every few hundred writes keeps <code>rate_buckets</code> tiny in RAM/page-cache even under million-IP scans.</p>
 <p>When integrating this pattern into a larger service, keep failure boundaries explicit: validate untrusted inputs before opening write transactions, bound memory and disk growth with deterministic TTL or rollup windows, and emit structured JSON summaries per run so scheduled health checks can alert on anomalies without paid log-ingestion agents. Pairing deterministic local SQLite state with explicit timeout budgets ensures that neither upstream latency spikes nor sudden restarts can leave background workers wedged in partial states or silently drop customer records across deployment rollouts.</p>
 <h2>Ship the Complete Zero-Cost Reliability Stack</h2>
-<p>Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> bundles the transactional SQLite WAL job queue + dead-letter CLI (<code>wal_queue.py</code>), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
+<p>Building autonomous Python or TypeScript workflows, webhook processors, or SaaS backends without monthly Redis/broker bills? The complete <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=atomic-token-bucket-api-rate-limiting-in-sqlite-wal-without-0389ea&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> bundles the transactional SQLite WAL job queue + dead-letter CLI (<code>wal_queue.py</code>), Python and Node/TypeScript structured-output circuit breakers, constant-time HMAC webhook guards, portable double-entry SQL ledgers, and 4 production GitHub Actions workflows.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
 

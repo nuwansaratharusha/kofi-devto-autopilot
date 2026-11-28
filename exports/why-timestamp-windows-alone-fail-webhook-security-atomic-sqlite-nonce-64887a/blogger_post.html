@@ -5,7 +5,7 @@
     </p>
     <p style="margin:0;font-size:14px;color:#334155;">
       <strong>Track:</strong> Idempotent Webhooks &amp; Double-Entry Ledger Teardowns ·
-      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 159.42 ms (<code>python3 -I</code> exit 0) ·
+      <strong>Sandbox Gate:</strong> 2 runnable blocks verified in 164.85 ms (<code>python3 -I</code> exit 0) ·
       <a href="https://nuwansaratharusha.github.io/kofi-devto-autopilot/?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a" rel="noopener" style="color:#0f766e;font-weight:700;">Browse All 30 Days &amp; Benchmarks</a>
     </p>
   </div>
@@ -20,7 +20,7 @@
 <p>In this Friday security teardown—<em>Blocking captured-payload replay attacks inside the 300-second tolerance window using atomic WAL nonce tables.</em> (stdlib reference: <a href="https://docs.python.org/3/library/sqlite3.html" rel="noopener">Python 3 Standard Library Docs</a>)—we fire 16 concurrent threads carrying the exact same valid signed webhook against an atomic SQLite WAL <code>INSERT OR IGNORE</code> nonce guard and verify bounded TTL pruning.</p>
 <h2>Replay Defense Layering</h2>
 <div class="table-scroll"><table><thead><tr><th scope="col">Defense Layer</th><th scope="col">Attack / Bug Mitigated</th><th scope="col">What Still Slips Through Without Next Layer</th></tr></thead><tbody><tr><td><strong>1. Raw-Byte <code>hmac.compare_digest</code></strong></td><td>Payload tampering &amp; timing side-channel leaks</td><td>Any unmodified captured request replayed indefinitely</td></tr><tr><td><strong>2. Timestamp Window (<code>abs(now - ts) &lt;= 300</code>)</strong></td><td>Replays of old captured logs (<code>&gt; 5 min</code> old)</td><td>Intra-window replays and parallel retry storms inside the 300s window</td></tr><tr><td><strong>3. Atomic <code>BEGIN IMMEDIATE</code> Nonce <code>PRIMARY KEY</code></strong></td><td>Concurrent thread races &amp; intra-window replays</td><td>Table growth over months unless paired with TTL pruning</td></tr><tr><td><strong>4. Opportunistic <code>expires_at &lt;= now</code> Prune</strong></td><td>Unbounded index growth on disk</td><td>Bounded to <code>2 * window_sec</code> (10 minutes of active rows)</td></tr></tbody></table></div>
-<p>Need an idempotent scheduled runner and HTTP circuit breaker alongside your webhook handlers? Grab the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
+<p>Need an idempotent scheduled runner and HTTP circuit breaker alongside your webhook handlers? Grab the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=free-idempotent-cron-mini-kit" rel="noopener">Free Idempotent Cron &amp; Circuit-Breaker Mini-Kit ($0+ PWYW)</a>.</p>
 <h2>Runnable 16-Thread Parallel Webhook Replay Race Benchmark</h2>
 <p>The pure Python 3.11+ benchmark below launches 16 concurrent threads via <code>ThreadPoolExecutor</code> racing the exact same valid HMAC-signed payment webhook against a SQLite WAL database, then advances the clock past <code>2 * window_sec</code> (<code>702s</code>) to confirm expired nonces prune automatically:</p>
 <div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">PYTHON</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code>from __future__ import annotations
@@ -132,17 +132,17 @@ print(f&quot;Verified parallel replay race: {n[&quot;accepted_exactly_once&quot;
 &#x27;</code></pre></div>
 <h2>Real Captured Execution Output</h2>
 <p>Both blocks above ran inside a clean isolated sandbox prior to staging. Here is the exact stdout captured from the run:</p>
-<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 117.8 ms)
+<div style="margin:18px 0;border:1px solid #334155;border-radius:8px;overflow:hidden;background:#0f172a;color:#f8fafc;"><div style="background:#1e293b;color:#e2e8f0;padding:6px 12px;font-size:12px;font-family:monospace;font-weight:700;">TEXT</div><pre style="margin:0;padding:14px;overflow-x:auto;background:#0f172a;color:#f8fafc;font-size:13px;line-height:1.55;"><code># Block 1 (python, exit=0, 118.5 ms)
 {
   &quot;parallel_attempts&quot;: 16,
   &quot;accepted_exactly_once&quot;: 1,
   &quot;replays_blocked&quot;: 15,
   &quot;post_ttl_fresh_status&quot;: &quot;accepted&quot;,
   &quot;retained_nonce_rows_after_ttl&quot;: 1,
-  &quot;elapsed_ms&quot;: 35.75
+  &quot;elapsed_ms&quot;: 32.81
 }
 
-# Block 2 (bash, exit=0, 41.6 ms)
+# Block 2 (bash, exit=0, 46.4 ms)
 Verified parallel replay race: 1/16 accepted, 15 concurrent replays blocked, TTL table pruned to 1 row.</code></pre></div>
 <h2>Why <code>BEGIN IMMEDIATE</code> + <code>INSERT OR IGNORE</code> Wins Under Contention</h2>
 <p>Look at what happened across those 16 simultaneous threads in <code>nonce_race_report.json</code>:</p>
@@ -150,7 +150,7 @@ Verified parallel replay race: 1/16 accepted, 15 concurrent replays blocked, TTL
 <h3>Secret Rotation Without Dropping In-Flight Webhooks</h3>
 <p>During live webhook secret rotation, gateways such as Stripe and Polar temporarily sign outgoing deliveries with both the retiring key and the newly rolled key (<code>v1=&lt;sig_old&gt;,v1=&lt;sig_new&gt;</code>). Support zero-downtime key rotation by accepting an ordered tuple of active secrets <code>(current_secret, previous_secret)</code> during the 24-hour rotation window, computing <code>hmac.compare_digest</code> against each candidate before entering the <code>BEGIN IMMEDIATE</code> nonce transaction, and retiring <code>previous_secret</code> as soon as all upstream endpoints confirm cutover.</p>
 <h2>Get Both Python &amp; Node.js Hardened HMAC Guards ($14 Kit)</h2>
-<p>Skip subtle crypto and concurrency pitfalls: the <a href="https://www.patreon.com/NuwansaraT?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> includes hardened Python (<code>webhook_hmac.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code>) HMAC replay guards, portable SQLite/PostgreSQL double-entry ledgers, a transactional SQLite WAL job queue + CLI, and 4 GitHub Actions blueprints.</p>
+<p>Skip subtle crypto and concurrency pitfalls: the <a href="https://whop.com/tharusha-nuwansara?utm_source=blogger&amp;utm_medium=series&amp;utm_campaign=30d_exp_2026_11&amp;slug=why-timestamp-windows-alone-fail-webhook-security-atomic-sqlite-nonce-64887a&amp;sku=production-agent-automation-kit" rel="noopener">Production AI Agent &amp; Zero-Cost Backend Reliability Starter Kit ($14, MIT License)</a> includes hardened Python (<code>webhook_hmac.py</code>) and Node/TypeScript (<code>agent_guardrails.mjs</code>) HMAC replay guards, portable SQLite/PostgreSQL double-entry ledgers, a transactional SQLite WAL job queue + CLI, and 4 GitHub Actions blueprints.</p>
 <hr />
 <p><em>Verification &amp; Disclosure: Published under the </em><em>Zero-Cost Production Reliability</em><em> column by </em><em>Tharusha Nuwansara</em><em>. Every Python and shell block above was executed and verified inside an isolated <code>python3 -I</code> sandbox (<code>returncode == 0</code>) prior to publication.</em></p>
 

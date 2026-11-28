@@ -1,6 +1,6 @@
 # Daily 60-Minute Whop Execution Pack — Day 5/30
 
-- **Article:** `Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover` (`795` words · `2` blocks verified in `100.13 ms`)
+- **Article:** `Eliminating Overlapping Cron Double-Execution With SQLite WAL Leases and Stale-Lock Takeover` (`793` words · `2` blocks verified in `104.36 ms`)
 - **Pillar Track:** Zero-Cost Backend, SQLite WAL Queues & Cron Automation (Wednesday)
 - **Whop Business Dashboard:** `https://whop.com/dashboard/biz_Af4z3lgivbct7t/` (Company `biz_Af4z3lgivbct7t`)
 - **Target Checkout Hub:** `https://whop.com/tharusha-nuwansara` (`$10 USD` min payout · Whop Discover Marketplace · `4 × $15` Challenge seats = `~$55.36` net)
@@ -20,7 +20,7 @@ Hey builders — welcome to Day 5/30 of 30 Days of Zero-Cost Production Python &
 
 Today's lab tackles Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery.
 
-What we verified inside an isolated `python3 -I` sandbox (100.13 ms runtime across 2 executable blocks):
+What we verified inside an isolated `python3 -I` sandbox (104.36 ms runtime across 2 executable blocks):
 - Why happy-path wrappers fail under real concurrency, retry storms, or malformed upstream payloads
 - How to eliminate the failure mode using 100% Python standard library primitives (11/30 lessons live)
 
@@ -44,7 +44,7 @@ Ready to ship all 7 production guardrails hands-on with unit tests?
 
 Eliminating duplicate invoice emails and overlapping GitHub Actions / crontab runs using atomic SQLite WAL execution windows and automatic stale-lease recovery.
 
-We ran 2 isolated Python 3.11+ benchmark blocks (100.13 ms total verification time, zero third-party packages) to test what actually breaks under production load:
+We ran 2 isolated Python 3.11+ benchmark blocks (104.36 ms total verification time, zero third-party packages) to test what actually breaks under production load:
 - Retries without jitter + Retry-After parsing amplify upstream 429 outages
 - Unvalidated LLM JSON (`isinstance(True, int)`) silently corrupts downstream state
 - SQLite WAL + BEGIN IMMEDIATE leases replace external queue infrastructure on single-node deployments
