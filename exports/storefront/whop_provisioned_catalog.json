@@ -4,5 +4,5 @@
   "reason": "WHOP_API_KEY not configured; exported provisioning blueprint locally.",
   "products_provisioned": [],
   "catalog_count": 3,
-  "manifest_path": "/Users/tharushanuwansara/.gemini/antigravity/scratch/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
+  "manifest_path": "/home/runner/work/kofi-devto-autopilot/kofi-devto-autopilot/exports/storefront/whop_provisioned_catalog.json"
 }
