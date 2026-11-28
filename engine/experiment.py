@@ -22,6 +22,8 @@ COLOMBO_TZ = timezone(timedelta(hours=5, minutes=30))
 VERDICT_WORKING = "WORKING — SCALE IN MONTH 2"
 VERDICT_BOTTLENECK = "BOTTLENECK — KEEP CHANNEL, FIX CTA"
 VERDICT_NOT_WORKING = "NOT WORKING — PAUSE & REALLOCATE"
+READINESS_LIVE = "LIVE_ACTIVE"
+READINESS_UNCONFIGURED_DRY_RUN = "UNCONFIGURED_DRY_RUN"
 
 WHOP_TARGET_PAYOUT_CENTS = 5_000        # $50.00 USD Month-1 Whop Challenge & Store target
 WHOP_MIN_PAYOUT_CENTS = 1_000           # $10.00 USD Whop minimum payout threshold
@@ -235,9 +237,11 @@ def build_experiment_report(
             posts_count = sum(
                 1
                 for a in articles
-                if (config.exports_dir / a.slug / "whop_daily_pack.md").is_file()
+                if a.whop_post_id or (config.exports_dir / a.slug / "whop_daily_pack.md").is_file()
             )
-            live_remote = sum(1 for o in active_orders if o.storefront.lower() == "whop")
+            live_remote = sum(1 for a in articles if a.whop_post_id) + sum(
+                1 for o in active_orders if o.storefront.lower() == "whop"
+            )
         elif ch == "blogger":
             posts_count = len(articles)
             live_remote = sum(1 for a in articles if a.blogger_post_id)
@@ -356,6 +360,113 @@ def build_experiment_report(
         ch for ch, data in channel_kpis.items() if data["verdict"] == VERDICT_WORKING
     ]
 
+    # Build Channel Readiness & Root-Cause Diagnostics (separating dry_run gaps from live underperformance)
+    channel_readiness: dict[str, dict[str, Any]] = {}
+    unconfigured_channels: list[str] = []
+    live_zero_conversion_channels: list[str] = []
+    recommended_actions: list[str] = []
+
+    missing_keys_map: dict[str, list[str]] = {
+        "whop": [
+            k
+            for k, present in (
+                ("WHOP_API_KEY", bool(config.whop_api_key)),
+                ("WHOP_STORE_URL", bool(config.whop_store_url)),
+            )
+            if not present
+        ],
+        "patreon": [
+            k
+            for k, present in (("PATREON_CREATOR_ACCESS_TOKEN", bool(config.patreon_creator_access_token)),)
+            if not present
+        ],
+        "blogger": [
+            k
+            for k, present in (
+                ("BLOGGER_BLOG_ID", bool(config.blogger_blog_id)),
+                ("BLOGGER_REFRESH_TOKEN", bool(config.blogger_refresh_token)),
+            )
+            if not present
+        ],
+        "devto": [k for k, present in (("DEVTO_API_KEY", bool(config.devto_api_key)),) if not present],
+        "pinterest": [
+            k
+            for k, present in (
+                ("PINTEREST_ACCESS_TOKEN", bool(config.pinterest_access_token)),
+                ("PINTEREST_BOARD_ID", bool(config.pinterest_board_id)),
+            )
+            if not present
+        ],
+        "canonical_site": [],
+        "nasio": [k for k, present in (("NASIO_STORE_URL", bool(config.nasio_store_url)),) if not present],
+    }
+
+    for ch, kpi in channel_kpis.items():
+        missing = missing_keys_map.get(ch, [])
+        has_live_footprint = (
+            int(kpi["posts_remote_id_logged"]) > 0
+            or int(kpi["views"]) > 0
+            or int(kpi["clicks"]) > 0
+            or int(kpi["free_downloads"]) > 0
+            or int(kpi["paid_orders"]) > 0
+            or int(kpi["net_cents"]) > 0
+        )
+        if not has_live_footprint:
+            readiness_state = READINESS_UNCONFIGURED_DRY_RUN
+            unconfigured_channels.append(ch)
+            if ch == "patreon" and config.patreon_creator_access_token:
+                root_cause = (
+                    "Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet."
+                )
+            elif missing:
+                root_cause = f"Running in dry_run mode (missing {', '.join(missing)})."
+            else:
+                root_cause = "0 remote posts published yet; run setup-whop / run-daily with live credentials."
+        else:
+            readiness_state = READINESS_LIVE
+            if int(kpi["paid_orders"]) == 0 and int(kpi["net_cents"]) == 0:
+                live_zero_conversion_channels.append(ch)
+            if ch == "canonical_site" and int(kpi["views"]) == 0:
+                root_cause = (
+                    "Static GitHub Pages hub is deployed live, but awaits inbound referral traffic from Whop/DEV.to."
+                )
+            else:
+                root_cause = str(kpi["action_note"])
+
+        kpi["readiness"] = readiness_state
+        kpi["missing_env_keys"] = missing
+        kpi["diagnostic_note"] = root_cause
+        channel_readiness[ch] = {
+            "channel": ch,
+            "readiness": readiness_state,
+            "missing_env_keys": missing,
+            "posts_prepared": kpi["posts_prepared"],
+            "posts_remote_id_logged": kpi["posts_remote_id_logged"],
+            "views": kpi["views"],
+            "clicks": kpi["clicks"],
+            "diagnostic_note": root_cause,
+        }
+
+    if not config.whop_api_key or not config.whop_store_url:
+        recommended_actions.append(
+            "Connect WHOP_API_KEY and WHOP_STORE_URL for biz_Af4z3lgivbct7t, then run python3 autopilot.py setup-whop to provision the 3 SKUs and enable daily Whop Forum publishing + analytics."
+        )
+    if not config.devto_api_key:
+        recommended_actions.append(
+            "Add DEVTO_API_KEY (PUBLISH_MODE=live) so Mon/Wed/Fri articles publish to DEV.to and sync real page_views_count into channel_metrics."
+        )
+    if not recommended_actions and not winning_channels:
+        recommended_actions.append(
+            "Run python3 autopilot.py sync-analytics && python3 autopilot.py sync-stores daily to ingest Whop Forum views, DEV.to views, and checkout conversions."
+        )
+
+    diagnostics = {
+        "unconfigured_channels": unconfigured_channels,
+        "live_zero_conversion_channels": live_zero_conversion_channels,
+        "channel_readiness": channel_readiness,
+        "recommended_actions": recommended_actions,
+    }
+
     return {
         "generated_at": utc_now_iso(),
         "series_name": SERIES_30D_NAME,
@@ -390,6 +501,7 @@ def build_experiment_report(
         },
         "channels": channel_kpis,
         "pillars": pillar_kpis,
+        "diagnostics": diagnostics,
     }
 
 
@@ -456,6 +568,34 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
         for p, d in report["pillars"].items()
     )
 
+    diag = report.get("diagnostics") or {}
+    readiness_map = diag.get("channel_readiness") or {}
+    diag_rows = "\n".join(
+        f"| `{ch}` | `{info['readiness']}` | {info['posts_remote_id_logged']} / {info['posts_prepared']} | "
+        f"{', '.join(f'`{k}`' for k in info['missing_env_keys']) if info['missing_env_keys'] else 'None'} | "
+        f"{info['diagnostic_note']} |"
+        for ch, info in readiness_map.items()
+    )
+    diag_actions = "\n".join(
+        f"- {act}" for act in (diag.get("recommended_actions") or [])
+    )
+    diag_section = (
+        f"""
+---
+
+## 4. Channel Readiness & Root-Cause Diagnostics
+
+| Channel | Integration Mode | Live Remote / Staged | Missing Credentials | Root-Cause Diagnostic |
+| :--- | :--- | :--- | :--- | :--- |
+{diag_rows}
+
+### Recommended Activation Steps
+{diag_actions if diag_actions else "- All configured channels active."}
+"""
+        if diag_rows
+        else ""
+    )
+
     unattr_note = (
         f"\n\n> *Direct / Other Referrer Orders (`unattributed` to primary channels): "
         f"`{t.get('unattributed_orders', 0)}` orders (`${t.get('unattributed_net_usd', 0.0):.2f}` net USD).*"
@@ -495,7 +635,7 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 | Pillar Track | Verified Posts | Views | Clicks | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 {pillar_rows}
-"""
+{diag_section}"""
 
 
 def write_experiment_artifacts(

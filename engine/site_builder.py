@@ -972,6 +972,11 @@ def _render_index_page(
             if art.blogger_url
             else ""
         )
+        whop_btn = (
+            f'<a class="btn" href="{html.escape(art.whop_url, quote=True)}" rel="noopener">Discuss on Whop</a>'
+            if art.whop_url
+            else ""
+        )
         cards_html.append(
             f"""        <article class="card">
           <div>
@@ -991,6 +996,7 @@ def _render_index_page(
           <div class="cta-row">
             <a class="btn btn-primary" href="./posts/{html.escape(art.slug, quote=True)}/index.html">Read Verified Benchmark</a>
             <a class="btn" href="{pin_href}">View 2:3 Pin PNG</a>
+            {whop_btn}
             {blogger_btn}
           </div>
         </article>"""
@@ -1067,15 +1073,27 @@ def _render_index_page(
     ch_rows_html: list[str] = []
     for ch_key, ch_data in (exp.get("channels") or {}).items():
         v_txt = str(ch_data.get("verdict", "NOT WORKING — PAUSE & REALLOCATE"))
+        r_txt = str(ch_data.get("readiness", ""))
         v_cls = _verdict_badge_class(v_txt)
+        r_badge = (
+            f' <span class="badge badge-warn">{html.escape(r_txt)}</span>'
+            if r_txt == "UNCONFIGURED_DRY_RUN"
+            else (f' <span class="badge badge-verified">{html.escape(r_txt)}</span>' if r_txt else "")
+        )
+        diag_note = str(ch_data.get("diagnostic_note") or "").replace("`", "")
+        note_html = (
+            f'<div class="tabular" style="font-size:0.82rem;color:var(--text-muted);margin-top:0.25rem;">{html.escape(diag_note)}</div>'
+            if diag_note
+            else ""
+        )
         ch_rows_html.append(
             f"<tr>"
-            f"<td><code>{html.escape(ch_key)}</code></td>"
-            f'<td class="tabular">{int(ch_data.get("posts_prepared", 0))}</td>'
+            f"<td><code>{html.escape(ch_key)}</code>{r_badge}</td>"
+            f'<td class="tabular">{int(ch_data.get("posts_remote_id_logged", 0))} / {int(ch_data.get("posts_prepared", 0))}</td>'
             f'<td class="tabular">{int(ch_data.get("views", 0))}</td>'
             f'<td class="tabular">{int(ch_data.get("clicks", 0))}</td>'
             f'<td class="tabular">${float(ch_data.get("net_usd", 0.0)):.2f}</td>'
-            f'<td><span class="{v_cls}">{html.escape(v_txt)}</span></td>'
+            f'<td><span class="{v_cls}">{html.escape(v_txt)}</span>{note_html}</td>'
             f"</tr>"
         )
     scoreboard_table = (
@@ -1083,12 +1101,12 @@ def _render_index_page(
           <table>
             <thead>
               <tr>
-                <th scope="col">Channel</th>
-                <th scope="col">Assets</th>
+                <th scope="col">Channel &amp; Mode</th>
+                <th scope="col">Live / Staged</th>
                 <th scope="col">Views</th>
                 <th scope="col">Clicks</th>
                 <th scope="col">Net USD</th>
-                <th scope="col">Month-2 Verdict</th>
+                <th scope="col">Month-2 Verdict &amp; Diagnostic</th>
               </tr>
             </thead>
             <tbody>

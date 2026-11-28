@@ -28,14 +28,19 @@ from autopilot import (
     cmd_log_metrics,
     cmd_log_order,
     cmd_run_daily,
+    cmd_setup_whop,
+    cmd_sync_analytics,
     create_dashboard_handler,
     render_dashboard_html,
 )
+from engine.analytics import sync_all_analytics
 from engine.composer import compose_article
 from engine.config import AppConfig
 from engine.db import PipelineDatabase
 from engine.devto_client import HttpResult
 from engine.experiment import (
+    READINESS_LIVE,
+    READINESS_UNCONFIGURED_DRY_RUN,
     VERDICT_WORKING,
     build_experiment_report,
     normalize_utm_channel,
@@ -796,6 +801,279 @@ class TestWhopIntegration(unittest.TestCase):
             self.assertEqual(synced_orders[0].order_id, "pay_2026_1")
             self.assertEqual(synced_orders[0].gross_cents, 1100)
             self.assertEqual(synced_orders[0].net_cents, 984)
+
+    def test_whop_catalog_provisioning_forum_publishing_live_analytics_and_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp) / "ws"
+            shutil.copytree(PROJECT_ROOT / "products", ws / "products")
+
+            # 1. Dry-run setup-whop & diagnostics before API keys are configured
+            dry_cfg = AppConfig.load(
+                ws,
+                environ={
+                    "WHOP_COMPANY_ID": "biz_Af4z3lgivbct7t",
+                    "PATREON_URL": "https://www.patreon.com/NuwansaraT",
+                    "CANONICAL_BASE_URL": "https://nuwansaratharusha.github.io/kofi-devto-autopilot",
+                },
+            )
+            dry_prov = cmd_setup_whop(dry_cfg, as_json=False)
+            self.assertEqual(dry_prov["status"], "dry_run")
+            self.assertEqual(dry_prov["catalog_count"], 3)
+
+            d1_dry = cmd_run_daily(dry_cfg, date_str="2026-11-18", offline=True, as_json=False)
+            self.assertEqual(d1_dry["whop"]["status"], "pack_ready")
+            self.assertTrue(Path(d1_dry["whop"]["whop_forum_payload"]).is_file())
+
+            db = PipelineDatabase(dry_cfg.db_path)
+            rep_dry = build_experiment_report(db, dry_cfg, as_of="2026-11-18")
+            self.assertEqual(
+                rep_dry["diagnostics"]["channel_readiness"]["whop"]["readiness"],
+                READINESS_UNCONFIGURED_DRY_RUN,
+            )
+            self.assertIn(
+                "WHOP_API_KEY",
+                rep_dry["diagnostics"]["channel_readiness"]["whop"]["missing_env_keys"],
+            )
+            md_dry = render_experiment_markdown(rep_dry)
+            self.assertIn("## 4. Channel Readiness & Root-Cause Diagnostics", md_dry)
+
+            # 2. Live API provisioning (`company_id` -> `account_id` 422 body negotiation + idempotent reuse)
+            live_cfg = AppConfig.load(
+                ws,
+                environ={
+                    "WHOP_COMPANY_ID": "biz_Af4z3lgivbct7t",
+                    "WHOP_API_KEY": "apik_live_whop_test",
+                    "WHOP_STORE_URL": "https://whop.com/reliability-lab",
+                    "DEVTO_API_KEY": "devto_live_test_key",
+                    "PATREON_URL": "https://www.patreon.com/NuwansaraT",
+                    "CANONICAL_BASE_URL": "https://nuwansaratharusha.github.io/kofi-devto-autopilot",
+                },
+            )
+
+            created_products: list[dict[str, object]] = []
+            created_plans: list[dict[str, object]] = []
+            created_forum_posts: list[dict[str, object]] = []
+            sent_chat_messages: list[dict[str, object]] = []
+
+            def fake_whop_full_api(req: urllib.request.Request, _timeout: float) -> HttpResult:
+                parsed_u = urllib.parse.urlparse(req.full_url)
+                qs = urllib.parse.parse_qs(parsed_u.query)
+                method = req.get_method()
+                raw_payload = json.loads(req.data.decode("utf-8")) if req.data else {}
+
+                # Enforce 2026+ `account_id` on write bodies (422 if legacy `company_id` sent)
+                if method == "POST" and parsed_u.path in {"/api/v1/products", "/api/v1/plans", "/api/v1/forum_posts"}:
+                    if "company_id" in raw_payload:
+                        return HttpResult(status=422, headers={}, body=b'{"error":"account_id required"}')
+                    self.assertEqual(raw_payload.get("account_id"), "biz_Af4z3lgivbct7t")
+                    self.assertTrue(bool(req.get_header("Idempotency-key") or req.get_header("Idempotency-Key")))
+
+                if parsed_u.path == "/api/v1/products":
+                    if method == "GET":
+                        return HttpResult(
+                            status=200,
+                            headers={},
+                            body=json.dumps({"data": created_products, "page_info": {"has_next_page": False}}).encode("utf-8"),
+                        )
+                    new_prod = {
+                        "id": f"prod_{len(created_products) + 1}",
+                        "account_id": "biz_Af4z3lgivbct7t",
+                        "title": raw_payload["title"],
+                        "route": raw_payload["route"],
+                        "metadata": raw_payload.get("metadata", {}),
+                    }
+                    created_products.append(new_prod)
+                    return HttpResult(status=201, headers={}, body=json.dumps(new_prod).encode("utf-8"))
+
+                if parsed_u.path == "/api/v1/plans":
+                    if method == "GET":
+                        return HttpResult(
+                            status=200,
+                            headers={},
+                            body=json.dumps({"data": created_plans, "page_info": {"has_next_page": False}}).encode("utf-8"),
+                        )
+                    new_plan = {
+                        "id": f"plan_{len(created_plans) + 1}",
+                        "account_id": "biz_Af4z3lgivbct7t",
+                        "product_id": raw_payload["product_id"],
+                        "initial_price": raw_payload["initial_price"],
+                        "metadata": raw_payload.get("metadata", {}),
+                        "direct_link": f"https://whop.com/checkout/plan_{len(created_plans) + 1}",
+                    }
+                    created_plans.append(new_plan)
+                    return HttpResult(status=201, headers={}, body=json.dumps(new_plan).encode("utf-8"))
+
+                if parsed_u.path == "/api/v1/experiences":
+                    return HttpResult(
+                        status=200,
+                        headers={},
+                        body=json.dumps(
+                            {
+                                "data": [
+                                    {
+                                        "id": "exp_forum_main",
+                                        "account_id": "biz_Af4z3lgivbct7t",
+                                        "name": "Builder Forum & Announcements",
+                                        "type": "forum",
+                                    },
+                                    {
+                                        "id": "exp_chat_main",
+                                        "account_id": "biz_Af4z3lgivbct7t",
+                                        "name": "Community Chat",
+                                        "type": "chat",
+                                    },
+                                ],
+                                "page_info": {"has_next_page": False},
+                            }
+                        ).encode("utf-8"),
+                    )
+
+                if parsed_u.path == "/api/v1/forum_posts":
+                    if method == "GET":
+                        self.assertEqual(qs.get("experience_id"), ["exp_forum_main"])
+                        return HttpResult(
+                            status=200,
+                            headers={},
+                            body=json.dumps(
+                                {"data": created_forum_posts, "page_info": {"has_next_page": False}}
+                            ).encode("utf-8"),
+                        )
+                    # Anti-spam hygiene assertions
+                    self.assertFalse(raw_payload.get("is_mention", True))
+                    self.assertFalse(raw_payload.get("pinned", True))
+                    links_found = re.findall(r"https://\S+", str(raw_payload.get("content") or ""))
+                    self.assertLessEqual(len(links_found), 2)
+                    new_fp = {
+                        "id": f"fp_{len(created_forum_posts) + 1}",
+                        "experience_id": raw_payload["experience_id"],
+                        "title": raw_payload["title"],
+                        "content": raw_payload["content"],
+                        "url": f"https://whop.com/reliability-lab/forum/fp_{len(created_forum_posts) + 1}",
+                        "view_count": 148,
+                        "like_count": 11,
+                        "comment_count": 4,
+                    }
+                    created_forum_posts.append(new_fp)
+                    return HttpResult(status=201, headers={}, body=json.dumps(new_fp).encode("utf-8"))
+
+                if parsed_u.path == "/api/v1/channels/exp_chat_main/messages" and method == "POST":
+                    sent_chat_messages.append(raw_payload)
+                    return HttpResult(status=201, headers={}, body=b'{"id":"msg_1"}')
+
+                raise AssertionError(f"Unexpected Whop request: {method} {req.full_url}")
+
+            whop_live = WhopClient(live_cfg, sender=fake_whop_full_api, sleeper=lambda _s: None)
+            from products.builder import load_catalog
+
+            catalog = load_catalog(PROJECT_ROOT)
+            prov1 = whop_live.ensure_catalog_products(catalog)
+            self.assertEqual(prov1["status"], "provisioned")
+            self.assertEqual(len(created_products), 3)
+            self.assertEqual(len(created_plans), 3)
+            self.assertEqual(prov1["forum_experience_id"], "exp_forum_main")
+            self.assertEqual(prov1["chat_experience_id"], "exp_chat_main")
+
+            # Second provisioning call must reuse all 3 products & plans idempotently (0 duplicates)
+            prov2 = whop_live.ensure_catalog_products(catalog)
+            self.assertEqual(len(created_products), 3)
+            self.assertEqual(len(created_plans), 3)
+            self.assertTrue(all(p["product_operation"] == "reused" for p in prov2["products_provisioned"]))
+            self.assertTrue(all(p["plan_operation"] == "reused" for p in prov2["products_provisioned"]))
+
+            # 3. Publish Day 1 article to Whop Forum & verify 3-layer deduplication + SQLite persistence
+            art1 = db.get_article_by_series_day(1)
+            assert art1 is not None
+            pub1 = whop_live.publish_daily_post(art1, db=db)
+            self.assertEqual(pub1["status"], "published_live")
+            self.assertEqual(pub1["operation"], "created")
+            self.assertEqual(pub1["whop_post_id"], "fp_1")
+            self.assertEqual(pub1["chat_notification"], "sent")
+            self.assertEqual(len(created_forum_posts), 1)
+            self.assertEqual(len(sent_chat_messages), 1)
+
+            # Re-saving article with whop_post_id=None must preserve stored whop_post_id!
+            art1_reload = db.get_article(art1.slug)
+            assert art1_reload is not None
+            self.assertEqual(art1_reload.whop_post_id, "fp_1")
+            art1_reload.whop_post_id = None
+            art1_reload.whop_url = None
+            preserved = db.save_article(art1_reload)
+            self.assertEqual(preserved.whop_post_id, "fp_1")
+
+            # Re-publishing must hit Layer 1 (`already_recorded`) with zero extra POSTs
+            pub_repeat = whop_live.publish_daily_post(preserved, db=db)
+            self.assertEqual(pub_repeat["operation"], "already_recorded")
+            self.assertEqual(len(created_forum_posts), 1)
+
+            # 4. Sync live analytics across Whop Forum + DEV.to and verify monotonic floor & diagnostics
+            def fake_devto_me_sender(req: urllib.request.Request, _timeout: float) -> HttpResult:
+                self.assertIn("/api/articles/me/all", req.full_url)
+                body = [
+                    {
+                        "id": 778899,
+                        "title": preserved.title,
+                        "url": f"https://dev.to/nuwansarat/{preserved.slug}",
+                        "canonical_url": preserved.canonical_url,
+                        "published": True,
+                        "page_views_count": 312,
+                        "positive_reactions_count": 19,
+                        "comments_count": 5,
+                    }
+                ]
+                return HttpResult(status=200, headers={}, body=json.dumps(body).encode("utf-8"))
+
+            an_res = sync_all_analytics(
+                live_cfg,
+                db,
+                whop_sender=fake_whop_full_api,
+                devto_sender=fake_devto_me_sender,
+            )
+            self.assertEqual(an_res["whop"]["status"], "synced")
+            self.assertEqual(an_res["whop"]["views_total"], 148)
+            self.assertEqual(an_res["whop"]["engagement_total"], 15)
+            self.assertEqual(an_res["devto"]["status"], "synced")
+            self.assertEqual(an_res["devto"]["views_total"], 312)
+            self.assertEqual(an_res["devto"]["engagement_total"], 24)
+
+            # Manual higher outbound click count must never be overwritten downward by subsequent sync!
+            cmd_log_metrics(live_cfg, slug=preserved.slug, channel="whop", views=148, clicks=28)
+            sync_all_analytics(
+                live_cfg,
+                db,
+                whop_sender=fake_whop_full_api,
+                devto_sender=fake_devto_me_sender,
+            )
+            rep_live = build_experiment_report(db, live_cfg, as_of="2026-11-18")
+            self.assertEqual(rep_live["channels"]["whop"]["views"], 148)
+            self.assertEqual(rep_live["channels"]["whop"]["clicks"], 28)
+            self.assertEqual(
+                rep_live["diagnostics"]["channel_readiness"]["whop"]["readiness"],
+                READINESS_LIVE,
+            )
+            self.assertEqual(rep_live["channels"]["devto"]["views"], 312)
+            self.assertEqual(rep_live["channels"]["devto"]["clicks"], 24)
+
+            # Verify zero raw backticks in updated site/index.html & dashboard HTML
+            cmd_sync_analytics(
+                AppConfig.load(
+                    ws,
+                    environ={
+                        "WHOP_COMPANY_ID": "biz_Af4z3lgivbct7t",
+                        "WHOP_STORE_URL": "https://whop.com/reliability-lab",
+                        "PATREON_URL": "https://www.patreon.com/NuwansaraT",
+                    },
+                ),
+                as_json=False,
+            )
+            site_html = (live_cfg.site_dir / "index.html").read_text(encoding="utf-8")
+            site_no_scripts = re.sub(r"<script.*?</script>", "", site_html, flags=re.DOTALL)
+            self.assertNotIn("`", site_no_scripts)
+            self.assertIn("Discuss on Whop", site_no_scripts)
+
+            dash_html = render_dashboard_html(live_cfg)
+            dash_no_scripts = re.sub(r"<script.*?</script>", "", dash_html, flags=re.DOTALL)
+            self.assertNotIn("`", dash_no_scripts)
+            self.assertIn("LIVE FORUM SYNCED", dash_no_scripts)
 
 
 if __name__ == "__main__":

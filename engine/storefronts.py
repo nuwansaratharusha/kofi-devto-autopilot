@@ -492,6 +492,7 @@ def sync_storefronts(
     db: PipelineDatabase,
     *,
     create_gumroad_drafts: bool = False,
+    provision_whop: bool = False,
     catalog_products: Optional[list[dict[str, Any]]] = None,
     gumroad_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
     lemonsqueezy_sender: Callable[[urllib.request.Request, float], HttpResult] = _urllib_sender,
@@ -518,7 +519,10 @@ def sync_storefronts(
 
     if config.whop_api_key:
         whop = WhopClient(config, sender=whop_sender, sleeper=lambda _s: None)
-        report["whop"] = whop.sync_to_db(db)
+        whop_sync = whop.sync_to_db(db)
+        if provision_whop and catalog_products is not None:
+            whop_sync["catalog_provisioning"] = whop.ensure_catalog_products({"products": catalog_products})
+        report["whop"] = whop_sync
     else:
         report["whop"]["reason"] = "WHOP_API_KEY not configured; skipped live HTTP calls."
 

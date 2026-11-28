@@ -947,6 +947,7 @@ class WhopClient:
         self._sleep = sleeper
         self.timeout_seconds = timeout_seconds
         self._company_query_param: Optional[str] = "company_id"
+        self._company_body_param: str = "company_id"
         self._last_refunded_order_ids: set[str] = set()
         self._last_paid_membership_ids: set[str] = set()
         self._last_paid_subject_keys: set[str] = set()
@@ -962,11 +963,15 @@ class WhopClient:
             return False
         return True
 
-    def _get_json(
+    def _request_json(
         self,
+        method: str,
         url_or_path: str,
         *,
         query: Optional[Mapping[str, str]] = None,
+        json_body: Optional[Mapping[str, Any]] = None,
+        idempotency_key: Optional[str] = None,
+        expected_statuses: tuple[int, ...] = (200, 201),
     ) -> Any:
         if not self.api_key:
             raise WhopApiError("WHOP_API_KEY is empty")
@@ -980,14 +985,20 @@ class WhopClient:
                 if clean_q:
                     url = f"{url}?{urllib.parse.urlencode(clean_q)}"
 
-        headers = {
+        headers: dict[str, str] = {
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json",
             "User-Agent": USER_AGENT,
         }
+        data: Optional[bytes] = None
+        if json_body is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(dict(json_body)).encode("utf-8")
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
 
         for attempt in range(1, 4):
-            req = urllib.request.Request(url=url, headers=headers, method="GET")
+            req = urllib.request.Request(url=url, data=data, headers=headers, method=method)
             res = self._sender(req, self.timeout_seconds)
             if res.status == 429 and attempt < 3:
                 retry_hdr = (res.headers or {}).get("Retry-After") or (res.headers or {}).get("retry-after")
@@ -1004,14 +1015,61 @@ class WhopClient:
             if res.status in {500, 502, 503, 504} and attempt < 3:
                 self._sleep(0.5 * attempt)
                 continue
-            if res.status != 200:
+            if res.status not in expected_statuses:
                 preview = res.body.decode("utf-8", errors="replace")[:300]
-                raise WhopApiError(f"Whop API GET {url} failed with HTTP {res.status}: {preview}")
+                raise WhopApiError(f"Whop API {method} {url} failed with HTTP {res.status}: {preview}")
             try:
                 return json.loads(res.body.decode("utf-8") or "{}")
             except json.JSONDecodeError as exc:
-                raise WhopApiError(f"Whop API GET {url} returned invalid JSON: {exc}") from exc
+                raise WhopApiError(f"Whop API {method} {url} returned invalid JSON: {exc}") from exc
         raise WhopApiError("Exhausted Whop API retry attempts")
+
+    def _get_json(
+        self,
+        url_or_path: str,
+        *,
+        query: Optional[Mapping[str, str]] = None,
+    ) -> Any:
+        return self._request_json("GET", url_or_path, query=query, expected_statuses=(200,))
+
+    def _write_json_with_account_negotiation(
+        self,
+        method: str,
+        path: str,
+        *,
+        body: Mapping[str, Any],
+        idempotency_key: Optional[str] = None,
+    ) -> Any:
+        """Send POST/PATCH/PUT while negotiating `company_id` vs 2026+ `account_id` body fields."""
+        if not self.company_id or "company_id" in body or "account_id" in body:
+            return self._request_json(
+                method,
+                path,
+                json_body=body,
+                idempotency_key=idempotency_key,
+            )
+
+        candidates = (
+            ["company_id", "account_id"]
+            if self._company_body_param == "company_id"
+            else ["account_id", "company_id"]
+        )
+        last_err: Optional[WhopApiError] = None
+        for idx, field_name in enumerate(candidates):
+            payload = {**dict(body), field_name: self.company_id}
+            ikey = f"{idempotency_key}-{field_name}" if (idempotency_key and idx > 0) else idempotency_key
+            try:
+                res = self._request_json(method, path, json_body=payload, idempotency_key=ikey)
+                self._company_body_param = field_name
+                return res
+            except WhopApiError as exc:
+                last_err = exc
+                msg = str(exc)
+                if ("HTTP 400" in msg or "HTTP 422" in msg) and idx < len(candidates) - 1:
+                    continue
+                raise
+        assert last_err is not None
+        raise last_err
 
     def _get_json_with_account_negotiation(
         self,
@@ -1448,6 +1506,586 @@ class WhopClient:
             "memberships_synced": len(memberships),
             "orders_synced": upserted,
             "refunds_reconciled": reconciled_refunds,
+        }
+
+    # ------------------------------------------------------------------
+    # Whop REST API v1 Product, Plan, Experience & Forum Automation
+    # ------------------------------------------------------------------
+
+    def list_products(self, *, max_pages: int = 5) -> list[dict[str, Any]]:
+        """List existing Whop products (`GET /api/v1/products`) scoped to `company_id`."""
+        raw_items = self._paginate(
+            "/products",
+            collection_keys=("data", "products"),
+            max_pages=max_pages,
+        )
+        return [item for item in raw_items if self._matches_company(item)]
+
+    def create_or_update_product(
+        self,
+        *,
+        slug: str,
+        title: str,
+        description: str = "",
+        visibility: str = "visible",
+    ) -> dict[str, Any]:
+        """Idempotently find or create a Whop product (`POST /api/v1/products`) by SKU/slug/title."""
+        norm_slug = slug.strip().lower()
+        norm_title = title.strip().lower()
+        for existing in self.list_products():
+            meta = existing.get("metadata") if isinstance(existing.get("metadata"), Mapping) else {}
+            ex_sku = str(meta.get("sku") or existing.get("route") or existing.get("slug") or "").strip().lower()
+            ex_title = str(existing.get("title") or existing.get("name") or "").strip().lower()
+            if (norm_slug and ex_sku == norm_slug) or (norm_title and ex_title == norm_title):
+                return {"operation": "reused", "product": existing}
+
+        route_slug = re.sub(r"[^a-z0-9-]+", "-", norm_slug).strip("-")[:48] or "reliability-kit"
+        body: dict[str, Any] = {
+            "title": title.strip(),
+            "route": route_slug,
+            "visibility": visibility,
+            "metadata": {"sku": slug.strip()},
+        }
+        if description.strip():
+            body["description"] = description.strip()
+
+        ikey = f"whop-product-{self.company_id or 'default'}-{route_slug}"
+        created = self._write_json_with_account_negotiation(
+            "POST",
+            "/products",
+            body=body,
+            idempotency_key=ikey,
+        )
+        prod_obj = (
+            dict(created.get("data"))
+            if isinstance(created, Mapping) and isinstance(created.get("data"), Mapping)
+            else (dict(created) if isinstance(created, Mapping) else {"id": str(created)})
+        )
+        return {"operation": "created", "product": prod_obj}
+
+    def list_plans(
+        self,
+        *,
+        product_id: Optional[str] = None,
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        """List Whop pricing plans (`GET /api/v1/plans`), optionally filtered to `product_id`."""
+        raw_items = self._paginate(
+            "/plans",
+            collection_keys=("data", "plans"),
+            max_pages=max_pages,
+        )
+        filtered: list[dict[str, Any]] = []
+        for item in raw_items:
+            if not self._matches_company(item):
+                continue
+            if product_id:
+                item_pid = str(
+                    item.get("product_id")
+                    or (
+                        (item.get("product") or {}).get("id")
+                        if isinstance(item.get("product"), Mapping)
+                        else ""
+                    )
+                ).strip()
+                if item_pid and item_pid != product_id:
+                    continue
+            filtered.append(item)
+        return filtered
+
+    def create_plan(
+        self,
+        *,
+        product_id: str,
+        price_usd: int,
+        sku: str,
+        title: str = "",
+        plan_type: str = "one_time",
+        currency: str = "usd",
+    ) -> dict[str, Any]:
+        """Idempotently find or create a Whop one-time/free plan (`POST /api/v1/plans`) on `product_id`."""
+        target_cents = max(0, int(price_usd)) * 100
+        for existing in self.list_plans(product_id=product_id):
+            meta = existing.get("metadata") if isinstance(existing.get("metadata"), Mapping) else {}
+            ex_sku = str(meta.get("sku") or "").strip().lower()
+            ex_cents, _ = _parse_money_field_cents(
+                existing,
+                cents_keys=("initial_price_cents", "price_cents", "amount_cents"),
+                money_keys=("initial_price", "price", "amount"),
+            )
+            if (sku and ex_sku == sku.strip().lower()) or (ex_cents is not None and ex_cents == target_cents):
+                return {"operation": "reused", "plan": existing}
+
+        price_str = f"{max(0, int(price_usd)):.2f}"
+        body: dict[str, Any] = {
+            "product_id": product_id,
+            "plan_type": plan_type,
+            "initial_price": 0 if target_cents == 0 else price_str,
+            "currency": currency.lower(),
+            "visibility": "visible",
+            "metadata": {"sku": sku.strip()},
+        }
+        if title.strip():
+            body["title"] = title.strip()
+
+        ikey = f"whop-plan-{self.company_id or 'default'}-{sku.strip()[:36]}-{price_usd}"
+        created = self._write_json_with_account_negotiation(
+            "POST",
+            "/plans",
+            body=body,
+            idempotency_key=ikey,
+        )
+        plan_obj = (
+            dict(created.get("data"))
+            if isinstance(created, Mapping) and isinstance(created.get("data"), Mapping)
+            else (dict(created) if isinstance(created, Mapping) else {"id": str(created)})
+        )
+        return {"operation": "created", "plan": plan_obj}
+
+    def list_experiences(self, *, max_pages: int = 5) -> list[dict[str, Any]]:
+        """List installed Whop experiences/apps (`GET /api/v1/experiences`) such as Forum, Chat, Files."""
+        try:
+            raw_items = self._paginate(
+                "/experiences",
+                collection_keys=("data", "experiences"),
+                max_pages=max_pages,
+            )
+        except WhopApiError as exc:
+            if "HTTP 404" in str(exc) or "HTTP 403" in str(exc):
+                return []
+            raise
+        return [item for item in raw_items if self._matches_company(item)]
+
+    def discover_forum_and_chat_experiences(self) -> tuple[str, str]:
+        """Resolve `(forum_experience_id, chat_experience_id)` from config or live `/experiences`."""
+        cfg_forum = (self.config.whop_forum_experience_id if self.config else "").strip()
+        cfg_chat = (self.config.whop_chat_experience_id if self.config else "").strip()
+        if cfg_forum and cfg_chat:
+            return cfg_forum, cfg_chat
+
+        experiences = self.list_experiences()
+        found_forum = cfg_forum
+        found_chat = cfg_chat
+        for exp in experiences:
+            exp_id = str(exp.get("id") or "").strip()
+            if not exp_id:
+                continue
+            app_obj = exp.get("app") if isinstance(exp.get("app"), Mapping) else {}
+            descriptor = " ".join(
+                str(x or "")
+                for x in (
+                    exp.get("type"),
+                    exp.get("experience_type"),
+                    exp.get("name"),
+                    exp.get("title"),
+                    app_obj.get("name"),
+                    app_obj.get("slug"),
+                )
+            ).lower()
+            if not found_forum and ("forum" in descriptor or "announcement" in descriptor or "feed" in descriptor):
+                found_forum = exp_id
+            elif not found_chat and ("chat" in descriptor or "channel" in descriptor or "community" in descriptor):
+                found_chat = exp_id
+        return found_forum, found_chat
+
+    def ensure_catalog_products(self, catalog: Mapping[str, Any]) -> dict[str, Any]:
+        """Idempotently provision/verify all 3 catalog SKUs & pricing plans on Whop API v1."""
+        out_dir = (self.config.exports_dir / "storefront") if self.config else Path("exports/storefront")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = out_dir / "whop_provisioned_catalog.json"
+
+        specs = list(catalog.get("products") or [])
+        if not self.has_live_credentials():
+            dry_summary = {
+                "status": "dry_run",
+                "company_id": self.company_id or DEFAULT_WHOP_COMPANY_ID,
+                "reason": "WHOP_API_KEY not configured; exported provisioning blueprint locally.",
+                "products_provisioned": [],
+                "catalog_count": len(specs),
+                "manifest_path": str(manifest_path),
+            }
+            manifest_path.write_text(json.dumps(dry_summary, indent=2) + "\n", encoding="utf-8")
+            return dry_summary
+
+        provisioned: list[dict[str, Any]] = []
+        for spec in specs:
+            slug = str(spec.get("slug") or "").strip()
+            title = str(spec.get("title") or slug).strip()
+            price_usd = int(spec.get("price_usd") or 0)
+            tagline = str(spec.get("tagline") or "").strip()
+            summary = str(spec.get("summary") or "").strip()
+            highlights = [str(h) for h in (spec.get("highlights") or [])]
+            desc_parts = [p for p in (tagline, summary) if p]
+            if highlights:
+                desc_parts.append("\n".join(f"- {h}" for h in highlights))
+            full_desc = "\n\n".join(desc_parts)
+
+            prod_res = self.create_or_update_product(
+                slug=slug,
+                title=title,
+                description=full_desc,
+            )
+            prod_obj = prod_res["product"]
+            prod_id = str(prod_obj.get("id") or "").strip()
+
+            plan_res: dict[str, Any] = {"operation": "skipped_missing_product_id", "plan": {}}
+            checkout_url = str(
+                prod_obj.get("checkout_url")
+                or prod_obj.get("purchase_url")
+                or prod_obj.get("url")
+                or ""
+            ).strip()
+            if prod_id:
+                plan_res = self.create_plan(
+                    product_id=prod_id,
+                    price_usd=price_usd,
+                    sku=slug,
+                    title=title,
+                )
+                plan_obj = plan_res["plan"]
+                checkout_url = (
+                    str(
+                        plan_obj.get("direct_link")
+                        or plan_obj.get("purchase_url")
+                        or plan_obj.get("checkout_url")
+                        or checkout_url
+                    ).strip()
+                )
+
+            provisioned.append(
+                {
+                    "sku": slug,
+                    "title": title,
+                    "price_usd": price_usd,
+                    "product_id": prod_id,
+                    "product_operation": prod_res["operation"],
+                    "plan_id": str((plan_res.get("plan") or {}).get("id") or ""),
+                    "plan_operation": plan_res["operation"],
+                    "checkout_url": checkout_url,
+                    "zip_filename": str(spec.get("zip_filename") or ""),
+                }
+            )
+
+        forum_exp_id, chat_exp_id = self.discover_forum_and_chat_experiences()
+        live_summary = {
+            "status": "provisioned",
+            "synced_at": utc_now_iso(),
+            "company_id": self.company_id or DEFAULT_WHOP_COMPANY_ID,
+            "forum_experience_id": forum_exp_id,
+            "chat_experience_id": chat_exp_id,
+            "products_provisioned": provisioned,
+            "manifest_path": str(manifest_path),
+        }
+        manifest_path.write_text(json.dumps(live_summary, indent=2) + "\n", encoding="utf-8")
+        return live_summary
+
+    def list_forum_posts(
+        self,
+        *,
+        experience_id: str = "",
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        """List Whop Forum posts (`GET /api/v1/forum_posts`) including `view_count`, `like_count`, `comment_count`."""
+        collected: list[dict[str, Any]] = []
+        after_cursor: Optional[str] = None
+        seen_cursors: set[str] = set()
+
+        for _ in range(max(1, max_pages)):
+            q: dict[str, str] = {"first": "50"}
+            if experience_id.strip():
+                q["experience_id"] = experience_id.strip()
+            if after_cursor:
+                if after_cursor in seen_cursors:
+                    break
+                seen_cursors.add(after_cursor)
+                q["after"] = after_cursor
+
+            try:
+                payload = self._get_json_with_account_negotiation("/forum_posts", base_query=q)
+            except WhopApiError as exc:
+                if "HTTP 404" in str(exc) or "HTTP 403" in str(exc):
+                    break
+                raise
+
+            if isinstance(payload, list):
+                collected.extend(dict(x) for x in payload if isinstance(x, Mapping))
+                break
+            if not isinstance(payload, Mapping):
+                break
+            items: list[dict[str, Any]] = []
+            for key in ("data", "forum_posts", "posts"):
+                cand = payload.get(key)
+                if isinstance(cand, list):
+                    items = [dict(x) for x in cand if isinstance(x, Mapping)]
+                    break
+            collected.extend(items)
+            page_info = payload.get("page_info")
+            if isinstance(page_info, Mapping) and page_info.get("has_next_page") and page_info.get("end_cursor"):
+                after_cursor = str(page_info["end_cursor"]).strip()
+                continue
+            break
+
+        return collected
+
+    def publish_daily_post(
+        self,
+        article: ArticleRecord,
+        *,
+        db: Optional[PipelineDatabase] = None,
+        series_articles: Optional[list[ArticleRecord]] = None,
+        offline: bool = False,
+    ) -> dict[str, Any]:
+        """Export daily Whop packs and idempotently publish `[Day N/30]` to Whop Forum (`<= 2` links, zero @everyone)."""
+        if self.config is None:
+            raise WhopApiError("WhopClient requires AppConfig for publish_daily_post")
+        if article.status not in {"code_verified", "staged_draft", "published_live"}:
+            raise WhopApiError(
+                f"Refusing to publish unverified article '{article.slug}' (status='{article.status}')"
+            )
+
+        pack_paths = export_whop_daily_pack(article, self.config, series_articles=series_articles)
+        guide_path = write_whop_setup_guide(self.config)
+
+        day_num = article.series_day or 1
+        dur_ms = article.verification.get("total_duration_ms", 0)
+        blocks_n = article.verification.get("code_blocks_tested", 2)
+        whop_base = self.config.whop_store_url or self.config.patreon_url or self.config.paid_checkout_url
+        challenge_url = append_storefront_utm(
+            whop_base,
+            source="whop",
+            medium="forum_post",
+            campaign=f"30d_day{day_num:02d}",
+            slug=article.slug,
+            sku="nasio-7day-ai-automation-challenge-pack",
+            configured_ls_url=self.config.lemonsqueezy_store_url,
+        )
+
+        post_title = f"[Day {day_num}/30] {article.title}"
+        # Strictly <= 2 outbound links (1 canonical tutorial + 1 internal UTM-tagged Challenge link)
+        post_content = (
+            f"{article.subtitle}\n\n"
+            f"Verified inside an isolated `python3 -I` sandbox ({dur_ms} ms across {blocks_n} executable blocks, "
+            f"100% Python 3.11+ standard library):\n"
+            f"- Full runnable benchmark & code teardown: {article.canonical_url}\n"
+            f"- 7-Day Hands-On Python & AI Reliability Challenge ($15 USD · MIT License): {challenge_url}\n"
+        )
+        configured_exp = self.config.whop_forum_experience_id.strip()
+        forum_payload: dict[str, Any] = {
+            "experience_id": configured_exp or "public",
+            "title": post_title,
+            "content": post_content,
+            "pinned": False,
+            "is_mention": False,
+            "paywall_amount": 0,
+        }
+        payload_path = self.config.exports_dir / article.slug / "whop_forum_payload.json"
+        payload_path.parent.mkdir(parents=True, exist_ok=True)
+        payload_path.write_text(json.dumps(forum_payload, indent=2) + "\n", encoding="utf-8")
+
+        if offline or not self.has_live_credentials():
+            return {
+                "status": "pack_ready",
+                "api_sync_mode": "dry_run",
+                "reason": (
+                    "Offline mode active; exported Whop pack & forum JSON locally."
+                    if offline
+                    else "WHOP_API_KEY not configured; exported Whop pack & forum JSON locally."
+                ),
+                "setup_guide": str(guide_path),
+                "whop_forum_payload": str(payload_path),
+                **pack_paths,
+            }
+
+        # Layer 1: Already recorded in SQLite
+        if article.whop_post_id:
+            return {
+                "status": "published_live",
+                "operation": "already_recorded",
+                "whop_post_id": article.whop_post_id,
+                "whop_url": article.whop_url or self.config.whop_store_url or self.config.whop_dashboard_url,
+                "setup_guide": str(guide_path),
+                "whop_forum_payload": str(payload_path),
+                **pack_paths,
+            }
+
+        forum_exp_id, chat_exp_id = self.discover_forum_and_chat_experiences()
+        effective_exp = forum_exp_id or "public"
+        forum_payload["experience_id"] = effective_exp
+        payload_path.write_text(json.dumps(forum_payload, indent=2) + "\n", encoding="utf-8")
+
+        # Layer 2: Reconcile against existing remote forum posts on Whop
+        existing_posts = self.list_forum_posts(experience_id=forum_exp_id)
+        day_tag_low = f"[day {day_num}/30]"
+        norm_title_low = article.title.strip().lower()
+        for post in existing_posts:
+            r_title = str(post.get("title") or "").strip().lower()
+            r_body = str(post.get("content") or "").strip().lower()
+            if (
+                day_tag_low in r_title
+                or (norm_title_low and norm_title_low in r_title)
+                or article.slug.lower() in r_body
+            ):
+                matched_id = str(post.get("id") or "").strip()
+                if matched_id:
+                    matched_url = str(
+                        post.get("url")
+                        or self.config.whop_store_url
+                        or self.config.whop_dashboard_url
+                    ).strip()
+                    article.whop_post_id = matched_id
+                    article.whop_url = matched_url
+                    if db is not None:
+                        db.save_article(article)
+                    return {
+                        "status": "published_live",
+                        "operation": "reconciled",
+                        "whop_post_id": matched_id,
+                        "whop_url": matched_url,
+                        "experience_id": effective_exp,
+                        "setup_guide": str(guide_path),
+                        "whop_forum_payload": str(payload_path),
+                        **pack_paths,
+                    }
+
+        # Layer 3: Create fresh Whop Forum post idempotently
+        ikey = f"whop-forum-{self.company_id or 'default'}-day{day_num:02d}-{article.slug[:32]}"
+        try:
+            created = self._write_json_with_account_negotiation(
+                "POST",
+                "/forum_posts",
+                body=forum_payload,
+                idempotency_key=ikey,
+            )
+        except WhopApiError as exc:
+            if not forum_exp_id and any(code in str(exc) for code in ("HTTP 400", "HTTP 403", "HTTP 404", "HTTP 422")):
+                return {
+                    "status": "pack_ready",
+                    "api_sync_mode": "no_forum_experience",
+                    "reason": f"No Whop Forum experience installed yet ({exc}); pack & JSON staged.",
+                    "setup_guide": str(guide_path),
+                    "whop_forum_payload": str(payload_path),
+                    **pack_paths,
+                }
+            raise
+
+        post_obj = (
+            dict(created.get("data"))
+            if isinstance(created, Mapping) and isinstance(created.get("data"), Mapping)
+            else (dict(created) if isinstance(created, Mapping) else {})
+        )
+        remote_id = str(post_obj.get("id") or "").strip()
+        remote_url = str(
+            post_obj.get("url")
+            or self.config.whop_store_url
+            or self.config.whop_dashboard_url
+        ).strip()
+        if remote_id:
+            article.whop_post_id = remote_id
+            article.whop_url = remote_url
+            if db is not None:
+                db.save_article(article)
+
+        chat_status = "not_configured"
+        if chat_exp_id:
+            chat_ikey = f"whop-chat-{self.company_id or 'default'}-day{day_num:02d}"
+            chat_text = f"New Verified Lab Live — {post_title}: {article.canonical_url}"
+            try:
+                self._request_json(
+                    "POST",
+                    f"/channels/{chat_exp_id}/messages",
+                    json_body={"content": chat_text},
+                    idempotency_key=chat_ikey,
+                )
+                chat_status = "sent"
+            except WhopApiError:
+                chat_status = "skipped_unavailable"
+
+        return {
+            "status": "published_live" if remote_id else "pack_ready",
+            "operation": "created",
+            "whop_post_id": remote_id or None,
+            "whop_url": remote_url or None,
+            "experience_id": effective_exp,
+            "chat_notification": chat_status,
+            "setup_guide": str(guide_path),
+            "whop_forum_payload": str(payload_path),
+            **pack_paths,
+        }
+
+    def sync_forum_metrics(self, db: PipelineDatabase) -> dict[str, Any]:
+        """Pull `view_count`, `like_count`, and `comment_count` from Whop Forum posts into `channel_metrics`."""
+        if not self.has_live_credentials():
+            return {
+                "status": "dry_run",
+                "posts_matched": 0,
+                "views_total": 0,
+                "engagement_total": 0,
+                "reason": "WHOP_API_KEY not configured; skipped live Whop Forum analytics fetch.",
+            }
+
+        forum_exp_id, _ = self.discover_forum_and_chat_experiences()
+        posts = self.list_forum_posts(experience_id=forum_exp_id)
+        articles = db.list_articles(verified_only=True)
+        by_id = {str(p.get("id") or "").strip(): p for p in posts if str(p.get("id") or "").strip()}
+
+        matched_n = 0
+        views_sum = 0
+        eng_sum = 0
+
+        for art in articles:
+            matched: Optional[dict[str, Any]] = None
+            if art.whop_post_id and art.whop_post_id in by_id:
+                matched = by_id[art.whop_post_id]
+            else:
+                day_tag = f"[day {art.series_day}/30]" if art.series_day else ""
+                norm_title = art.title.strip().lower()
+                for post in posts:
+                    r_title = str(post.get("title") or "").strip().lower()
+                    r_body = str(post.get("content") or "").strip().lower()
+                    if (
+                        (day_tag and day_tag in r_title)
+                        or (norm_title and norm_title in r_title)
+                        or art.slug.lower() in r_body
+                    ):
+                        matched = post
+                        break
+
+            if not matched:
+                continue
+
+            matched_n += 1
+            pid = str(matched.get("id") or "").strip()
+            if pid and art.whop_post_id != pid:
+                art.whop_post_id = pid
+                art.whop_url = str(
+                    matched.get("url")
+                    or (self.config.whop_store_url if self.config else "")
+                    or (self.config.whop_dashboard_url if self.config else "")
+                ).strip()
+                db.save_article(art)
+
+            views = max(0, int(matched.get("view_count") or 0))
+            likes = max(0, int(matched.get("like_count") or 0))
+            comments = max(0, int(matched.get("comment_count") or 0))
+            engagement = likes + comments
+            views_sum += views
+            eng_sum += engagement
+
+            db.upsert_channel_metrics_monotonic(
+                slug=art.slug,
+                channel="whop",
+                min_views=views,
+                min_clicks=engagement,
+            )
+
+        return {
+            "status": "synced",
+            "company_id": self.company_id or DEFAULT_WHOP_COMPANY_ID,
+            "experience_id": forum_exp_id or "public",
+            "remote_posts_checked": len(posts),
+            "posts_matched": matched_n,
+            "views_total": views_sum,
+            "engagement_total": eng_sum,
         }
 
 

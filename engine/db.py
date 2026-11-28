@@ -30,6 +30,8 @@ ARTICLE_MIGRATION_COLUMNS: tuple[tuple[str, str], ...] = (
     ("pinterest_url", "TEXT"),
     ("patreon_post_id", "TEXT"),
     ("patreon_url", "TEXT"),
+    ("whop_post_id", "TEXT"),
+    ("whop_url", "TEXT"),
 )
 
 
@@ -102,7 +104,11 @@ class PipelineDatabase:
                     blogger_post_id TEXT,
                     blogger_url TEXT,
                     pinterest_pin_id TEXT,
-                    pinterest_url TEXT
+                    pinterest_url TEXT,
+                    patreon_post_id TEXT,
+                    patreon_url TEXT,
+                    whop_post_id TEXT,
+                    whop_url TEXT
                 );
                 """
             )
@@ -322,6 +328,8 @@ class PipelineDatabase:
             pinterest_url=str(row["pinterest_url"]) if "pinterest_url" in keys and row["pinterest_url"] is not None else None,
             patreon_post_id=str(row["patreon_post_id"]) if "patreon_post_id" in keys and row["patreon_post_id"] is not None else None,
             patreon_url=str(row["patreon_url"]) if "patreon_url" in keys and row["patreon_url"] is not None else None,
+            whop_post_id=str(row["whop_post_id"]) if "whop_post_id" in keys and row["whop_post_id"] is not None else None,
+            whop_url=str(row["whop_url"]) if "whop_url" in keys and row["whop_url"] is not None else None,
         )
 
     def save_article(self, article: ArticleRecord) -> ArticleRecord:
@@ -336,7 +344,8 @@ class PipelineDatabase:
                     SELECT created_at, devto_article_id, devto_url,
                            series_day, blogger_post_id, blogger_url,
                            pinterest_pin_id, pinterest_url,
-                           patreon_post_id, patreon_url
+                           patreon_post_id, patreon_url,
+                           whop_post_id, whop_url
                       FROM articles
                      WHERE slug = ?
                     """,
@@ -362,6 +371,10 @@ class PipelineDatabase:
                         article.patreon_post_id = str(existing["patreon_post_id"])
                     if article.patreon_url is None and existing["patreon_url"] is not None:
                         article.patreon_url = str(existing["patreon_url"])
+                    if article.whop_post_id is None and existing["whop_post_id"] is not None:
+                        article.whop_post_id = str(existing["whop_post_id"])
+                    if article.whop_url is None and existing["whop_url"] is not None:
+                        article.whop_url = str(existing["whop_url"])
 
                 conn.execute(
                     """
@@ -371,8 +384,8 @@ class PipelineDatabase:
                         verification_json, devto_article_id, devto_url, published_mode,
                         created_at, updated_at, series_day,
                         blogger_post_id, blogger_url, pinterest_pin_id, pinterest_url,
-                        patreon_post_id, patreon_url
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        patreon_post_id, patreon_url, whop_post_id, whop_url
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(slug) DO UPDATE SET
                         title = excluded.title,
                         subtitle = excluded.subtitle,
@@ -392,7 +405,9 @@ class PipelineDatabase:
                         pinterest_pin_id = excluded.pinterest_pin_id,
                         pinterest_url = excluded.pinterest_url,
                         patreon_post_id = excluded.patreon_post_id,
-                        patreon_url = excluded.patreon_url
+                        patreon_url = excluded.patreon_url,
+                        whop_post_id = excluded.whop_post_id,
+                        whop_url = excluded.whop_url
                     """,
                     (
                         article.slug,
@@ -419,6 +434,8 @@ class PipelineDatabase:
                         article.pinterest_url,
                         article.patreon_post_id,
                         article.patreon_url,
+                        article.whop_post_id,
+                        article.whop_url,
                     ),
                 )
                 row = conn.execute("SELECT * FROM articles WHERE slug = ?", (article.slug,)).fetchone()
@@ -640,6 +657,55 @@ class PipelineDatabase:
             updated_at=now,
         )
 
+    def upsert_channel_metrics_monotonic(
+        self,
+        *,
+        slug: str,
+        channel: str,
+        min_views: int = 0,
+        min_clicks: int = 0,
+    ) -> ChannelMetricRecord:
+        """Upsert `channel_metrics` enforcing `views = max(existing, min_views)` & `clicks = max(existing, min_clicks)`."""
+        norm_channel = channel.strip().lower()
+        if norm_channel not in VALID_CHANNELS:
+            raise ValueError(f"Invalid channel '{channel}'. Expected one of {VALID_CHANNELS}")
+        floor_v = max(0, int(min_views))
+        floor_c = max(0, int(min_clicks))
+
+        now = utc_now_iso()
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                existing = conn.execute(
+                    "SELECT views, clicks FROM channel_metrics WHERE slug = ? AND channel = ?",
+                    (slug, norm_channel),
+                ).fetchone()
+                eff_views = max(int(existing["views"]) if existing else 0, floor_v)
+                eff_clicks = max(int(existing["clicks"]) if existing else 0, floor_c)
+
+                conn.execute(
+                    """
+                    INSERT INTO channel_metrics (slug, channel, views, clicks, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(slug, channel) DO UPDATE SET
+                        views = excluded.views,
+                        clicks = excluded.clicks,
+                        updated_at = excluded.updated_at
+                    """,
+                    (slug, norm_channel, eff_views, eff_clicks, now),
+                )
+                conn.execute("COMMIT;")
+            except Exception:
+                conn.execute("ROLLBACK;")
+                raise
+        return ChannelMetricRecord(
+            slug=slug,
+            channel=norm_channel,
+            views=eff_views,
+            clicks=eff_clicks,
+            updated_at=now,
+        )
+
     def list_channel_metrics(self, *, slug: Optional[str] = None) -> list[ChannelMetricRecord]:
         with self._connect() as conn:
             if slug:
@@ -714,6 +780,9 @@ class PipelineDatabase:
             art_patreon = conn.execute(
                 "SELECT COUNT(*) FROM articles WHERE patreon_post_id IS NOT NULL"
             ).fetchone()[0]
+            art_whop = conn.execute(
+                "SELECT COUNT(*) FROM articles WHERE whop_post_id IS NOT NULL"
+            ).fetchone()[0]
             paid_orders = conn.execute(
                 "SELECT COUNT(*) FROM store_orders WHERE refunded = 0 AND gross_cents > 0"
             ).fetchone()[0]
@@ -730,6 +799,7 @@ class PipelineDatabase:
             "articles_blogger_remote": int(art_blogger),
             "articles_pinterest_remote": int(art_pinterest),
             "articles_patreon_remote": int(art_patreon),
+            "articles_whop_remote": int(art_whop),
             "store_orders_paid": int(paid_orders),
             "net_revenue_cents": int(net_cents),
             "publish_runs_total": int(runs_total),

@@ -230,3 +230,143 @@ class DevtoClient:
             "used_422_fallback": used_422_fallback,
             "payload_path": str(payload_path),
         }
+
+    def list_my_articles(
+        self,
+        *,
+        per_page: int = 100,
+        max_pages: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Fetch authenticated author's drafts & published articles (`GET /api/articles/me/all`) with view/reaction stats."""
+        if not self.config.devto_api_key:
+            raise DevtoPublishError("DEVTO_API_KEY is empty")
+
+        headers = {
+            "Accept": "application/vnd.forem.api-v1+json",
+            "api-key": self.config.devto_api_key,
+            "User-Agent": USER_AGENT,
+        }
+        collected: list[dict[str, Any]] = []
+        eff_per_page = max(1, min(1000, int(per_page)))
+
+        for page_num in range(1, max(1, max_pages) + 1):
+            url = f"{DEVTO_BASE_URL}/me/all?per_page={eff_per_page}&page={page_num}"
+            res: Optional[HttpResult] = None
+            for attempt in range(1, 4):
+                req = urllib.request.Request(url=url, headers=headers, method="GET")
+                res = self._sender(req, self.timeout_seconds)
+                if res.status == 429 and attempt < 3:
+                    retry_after = res.headers.get("retry-after", "")
+                    try:
+                        wait = min(10.0, max(0.5, float(retry_after)))
+                    except ValueError:
+                        wait = float(attempt)
+                    self._sleep(wait)
+                    continue
+                if res.status in {500, 502, 503, 504} and attempt < 3:
+                    self._sleep(0.5 * attempt)
+                    continue
+                break
+
+            assert res is not None
+            if res.status != 200:
+                preview = res.body.decode("utf-8", errors="replace")[:300]
+                raise DevtoPublishError(
+                    f"DEV.to API GET {url} failed with HTTP {res.status}: {preview}"
+                )
+            parsed = json.loads(res.body.decode("utf-8") or "[]")
+            if not isinstance(parsed, list) or not parsed:
+                break
+            batch = [dict(item) for item in parsed if isinstance(item, Mapping)]
+            collected.extend(batch)
+            if len(batch) < eff_per_page:
+                break
+
+        return collected
+
+    def sync_article_metrics(self, db: Any) -> dict[str, Any]:
+        """Reconcile remote DEV.to articles & upsert live `page_views_count` + reactions/comments into `channel_metrics`."""
+        if not self.config.devto_api_key:
+            return {
+                "status": "dry_run",
+                "articles_matched": 0,
+                "views_total": 0,
+                "engagement_total": 0,
+                "reason": "DEVTO_API_KEY not configured; skipped live DEV.to analytics fetch.",
+            }
+
+        remote_articles = self.list_my_articles()
+        local_articles = db.list_articles(verified_only=True)
+        by_id = {
+            int(item["id"]): item
+            for item in remote_articles
+            if item.get("id") is not None and str(item.get("id")).isdigit()
+        }
+        by_canonical = {
+            str(item.get("canonical_url") or "").strip().rstrip("/"): item
+            for item in remote_articles
+            if str(item.get("canonical_url") or "").strip()
+        }
+
+        matched_count = 0
+        views_sum = 0
+        eng_sum = 0
+
+        for art in local_articles:
+            matched: Optional[dict[str, Any]] = None
+            if art.devto_article_id is not None and art.devto_article_id in by_id:
+                matched = by_id[art.devto_article_id]
+            elif art.canonical_url.strip().rstrip("/") in by_canonical:
+                matched = by_canonical[art.canonical_url.strip().rstrip("/")]
+            else:
+                norm_title = art.title.strip().lower()
+                day_tag = f"[day {art.series_day}/30]" if art.series_day else ""
+                for item in remote_articles:
+                    r_title = str(item.get("title") or "").strip().lower()
+                    if (norm_title and norm_title == r_title) or (day_tag and day_tag in r_title):
+                        matched = item
+                        break
+
+            if not matched:
+                continue
+
+            matched_count += 1
+            remote_id = matched.get("id")
+            if remote_id is not None and str(remote_id).isdigit() and art.devto_article_id != int(remote_id):
+                art.devto_article_id = int(remote_id)
+            remote_url = str(matched.get("url") or "").strip()
+            if remote_url and art.devto_url != remote_url:
+                art.devto_url = remote_url
+            is_pub = bool(matched.get("published", False))
+            art.published_mode = "live" if is_pub else "draft"
+            art.status = "published_live" if is_pub else ("staged_draft" if art.devto_article_id else art.status)
+            db.save_article(art)
+
+            views = max(0, int(matched.get("page_views_count") or 0))
+            reactions = max(
+                0,
+                int(
+                    matched.get("positive_reactions_count")
+                    if matched.get("positive_reactions_count") is not None
+                    else (matched.get("public_reactions_count") or 0)
+                ),
+            )
+            comments = max(0, int(matched.get("comments_count") or 0))
+            engagement = reactions + comments
+            views_sum += views
+            eng_sum += engagement
+
+            db.upsert_channel_metrics_monotonic(
+                slug=art.slug,
+                channel="devto",
+                min_views=views,
+                min_clicks=engagement,
+            )
+
+        return {
+            "status": "synced",
+            "remote_articles_fetched": len(remote_articles),
+            "articles_matched": matched_count,
+            "views_total": views_sum,
+            "engagement_total": eng_sum,
+        }

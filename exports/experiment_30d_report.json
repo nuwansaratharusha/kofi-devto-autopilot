@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T21:49:28Z",
+  "generated_at": "2026-11-28T08:26:35Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -130,7 +130,13 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "UNCONFIGURED_DRY_RUN",
+      "missing_env_keys": [
+        "WHOP_API_KEY",
+        "WHOP_STORE_URL"
+      ],
+      "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY, WHOP_STORE_URL)."
     },
     "patreon": {
       "channel": "patreon",
@@ -145,7 +151,10 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "UNCONFIGURED_DRY_RUN",
+      "missing_env_keys": [],
+      "diagnostic_note": "Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet."
     },
     "blogger": {
       "channel": "blogger",
@@ -160,7 +169,13 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "UNCONFIGURED_DRY_RUN",
+      "missing_env_keys": [
+        "BLOGGER_BLOG_ID",
+        "BLOGGER_REFRESH_TOKEN"
+      ],
+      "diagnostic_note": "Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN)."
     },
     "devto": {
       "channel": "devto",
@@ -175,7 +190,12 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "UNCONFIGURED_DRY_RUN",
+      "missing_env_keys": [
+        "DEVTO_API_KEY"
+      ],
+      "diagnostic_note": "Running in dry_run mode (missing DEVTO_API_KEY)."
     },
     "canonical_site": {
       "channel": "canonical_site",
@@ -190,7 +210,10 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "LIVE_ACTIVE",
+      "missing_env_keys": [],
+      "diagnostic_note": "Static GitHub Pages hub is deployed live, but awaits inbound referral traffic from Whop/DEV.to."
     },
     "pinterest": {
       "channel": "pinterest",
@@ -205,7 +228,13 @@
       "net_usd": 0.0,
       "conversion_rate_pct": 0.0,
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
-      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
+      "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel.",
+      "readiness": "UNCONFIGURED_DRY_RUN",
+      "missing_env_keys": [
+        "PINTEREST_ACCESS_TOKEN",
+        "PINTEREST_BOARD_ID"
+      ],
+      "diagnostic_note": "Running in dry_run mode (missing PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID)."
     }
   },
   "pillars": {
@@ -251,5 +280,94 @@
       "verdict": "NOT WORKING \u2014 PAUSE & REALLOCATE",
       "action_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
     }
+  },
+  "diagnostics": {
+    "unconfigured_channels": [
+      "whop",
+      "patreon",
+      "blogger",
+      "devto",
+      "pinterest"
+    ],
+    "live_zero_conversion_channels": [
+      "canonical_site"
+    ],
+    "channel_readiness": {
+      "whop": {
+        "channel": "whop",
+        "readiness": "UNCONFIGURED_DRY_RUN",
+        "missing_env_keys": [
+          "WHOP_API_KEY",
+          "WHOP_STORE_URL"
+        ],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 0,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Running in dry_run mode (missing WHOP_API_KEY, WHOP_STORE_URL)."
+      },
+      "patreon": {
+        "channel": "patreon",
+        "readiness": "UNCONFIGURED_DRY_RUN",
+        "missing_env_keys": [],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 0,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet."
+      },
+      "blogger": {
+        "channel": "blogger",
+        "readiness": "UNCONFIGURED_DRY_RUN",
+        "missing_env_keys": [
+          "BLOGGER_BLOG_ID",
+          "BLOGGER_REFRESH_TOKEN"
+        ],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 0,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN)."
+      },
+      "devto": {
+        "channel": "devto",
+        "readiness": "UNCONFIGURED_DRY_RUN",
+        "missing_env_keys": [
+          "DEVTO_API_KEY"
+        ],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 0,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Running in dry_run mode (missing DEVTO_API_KEY)."
+      },
+      "canonical_site": {
+        "channel": "canonical_site",
+        "readiness": "LIVE_ACTIVE",
+        "missing_env_keys": [],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 11,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Static GitHub Pages hub is deployed live, but awaits inbound referral traffic from Whop/DEV.to."
+      },
+      "pinterest": {
+        "channel": "pinterest",
+        "readiness": "UNCONFIGURED_DRY_RUN",
+        "missing_env_keys": [
+          "PINTEREST_ACCESS_TOKEN",
+          "PINTEREST_BOARD_ID"
+        ],
+        "posts_prepared": 11,
+        "posts_remote_id_logged": 0,
+        "views": 0,
+        "clicks": 0,
+        "diagnostic_note": "Running in dry_run mode (missing PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID)."
+      }
+    },
+    "recommended_actions": [
+      "Connect WHOP_API_KEY and WHOP_STORE_URL for biz_Af4z3lgivbct7t, then run python3 autopilot.py setup-whop to provision the 3 SKUs and enable daily Whop Forum publishing + analytics.",
+      "Add DEVTO_API_KEY (PUBLISH_MODE=live) so Mon/Wed/Fri articles publish to DEV.to and sync real page_views_count into channel_metrics."
+    ]
   }
 }

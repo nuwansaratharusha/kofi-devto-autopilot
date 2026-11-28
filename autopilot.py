@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import unquote, urlparse
 
+from engine.analytics import sync_all_analytics
 from engine.blogger_client import BloggerClient, run_blogger_pkce_loopback
 from engine.composer import compose_article
 from engine.config import AppConfig
@@ -369,13 +370,25 @@ def cmd_run_daily(
             )
         saved = db.save_article(saved)
 
-        whop_paths = export_whop_daily_pack(saved, config, series_articles=all_verified_pre)
-        whop_guide = write_whop_setup_guide(config)
-        whop_res = {
-            "status": "pack_ready",
-            "setup_guide": str(whop_guide),
-            **whop_paths,
-        }
+        whop_client = WhopClient(config)
+        try:
+            whop_res = whop_client.publish_daily_post(
+                saved,
+                db=db,
+                series_articles=all_verified_pre,
+                offline=offline,
+            )
+        except (WhopApiError, OSError) as whop_exc:
+            whop_paths = export_whop_daily_pack(saved, config, series_articles=all_verified_pre)
+            whop_guide = write_whop_setup_guide(config)
+            whop_res = {
+                "status": "pack_ready",
+                "api_sync_mode": "error_fallback",
+                "error": str(whop_exc),
+                "setup_guide": str(whop_guide),
+                **whop_paths,
+            }
+        saved = db.save_article(saved)
 
         if config.is_legacy_nasio_mode:
             nasio_paths = export_nasio_daily_pack(saved, config, series_articles=all_verified_pre)
@@ -425,6 +438,13 @@ def cmd_run_daily(
             "lemonsqueezy": {"status": "dry_run", "products_count": 0, "orders_synced": 0},
             "patreon": {"status": "dry_run", "campaign_id": config.patreon_campaign_id, "orders_synced": 0},
         }
+        analytics_sync_res: dict[str, Any] = {
+            "synced_at": utc_now_iso(),
+            "whop": {"status": "dry_run", "posts_matched": 0, "views_total": 0},
+            "devto": {"status": "dry_run", "articles_matched": 0, "views_total": 0},
+            "patreon": {"status": "dry_run", "posts_matched": 0, "views_total": 0},
+            "order_click_floors_applied": 0,
+        }
     else:
         try:
             store_sync_res = sync_storefronts(config, db)
@@ -437,6 +457,7 @@ def cmd_run_daily(
                 "lemonsqueezy": {"status": "error", "orders_synced": 0},
                 "patreon": {"status": "error", "orders_synced": 0},
             }
+        analytics_sync_res = sync_all_analytics(config, db)
     all_verified = db.list_articles(verified_only=True)
     for art in all_verified:
         BloggerClient(config).export_artifacts(art, series_articles=all_verified)
@@ -455,7 +476,7 @@ def cmd_run_daily(
     staged_n = int(
         sum(
             1
-            for r in (blogger_res, patreon_res, pinterest_res, devto_res)
+            for r in (blogger_res, patreon_res, whop_res, pinterest_res, devto_res)
             if r.get("status") in {"staged_draft", "published_live", "staged_pack_synced"}
         )
     )
@@ -495,6 +516,7 @@ def cmd_run_daily(
         "pinterest": pinterest_res,
         "devto": devto_res,
         "storefronts": store_sync_res,
+        "analytics": analytics_sync_res,
         "site": site_summary,
         "experiment_report_json": exp_artifacts["json_path"],
         "experiment_report_md": exp_artifacts["markdown_path"],
@@ -612,10 +634,83 @@ def cmd_log_order(
     return out
 
 
+def cmd_setup_whop(
+    config: AppConfig,
+    *,
+    as_json: bool = False,
+) -> dict[str, Any]:
+    """Idempotently provision/verify all 3 catalog SKUs, plans & experiences on Whop API v1."""
+    product_info = _load_or_build_products(config, force_rebuild=False)
+    catalog = load_catalog(config.project_root)
+    whop = WhopClient(config)
+    prov_res = whop.ensure_catalog_products(catalog)
+    guide_path = write_whop_setup_guide(config)
+    db = PipelineDatabase(config.db_path)
+    exp_artifacts = write_experiment_artifacts(db, config)
+    all_verified = db.list_articles(verified_only=True)
+    build_static_site(
+        all_verified,
+        product_info["products"],
+        config,
+        experiment_report=exp_artifacts["report"],
+    )
+    out = {
+        **prov_res,
+        "setup_guide": str(guide_path),
+        "experiment_report_json": exp_artifacts["json_path"],
+    }
+    if as_json:
+        print(json.dumps(out, indent=2))
+    else:
+        print(f"Whop Catalog Provisioning ({out['status']} · {out['company_id']}):")
+        for p in out.get("products_provisioned", []):
+            print(
+                f"  - [{p['product_operation']}/{p['plan_operation']}] {p['sku']} "
+                f"(${p['price_usd']} USD -> product={p['product_id']} plan={p['plan_id']})"
+            )
+        if not out.get("products_provisioned"):
+            print(f"  - {out.get('reason', 'No live API key configured yet.')}")
+        print(f"Setup guide ready at: {guide_path}")
+    return out
+
+
+def cmd_sync_analytics(
+    config: AppConfig,
+    *,
+    as_json: bool = False,
+) -> dict[str, Any]:
+    """Pull live Whop Forum views/likes/comments, DEV.to page views/reactions, and Patreon metrics into SQLite."""
+    db = PipelineDatabase(config.db_path)
+    sync_res = sync_all_analytics(config, db)
+    exp_artifacts = write_experiment_artifacts(db, config)
+    product_info = _load_or_build_products(config, force_rebuild=False)
+    all_verified = db.list_articles(verified_only=True)
+    build_static_site(
+        all_verified,
+        product_info["products"],
+        config,
+        experiment_report=exp_artifacts["report"],
+    )
+    out = {
+        **sync_res,
+        "experiment_report_json": exp_artifacts["json_path"],
+        "diagnostics": exp_artifacts["report"]["diagnostics"],
+    }
+    if as_json:
+        print(json.dumps(out, indent=2))
+    else:
+        print(f"Live Analytics Sync ({out['synced_at']}):")
+        print(f"  - Whop Forum : {out['whop'].get('status')} (views={out['whop'].get('views_total', 0)})")
+        print(f"  - DEV.to     : {out['devto'].get('status')} (views={out['devto'].get('views_total', 0)})")
+        print(f"  - Patreon    : {out['patreon'].get('status')} (views={out['patreon'].get('views_total', 0)})")
+    return out
+
+
 def cmd_sync_stores(
     config: AppConfig,
     *,
     create_gumroad_drafts: bool = False,
+    provision_whop: bool = False,
     as_json: bool = False,
 ) -> dict[str, Any]:
     db = PipelineDatabase(config.db_path)
@@ -624,6 +719,7 @@ def cmd_sync_stores(
         config,
         db,
         create_gumroad_drafts=create_gumroad_drafts,
+        provision_whop=provision_whop,
         catalog_products=catalog_products,
     )
     exp_artifacts = write_experiment_artifacts(db, config)
@@ -788,6 +884,8 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
         "whop_company_id": config.whop_company_id or DEFAULT_WHOP_COMPANY_ID,
         "whop_dashboard_url": config.whop_dashboard_url,
         "whop_store_url": config.whop_store_url,
+        "whop_forum_experience_id": config.whop_forum_experience_id,
+        "whop_chat_experience_id": config.whop_chat_experience_id,
         "whop_webhook_secret_configured": bool(config.whop_webhook_secret),
         "nasio_store_url": config.nasio_store_url,
         "nasio_webhook_secret_configured": bool(config.nasio_webhook_secret),
@@ -816,6 +914,8 @@ def gather_status(config: AppConfig) -> dict[str, Any]:
                 "blogger_url": a.blogger_url,
                 "patreon_post_id": a.patreon_post_id,
                 "patreon_url": a.patreon_url,
+                "whop_post_id": a.whop_post_id,
+                "whop_url": a.whop_url,
                 "pinterest_pin_id": a.pinterest_pin_id,
                 "pinterest_url": a.pinterest_url,
                 "duration_ms": a.verification.get("total_duration_ms", 0),
@@ -916,22 +1016,34 @@ def render_dashboard_html(config: AppConfig) -> str:
     channel_rows: list[str] = []
     for ch_key, ch_data in exp["channels"].items():
         v_txt = str(ch_data["verdict"])
+        r_txt = str(ch_data.get("readiness", ""))
         v_cls = (
             "badge badge-verified"
             if v_txt.startswith("WORKING")
             else ("badge badge-warn" if v_txt.startswith("BOTTLENECK") else "badge")
         )
+        r_badge = (
+            f' <span class="badge badge-warn">{html.escape(r_txt)}</span>'
+            if r_txt == "UNCONFIGURED_DRY_RUN"
+            else (f' <span class="badge badge-verified">{html.escape(r_txt)}</span>' if r_txt else "")
+        )
+        diag_note = str(ch_data.get("diagnostic_note") or "").replace("`", "")
+        note_html = (
+            f'<div class="tabular" style="font-size:0.8rem;color:var(--text-muted);margin-top:0.25rem;">{html.escape(diag_note)}</div>'
+            if diag_note
+            else ""
+        )
         channel_rows.append(
             f"<tr>"
-            f"<td><code>{html.escape(ch_key)}</code></td>"
-            f'<td class="tabular">{ch_data["posts_prepared"]}</td>'
+            f"<td><code>{html.escape(ch_key)}</code>{r_badge}</td>"
+            f'<td class="tabular">{ch_data["posts_remote_id_logged"]} / {ch_data["posts_prepared"]}</td>'
             f'<td class="tabular">{ch_data["views"]}</td>'
             f'<td class="tabular">{ch_data["clicks"]}</td>'
             f'<td class="tabular">{ch_data["ctr_pct"]}%</td>'
             f'<td class="tabular">{ch_data["free_downloads"]}</td>'
             f'<td class="tabular">{ch_data["paid_orders"]}</td>'
             f'<td class="tabular">${ch_data["net_usd"]:.2f}</td>'
-            f'<td><span class="{v_cls}">{html.escape(v_txt)}</span></td>'
+            f'<td><span class="{v_cls}">{html.escape(v_txt)}</span>{note_html}</td>'
             f"</tr>"
         )
 
@@ -965,7 +1077,12 @@ def render_dashboard_html(config: AppConfig) -> str:
             lead_badge = f'<span class="badge">Nas.io: {"1-HR PACK READY" if bundles.get("nasio_daily_pack") else "PENDING"}</span>'
             lead_pack_btn = f'<button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:nasio_daily_pack" data-label="Copy Nas.io 1-Hr Pack">Copy Nas.io 1-Hr Pack</button>'
         else:
-            lead_badge = f'<span class="badge">Whop: {"1-HR PACK READY" if bundles.get("whop_daily_pack") else "PENDING"}</span>'
+            whop_state = (
+                "LIVE FORUM SYNCED"
+                if art.get("whop_post_id")
+                else ("1-HR PACK READY" if bundles.get("whop_daily_pack") else "PENDING")
+            )
+            lead_badge = f'<span class="badge">Whop: {whop_state}</span>'
             lead_pack_btn = f'<button type="button" class="btn copy-pack-btn" data-copy-key="{html.escape(slug, quote=True)}:whop_daily_pack" data-label="Copy Whop 1-Hr Pack">Copy Whop 1-Hr Pack</button>'
 
         article_cards.append(
@@ -1555,9 +1672,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p_order.add_argument("--refunded", action="store_true", help="Mark order as refunded (0 net revenue)")
     p_order.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    p_setup_whop = sub.add_parser(
+        "setup-whop",
+        help="Idempotently provision/verify all 3 catalog SKUs, plans & experiences on Whop API v1",
+    )
+    p_setup_whop.add_argument("--json", action="store_true", help="Emit JSON output")
+
     p_sync = sub.add_parser("sync-stores", help="Sync Whop v1, Patreon v2, Gumroad v2 & Lemon Squeezy v1 orders + UTM attribution")
     p_sync.add_argument("--create-gumroad-drafts", action="store_true", help="Create unpublished Gumroad v2 draft SKUs if missing")
+    p_sync.add_argument("--provision-whop", action="store_true", help="Also ensure 3 catalog products & plans exist on Whop")
     p_sync.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    p_sync_an = sub.add_parser(
+        "sync-analytics",
+        help="Pull live Whop Forum views/likes/comments, DEV.to views/reactions & Patreon metrics into SQLite",
+    )
+    p_sync_an.add_argument("--json", action="store_true", help="Emit JSON output")
 
     p_metrics = sub.add_parser("log-metrics", help="Record per-article channel views & clicks for 30d experiment verdicts")
     p_metrics.add_argument("--slug", required=True, help="Article slug")
@@ -1648,12 +1778,19 @@ def main(argv: Optional[list[str]] = None) -> int:
                 as_json=args.json,
             )
             return 0
+        if args.command == "setup-whop":
+            cmd_setup_whop(config, as_json=args.json)
+            return 0
         if args.command == "sync-stores":
             cmd_sync_stores(
                 config,
                 create_gumroad_drafts=args.create_gumroad_drafts,
+                provision_whop=args.provision_whop,
                 as_json=args.json,
             )
+            return 0
+        if args.command == "sync-analytics":
+            cmd_sync_analytics(config, as_json=args.json)
             return 0
         if args.command == "log-metrics":
             cmd_log_metrics(

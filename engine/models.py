@@ -135,6 +135,8 @@ class ArticleRecord:
     pinterest_url: Optional[str] = None
     patreon_post_id: Optional[str] = None
     patreon_url: Optional[str] = None
+    whop_post_id: Optional[str] = None
+    whop_url: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -68,6 +68,8 @@ class AppConfig:
     whop_store_url: str = ""
     whop_api_key: str = ""
     whop_webhook_secret: str = ""
+    whop_forum_experience_id: str = ""
+    whop_chat_experience_id: str = ""
     nasio_store_url: str = ""
     nasio_webhook_secret: str = ""
     experiment_start_date: str = "2026-11-18"
@@ -88,6 +90,8 @@ class AppConfig:
                 or self.whop_store_url
                 or self.whop_api_key
                 or self.whop_webhook_secret
+                or self.whop_forum_experience_id
+                or self.whop_chat_experience_id
             )
         )
 
@@ -218,6 +222,8 @@ class AppConfig:
             whop_store_url=whop_store,
             whop_api_key=env_map.get("WHOP_API_KEY", "").strip(),
             whop_webhook_secret=env_map.get("WHOP_WEBHOOK_SECRET", "").strip(),
+            whop_forum_experience_id=env_map.get("WHOP_FORUM_EXPERIENCE_ID", "").strip(),
+            whop_chat_experience_id=env_map.get("WHOP_CHAT_EXPERIENCE_ID", "").strip(),
             nasio_store_url=nasio_store,
             nasio_webhook_secret=env_map.get("NASIO_WEBHOOK_SECRET", "").strip(),
             experiment_start_date=env_map.get("EXPERIMENT_START_DATE", "2026-11-18").strip() or "2026-11-18",

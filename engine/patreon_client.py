@@ -421,22 +421,38 @@ class PatreonClient:
 
         return orders
 
-    def list_campaign_posts(self, *, max_pages: int = 3) -> list[dict[str, Any]]:
-        """Fetch published Patreon posts via API v2 so `[Day N/30]` URLs reconcile automatically."""
+    def list_campaign_posts(
+        self,
+        *,
+        max_pages: int = 3,
+        include_metrics: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Fetch published Patreon posts via API v2 so `[Day N/30]` URLs & optional engagement counts reconcile."""
         cid = self.resolve_campaign_id()
         posts: list[dict[str, Any]] = []
         next_url: Optional[str] = None
+        default_fields = "title,url,is_public,is_paid,published_at"
+        ext_fields = "title,url,is_public,is_paid,published_at,like_count,comment_count,view_count"
         base_query = {
-            "fields[post]": "title,url,is_public,is_paid,published_at",
+            "fields[post]": ext_fields if include_metrics else default_fields,
             "page[count]": "50",
         }
 
         for page_idx in range(max_pages):
-            payload = (
-                self._get_json(next_url)
-                if next_url
-                else self._get_json(f"/campaigns/{cid}/posts", query=base_query if page_idx == 0 else None)
-            )
+            if next_url:
+                payload = self._get_json(next_url)
+            elif page_idx == 0:
+                try:
+                    payload = self._get_json(f"/campaigns/{cid}/posts", query=base_query)
+                except PatreonApiError as exc:
+                    if include_metrics and "HTTP 400" in str(exc):
+                        fallback_q = {"fields[post]": default_fields, "page[count]": "50"}
+                        payload = self._get_json(f"/campaigns/{cid}/posts", query=fallback_q)
+                    else:
+                        raise
+            else:
+                payload = self._get_json(f"/campaigns/{cid}/posts")
+
             for item in payload.get("data") or []:
                 pid = str(item.get("id") or "").strip()
                 attrs = dict(item.get("attributes") or {})
@@ -451,12 +467,59 @@ class PatreonClient:
                         "is_public": bool(attrs.get("is_public", True)),
                         "is_paid": bool(attrs.get("is_paid", False)),
                         "published_at": str(attrs.get("published_at") or ""),
+                        "view_count": int(attrs.get("view_count") or 0),
+                        "like_count": int(attrs.get("like_count") or 0),
+                        "comment_count": int(attrs.get("comment_count") or 0),
                     }
                 )
             next_url = str((payload.get("links") or {}).get("next") or "").strip() or None
             if not next_url:
                 break
         return posts
+
+    def sync_post_metrics(self, db: PipelineDatabase) -> dict[str, Any]:
+        """Reconcile Patreon post IDs and upsert optional `view_count` / `like_count` + `comment_count` metrics."""
+        if not self.has_live_credentials():
+            return {
+                "status": "dry_run",
+                "posts_matched": 0,
+                "views_total": 0,
+                "engagement_total": 0,
+                "reason": "PATREON_CREATOR_ACCESS_TOKEN not configured; skipped live Patreon post metrics.",
+            }
+        posts = self.list_campaign_posts(include_metrics=True)
+        articles = db.list_articles(verified_only=True)
+        matched_n = 0
+        views_sum = 0
+        eng_sum = 0
+        for art in articles:
+            matched = _match_remote_patreon_post(posts, series_day=art.series_day, title=art.title)
+            if not matched:
+                continue
+            matched_n += 1
+            if matched.get("id") and art.patreon_post_id != matched["id"]:
+                art.patreon_post_id = str(matched["id"])
+                art.patreon_url = str(matched.get("url") or self.config.patreon_url)
+                db.save_article(art)
+            v = max(0, int(matched.get("view_count") or 0))
+            eng = max(0, int(matched.get("like_count") or 0) + int(matched.get("comment_count") or 0))
+            views_sum += v
+            eng_sum += eng
+            if v > 0 or eng > 0:
+                db.upsert_channel_metrics_monotonic(
+                    slug=art.slug,
+                    channel="patreon",
+                    min_views=v,
+                    min_clicks=eng,
+                )
+        return {
+            "status": "synced",
+            "campaign_id": self.campaign_id,
+            "remote_posts_checked": len(posts),
+            "posts_matched": matched_n,
+            "views_total": views_sum,
+            "engagement_total": eng_sum,
+        }
 
     def package_and_reconcile(
         self,
