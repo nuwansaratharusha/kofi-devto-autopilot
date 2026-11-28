@@ -24,7 +24,7 @@
 | `whop` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `patreon` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `blogger` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `devto` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `devto` | 11 | 10 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `canonical_site` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `pinterest` | 11 | 0 | 0 | 0.0% | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 
@@ -35,7 +35,7 @@
 | Pillar Track | Verified Posts | Views | Clicks | Free Kits | Paid Orders | Net USD | Verdict |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `pillar_a` (Fault-Tolerant AI & API Guardrails) | 4 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
-| `pillar_b` (Zero-Cost Backend, SQLite WAL Queues & Cron Automation) | 4 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
+| `pillar_b` (Zero-Cost Backend, SQLite WAL Queues & Cron Automation) | 4 | 10 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 | `pillar_c` (Idempotent Webhooks & Double-Entry Ledger Teardowns) | 3 | 0 | 0 | 0 | 0 | $0.00 | **NOT WORKING — PAUSE & REALLOCATE** |
 
 ---
@@ -47,7 +47,7 @@
 | `whop` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (0 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
 | `patreon` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | None | Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet. |
 | `blogger` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `BLOGGER_BLOG_ID`, `BLOGGER_REFRESH_TOKEN` | Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN). |
-| `devto` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (0 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
+| `devto` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (10 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
 | `canonical_site` | `LIVE_ACTIVE` | 11 / 11 | None | Static GitHub Pages hub is deployed live, but awaits inbound referral traffic from Whop/DEV.to. |
 | `pinterest` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `PINTEREST_ACCESS_TOKEN`, `PINTEREST_BOARD_ID` | Running in dry_run mode (missing PINTEREST_ACCESS_TOKEN, PINTEREST_BOARD_ID). |
 
