@@ -44,7 +44,7 @@
 
 | Channel | Integration Mode | Live Remote / Staged | Missing Credentials | Root-Cause Diagnostic |
 | :--- | :--- | :--- | :--- | :--- |
-| `whop` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (0 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
+| `whop` | `LIVE_ACTIVE` | 2 / 11 | None | Low reach & zero conversions (0 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |
 | `patreon` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | None | Patreon API v2 sync is live, but 0 public/tier posts on Patreon match [Day N/30] yet. |
 | `blogger` | `UNCONFIGURED_DRY_RUN` | 0 / 11 | `BLOGGER_BLOG_ID`, `BLOGGER_REFRESH_TOKEN` | Running in dry_run mode (missing BLOGGER_BLOG_ID, BLOGGER_REFRESH_TOKEN). |
 | `devto` | `LIVE_ACTIVE` | 1 / 11 | None | Low reach & zero conversions (10 views, 0 clicks, 0 orders) — pause manual effort here if unchanged by Day 30 and reallocate to top channel. |

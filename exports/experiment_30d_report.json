@@ -1,9 +1,5 @@
 {
-<<<<<<< Updated upstream
-  "generated_at": "2026-11-28T09:54:40Z",
-=======
-  "generated_at": "2026-11-28T10:05:11Z",
->>>>>>> Stashed changes
+  "generated_at": "2026-11-28T10:31:16Z",
   "series_name": "30 Days of Zero-Cost Production Python & AI Reliability",
   "window": {
     "start_date": "2026-11-18",
@@ -124,7 +120,7 @@
     "whop": {
       "channel": "whop",
       "posts_prepared": 11,
-      "posts_remote_id_logged": 1,
+      "posts_remote_id_logged": 2,
       "views": 0,
       "clicks": 0,
       "ctr_pct": 0.0,
@@ -297,7 +293,7 @@
         "readiness": "LIVE_ACTIVE",
         "missing_env_keys": [],
         "posts_prepared": 11,
-        "posts_remote_id_logged": 1,
+        "posts_remote_id_logged": 2,
         "views": 0,
         "clicks": 0,
         "diagnostic_note": "Low reach & zero conversions (0 views, 0 clicks, 0 orders) \u2014 pause manual effort here if unchanged by Day 30 and reallocate to top channel."
